@@ -11,7 +11,20 @@ class OrgController
         $this->model = new OrgModel();
     }
 
-    public function dashboard()       { require 'app/views/org/dashboard.php'; }
+    /**
+     * Retrieves dashboard statistics and activity from the model 
+     * and passes them to the dashboard view.
+     */
+    public function dashboard()
+    {
+        // 1. Fetch all dashboard data
+        $dashboard_data = $this->model->get_dashboard_stats();
+    
+        
+        // 3. Load the view (assuming variables defined locally are accessible)
+        require 'app/views/org/dashboard.php'; 
+    }
+
     public function sidebar()         { require 'app/views/org/sidebar.php'; }
 
     // Documents

@@ -36,7 +36,7 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
 /**
 * ------------------------------------------------------
-*  Class IO
+* Class IO
 * ------------------------------------------------------
  */
 Class Io {
@@ -140,7 +140,8 @@ Class Io {
 			}
 			return $get;
 		}
-		return $_GET[$index];
+		// FIX: Use null coalescing operator to safely access $_GET[$index]
+		return $_GET[$index] ?? NULL;
 	}
 
 	/**
