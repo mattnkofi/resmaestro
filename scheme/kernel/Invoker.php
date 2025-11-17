@@ -36,7 +36,7 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
 /**
 * ------------------------------------------------------
-*  Class Invoker
+* Class Invoker
 * ------------------------------------------------------
  */
 class Invoker {
@@ -234,12 +234,20 @@ class Invoker {
 			return;
 		}
 
-		$path = APP_DIR . "views/" . ($nested ? "{$module_or_nested}/{$nested}/" : '') . $file_name;
+		// FIX START: Correct path construction for views located in app/views/directory/file.php
+		$dir_path = $module_or_nested;
+		if ($nested) {
+			$dir_path .= "/" . $nested;
+		}
+		
+		$path = APP_DIR . "views/" . ($dir_path ? "{$dir_path}/" : '') . $file_name;
+		
 		if (file_exists($path)) {
 			require $path;
 			echo ob_get_clean();
 			return;
 		}
+        // FIX END
 
 		throw new RuntimeException("View {$view_file} not found in module or app/views");
 	}

@@ -4,26 +4,15 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 // The class must extend the base Controller class
 class OrgController extends Controller
 {
-    // The model will be loaded by the parent constructor into the framework's registry
     public function __construct() {
         parent::__construct();
-        // Load the model via the framework's invoker for correct instantiation
         $this->call->model('OrgModel');
     }
 
-    /**
-     * Retrieves dashboard statistics and activity from the model 
-     * and passes them to the dashboard view.
-     */
     public function dashboard()
     {
-        // 1. Fetch all dashboard data from the loaded model instance
         $stats = $this->OrgModel->get_dashboard_stats();
-        
-        // Mock activity data (as actual table isn't built yet)
         $recent_activity = [];
-        
-        // 2. Load the view using the standard framework method
         $this->call->view('org/dashboard', [
             'stats' => $stats,
             'recent_activity' => $recent_activity
@@ -39,13 +28,11 @@ class OrgController extends Controller
         $docs = $this->OrgModel->getAllDocuments(); 
         $this->call->view('org/documents/all', compact('docs')); 
     }
-    
+
     public function documents_upload() {
-        // Load helper for user ID retrieval and get reviewer list
         $this->call->helper('common');
-        $reviewers = $this->OrgModel->getPotentialReviewers();
         
-        // Fetch recent uploads for the view sidebar (if needed)
+        $reviewers = $this->OrgModel->getPotentialReviewers();
         $user_id = get_user_id();
         $recent_uploads = $this->OrgModel->getRecentUserUploads($user_id);
 
@@ -56,32 +43,32 @@ class OrgController extends Controller
     }
     
     public function documents_store() {
-        // FIX: Load libraries/helpers individually for robust dependency mapping
+        // Dependencies must be loaded explicitly for non-autoloaded components
         $this->call->library('Form_validation'); 
         $this->call->library('Upload'); 
-        // Load directory_helper for is_dir_usable and common_helper for flash messages
         $this->call->helper(['common', 'directory']); 
         
         $file_input_name = 'document_file';
-        // Use ROOT_DIR to create an absolute, reliable file system path for file operations
-        $upload_dir = ROOT_DIR . 'public/uploads/documents/';
-        $user_id = get_user_id(); // Assuming this helper returns the logged-in user's ID
+        $uploaded_file = $_FILES[$file_input_name] ?? null;
+        $upload_dir = ROOT_DIR . 'public/uploads/documents/'; 
+        $user_id = get_user_id(); 
 
-        // 0. Preliminary Check: Ensure the upload directory exists and is writable
+        // 0. Preliminary Checks (Folder and Validation Setup)
         if (!is_dir_usable($upload_dir)) {
-            set_flash_alert('danger', 'System error: Upload directory not found or is not writable. Check folder permissions (e.g., chmod 775) on: ' . $upload_dir);
+            set_flash_alert('danger', 'System error: Upload directory not found or is not writable. Check folder permissions.');
             redirect(BASE_URL . '/org/documents/upload');
             return;
         }
 
-        // 1. Validation (uses $this->form_validation after explicit load)
         $this->form_validation->name('title|Document Title')->required()->max_length(255);
         $this->form_validation->name('type|Document Type')->required();
         
-        if (empty($_FILES[$file_input_name]['name'])) {
-            $this->form_validation->set_error_message('', '%s is required', 'Document File');
+        if (empty($uploaded_file) || $uploaded_file['error'] === UPLOAD_ERR_NO_FILE) {
+             $this->form_validation->set_error_message('', '%s is required', 'Document File');
+        } elseif (isset($uploaded_file['error']) && $uploaded_file['error'] !== UPLOAD_ERR_OK) {
+             $this->form_validation->set_error_message('', 'File upload failed with error code: ' . $uploaded_file['error']);
         }
-
+        
         if (!$this->form_validation->run()) {
             $errors = $this->form_validation->errors();
             set_flash_alert('danger', $errors);
@@ -89,10 +76,11 @@ class OrgController extends Controller
             return;
         }
 
-        // 2. File Upload Logic (uses $this->upload after explicit load)
+        // 1. File Upload Execution
+        $this->upload->file = $uploaded_file; // Manually assign file data
         $this->upload->set_dir($upload_dir);
         $this->upload->allowed_extensions(['pdf', 'docx', 'xlsx', 'jpg', 'png']);
-        $this->upload->max_size(25); // 25 MB (As per guidelines in view)
+        $this->upload->max_size(25);
         $this->upload->encrypt_name(); 
 
         if (!$this->upload->do_upload(FALSE)) {
@@ -104,7 +92,7 @@ class OrgController extends Controller
         
         $uploaded_file_name = $this->upload->get_filename();
 
-        // 3. Database Insertion
+        // 2. Database Insertion
         $data = [
             'title'         => $this->io->post('title'),
             'type'          => $this->io->post('type'),
@@ -122,12 +110,11 @@ class OrgController extends Controller
             set_flash_alert('success', 'Document "' . htmlspecialchars($data['title']) . '" uploaded successfully and submitted for review.');
             redirect(BASE_URL . '/org/documents/pending');
         } else {
-            // Note: In a real app, delete file if DB insertion fails
-            set_flash_alert('danger', 'Document uploaded but failed to save record in database.');
+            set_flash_alert('danger', 'Document uploaded but failed to save record in database. Please contact IT.');
             redirect(BASE_URL . '/org/documents/upload');
         }
     }
-    
+
     public function documents_pending() { 
         $docs = $this->OrgModel->getPendingDocuments(); 
         $this->call->view('org/documents/pending', compact('docs')); 
