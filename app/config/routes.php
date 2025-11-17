@@ -24,7 +24,10 @@ $router->get('/org/sidebar', 'OrgController::sidebar');
 
 // Documents
 $router->get('/org/documents/all', 'OrgController::documents_all');
+// Upload
 $router->get('/org/documents/upload', 'OrgController::documents_upload');
+$router->post('/org/documents/store', 'OrgController::documents_store');
+
 $router->get('/org/documents/pending', 'OrgController::documents_pending');
 $router->get('/org/documents/approved', 'OrgController::documents_approved');
 $router->get('/org/documents/rejected', 'OrgController::documents_rejected');

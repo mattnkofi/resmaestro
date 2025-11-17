@@ -51,7 +51,15 @@
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
+
+    if (function_exists('flash_alert')) flash_alert();
+
+    $reviewers = $reviewers ?? [];
+    $recent_uploads = $recent_uploads ?? [];
+    $mock_user_name = $_SESSION['user_name'] ?? 'User Name'; 
+    $mock_user_role = $_SESSION['user_role'] ?? 'Organization Admin';
     ?>
+
 
     <!-- START SIDEBAR CONTENT -->
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
@@ -210,10 +218,10 @@
                         <select id="type" name="type" 
                                 class="w-full bg-green-900 border border-green-800 p-3 rounded-lg focus:ring-green-500 focus:border-green-500 transition text-green-100">
                             <option value="report">Financial Report</option>
-                            <option value="policy">Internal Policy/SOP</option>
-                            <option value="legal">Legal Document</option>
+                            <option value="policy">Budgetary Report</option>
+                            <option value="legal">Accomplishment Report</option>
                             <option value="proposal">Project Proposal</option>
-                            <option value="marketing">Marketing Material</option>
+                            <option value="marketing">Legal Document</option>
                             <option value="hr">HR Document</option>
                             <option value="other">Other</option>
                         </select>
@@ -242,9 +250,16 @@
                         <select id="reviewer" name="reviewer" 
                                 class="w-full bg-green-900 border border-green-800 p-3 rounded-lg focus:ring-green-500 focus:border-green-500 transition text-green-100">
                             <option value="">No Reviewer Assigned</option>
-                            <option value="user1">Jane Doe (Finance Dept.)</option>
-                            <option value="user2">John Smith (Legal Dept.)</option>
-                            <option value="user3">Admin User</option>
+                            <?php 
+                            // Loop over the $reviewers array passed from the controller
+                            $reviewers = $reviewers ?? [];
+                            if (!empty($reviewers)): 
+                                foreach($reviewers as $reviewer): ?>
+                                    <option value="<?= $reviewer['id'] ?>">
+                                        <?= htmlspecialchars($reviewer['fname'] . ' ' . $reviewer['lname']) ?> (<?= htmlspecialchars($reviewer['email']) ?>)
+                                    </option>
+                                <?php endforeach; 
+                            endif; ?>
                         </select>
                     </div>
 
@@ -287,26 +302,44 @@
 
                 <!-- Recent Uploads / Drafts Section -->
                 <div class="bg-green-950/50 p-8 rounded-xl border border-green-800 shadow-2xl shadow-green-900/10">
-                    <h2 class="text-xl font-bold text-green-300 mb-4 flex items-center gap-2">
+                    <h2 class="text-xl font-bold text-green-300 mb-5 flex items-center gap-2"> 
                         <i class="fa-solid fa-history text-green-500"></i> Your Recent Uploads / Drafts
-                    </h2>
-                    <ul class="space-y-3 text-gray-300">
-                        <li class="flex justify-between items-center bg-green-900/30 p-3 rounded-lg hover:bg-green-900/50 transition">
-                            <span><i class="fa-solid fa-file-pdf mr-2 text-red-400"></i> Budget Proposal 2024</span>
-                            <span class="text-sm text-yellow-400">Pending</span>
-                        </li>
-                        <li class="flex justify-between items-center bg-green-900/30 p-3 rounded-lg hover:bg-green-900/50 transition">
-                            <span><i class="fa-solid fa-file-word mr-2 text-blue-400"></i> Marketing Strategy Draft</span>
-                            <span class="text-sm text-gray-400">Draft</span>
-                        </li>
-                        <li class="flex justify-between items-center bg-green-900/30 p-3 rounded-lg hover:bg-green-900/50 transition">
-                            <span><i class="fa-solid fa-file-excel mr-2 text-green-400"></i> Q3 Sales Data</span>
-                            <span class="text-sm text-green-400">Approved</span>
-                        </li>
-                    </ul>
-                    <a href="#" class="mt-4 inline-block text-green-400 hover:text-green-300 text-sm">View all my documents <i class="fa-solid fa-arrow-right ml-1"></i></a>
-                </div>
-            </div>
+                    </h2>
+                    <ul class="space-y-3 text-gray-300">
+                        <?php 
+                        $recent_uploads = $recent_uploads ?? []; 
+                        if (empty($recent_uploads)): ?>
+                            <div class="p-4 text-center border border-dashed border-green-700/50 rounded-lg text-gray-500">
+                                <i class="fa-solid fa-file-circle-exclamation text-2xl mb-2"></i>
+                                <p class="text-sm">No recent uploads or drafts found.</p>
+                                <p class="text-xs mt-1">Start by uploading your first document above.</p>
+                            </div>
+                        <?php else: 
+                            foreach ($recent_uploads as $upload):
+                                $icon = match($upload['type'] ?? '') { 
+                                    'report' => 'fa-file-excel text-green-400',
+                                    'policy' => 'fa-file-word text-blue-400',
+                                    'legal' => 'fa-file-gavel text-red-400',
+                                    'proposal' => 'fa-file-alt text-yellow-400',
+                                    default => 'fa-file text-gray-400',
+                                };
+                                $status_color = match($upload['status'] ?? '') {
+                                    'Pending Review' => 'text-yellow-400',
+                                    'Approved' => 'text-green-400',
+                                    'Draft' => 'text-gray-400',
+                                    default => 'text-red-400',
+                                };
+                            ?>
+                            <li class="flex justify-between items-center bg-green-900/30 p-3 rounded-lg hover:bg-green-900/50 transition">
+                                <span><i class="fa-solid <?= $icon ?> mr-2"></i> <?= htmlspecialchars($upload['title']) ?></span>
+                                <span class="text-sm <?= $status_color ?>"><?= htmlspecialchars($upload['status']) ?></span>
+                            </li>
+                            <?php endforeach; 
+                        endif; ?>
+                    </ul>
+                    <a href="<?=BASE_URL?>/org/documents/all" class="mt-4 inline-block text-green-400 hover:text-green-300 text-sm">View all my documents <i class="fa-solid fa-arrow-right ml-1"></i></a>
+                </div>
+            </div>
 
         </div> <!-- End Main Grid -->
     </div> <!-- End Main Content Area -->

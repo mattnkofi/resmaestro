@@ -1,65 +1,100 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 
+// Ensure the parent class is correctly loaded if needed, though usually autoloaded in full framework setup
 require_once SYSTEM_DIR . 'kernel/Model.php';
 
 class OrgModel extends Model
 {
+    // The base Model constructor handles database initialization
     public function __construct() {
         parent::__construct();
-        $this->call->database();
+        // Explicitly calling database is redundant if autoloaded, but kept if you prefer explicit access
+        // $this->call->database();
     }
 
     /**
      * Fetches all core statistics and activity needed for the Organization Dashboard.
-     * Uses explicit RAW queries for parameterized counts to ensure correct binding.
      * @return array
      */
     public function get_dashboard_stats()
     {
+        // This logic is designed to pull real counts from the database tables defined earlier
         $stats = [];
-                
-        // 1. Total Documents (Non-parameterized query builder is safe)
-        $stats['total_documents'] = $this->db->table('documents')->count();
-        
-        // 2. Pending Reviews (Uses RAW to guarantee correct binding)
-        $pending_query = "SELECT COUNT(*) AS count FROM documents WHERE status = ?";
-        $stats['pending_reviews'] = $this->db->raw($pending_query, ['Pending Review'])->fetch()['count'];
-        
-        // 3. Approved Documents (Uses RAW to guarantee correct binding)
-        $approved_query = "SELECT COUNT(*) AS count FROM documents WHERE status = ?";
-        $stats['approved_documents'] = $this->db->raw($approved_query, ['Approved'])->fetch()['count'];
-        
-        // 4. New Members (Joined in the last 7 days - Uses RAW to guarantee correct binding)
         $seven_days_ago = date('Y-m-d H:i:s', strtotime('-7 days'));
-        $new_members_query = "SELECT COUNT(*) AS count FROM users WHERE created_at >= ?";
-        $stats['new_members'] = $this->db->raw($new_members_query, [$seven_days_ago])->fetch()['count'];
-        }
-    
-    // Placeholder methods updated to use raw queries for robustness:
-    public function getAllDocuments() {
-        return $this->db->table('documents')->get_all();
+                
+        $stats['total_documents']    = $this->db->table('documents')->count();
+        $stats['pending_reviews']    = $this->db->table('documents')->where('status', 'Pending Review')->count();
+        $stats['approved_documents'] = $this->db->table('documents')->where('status', 'Approved')->count();
+        $stats['new_members']        = $this->db->table('users')->where('created_at', '>=', $seven_days_ago)->count();
+        
+        return $stats;
     }
+
+    /**
+     * Fetches all documents with necessary columns for the All Documents view.
+     * @return array
+     */
+    public function getAllDocuments() {
+        // SQL: SELECT title, type, status FROM documents
+        return $this->db->table('documents')
+                        ->select('title, type, status') 
+                        ->get_all(); 
+    }
+
+    /**
+     * Fetches documents with the 'Pending Review' status.
+     * @return array
+     */
+    public function getPotentialReviewers() {
+        // Assuming users can be identified by their full name and email for the dropdown
+        return $this->db->table('users')
+                        ->select('id, fname, lname, email') 
+                        ->order_by('lname', 'ASC')
+                        ->get_all();
+    }
+
+    public function insertDocument(array $data) {
+        $this->db->table('documents')->insert($data);
+        return $this->db->last_id();
+    }
+
 
     public function getPendingDocuments() {
-        return array_filter($this->getAllDocuments(), fn($d)=>$d['status']=='Pending');
+        return $this->db->table('documents')->where('status', 'Pending Review')->get_all();
     }
-    public function getApprovedDocuments() {
-        return array_filter($this->getAllDocuments(), fn($d)=>$d['status']=='Approved');
-    }
-    public function getRejectedDocuments() {
-        return array_filter($this->getAllDocuments(), fn($d)=>$d['status']=='Rejected');
-    }
-    public function getArchivedDocuments() {
-        return []; // example
-    }
-
-    // Mock functions remain for tables we haven't created yet:
-    public function getMembers() { return []; } 
-    public function getDepartments() { return []; } 
-    public function getRoles() { return []; }
     
-    public function getPendingReviews()  { return []; } 
-    public function getReviewHistory()   { return []; }
-    public function getComments()        { return []; }
+    /**
+     * Fetches documents with the 'Approved' status.
+     * @return array
+     */
+    public function getApprovedDocuments() {
+        return $this->db->table('documents')->where('status', 'Approved')->get_all();
+    }
+    
+    /**
+     * Fetches documents with the 'Rejected' status.
+     * @return array
+     */
+    public function getRejectedDocuments() {
+        return $this->db->table('documents')->where('status', 'Rejected')->get_all();
+    }
+    
+    /**
+     * Fetches archived documents (assuming 'deleted_at' is NOT NULL).
+     * @return array
+     */
+    public function getArchivedDocuments() {
+        // Assuming archived means soft-deleted for now
+        return $this->db->table('documents')->where_not_null('deleted_at')->get_all();
+    }
+    
+    // Placeholder methods updated to return empty array or query builder for now
+    public function getPendingReviews()  { return $this->db->table('documents')->where('status', 'Pending Review')->get_all(); } 
+    public function getReviewHistory()   { return $this->db->table('reviews')->get_all(); } // Needs 'reviews' table
+    public function getComments()        { return $this->db->table('comments')->get_all(); } // Needs 'comments' table
+
+    public function getMembers() { return $this->db->table('users')->select('id, fname, lname, email')->get_all(); } 
+    public function getDepartments() { return $this->db->table('departments')->get_all(); } // Needs 'departments' table
+    public function getRoles() { return $this->db->table('roles')->get_all(); } // Needs 'roles' table
 }
