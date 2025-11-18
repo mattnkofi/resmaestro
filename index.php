@@ -1,4 +1,9 @@
 <?php
+// --- START UPLOAD LIMIT OVERRIDE (Must be FIRST thing in index.php) ---
+ini_set('upload_max_filesize', '32M');
+ini_set('post_max_size', '32M');
+ini_set('memory_limit', '256M'); // Increase memory limit as a precaution
+// --- END UPLOAD LIMIT OVERRIDE ---
 define('PREVENT_DIRECT_ACCESS', TRUE);
 /**
  * ------------------------------------------------------------------
@@ -6,10 +11,8 @@ define('PREVENT_DIRECT_ACCESS', TRUE);
  * ------------------------------------------------------------------
  *
  * MIT License
- * 
- * Copyright (c) 2020 Ronald M. Marasigan
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * * Copyright (c) 2020 Ronald M. Marasigan
+ * * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
@@ -42,8 +45,7 @@ define('PREVENT_DIRECT_ACCESS', TRUE);
  *
  * This variable must contain the name of your "scheme" directory.
  * Set the path if it is not in the same directory as this file.
- * 
- * NO TRAILING SLASH!
+ * * NO TRAILING SLASH!
  */
 	$system_path 			= 'scheme';
 

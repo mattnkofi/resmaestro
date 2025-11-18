@@ -175,7 +175,12 @@ class Auth extends Controller
             }
             $_SESSION['user_id'] = $user->id;
             $_SESSION['username'] = $user->username;
-            $_SESSION['is_logged_in'] = true; 
+            // --- MODIFICATION START ---
+            // Assuming the $user object fetched from the AuthModel contains 'fname', 'lname', and 'role' fields.
+            $_SESSION['user_name'] = $user->fname . ' ' . $user->lname;
+            $_SESSION['user_role'] = $user->role ?? 'Organization Member'; // Default to Member if role field is missing
+            // --- MODIFICATION END ---
+            $_SESSION['is_logged_in'] = true;
             
             // --- CRITICAL FIX: Ensures session data is saved before redirect ---
             if (function_exists('session_write_close')) {

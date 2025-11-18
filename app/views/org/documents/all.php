@@ -12,15 +12,15 @@
     <style>
         /* Custom scrollbar styling for a cleaner dark theme look */
         .document-table-container::-webkit-scrollbar {
-            width: 8px;
-        }
+            width: 8px;
+        }
         .document-table-container::-webkit-scrollbar-thumb {
-            background-color: #047857; /* Emerald-600 for the thumb */
-            border-radius: 4px;
-        }
+            background-color: #047857; /* Emerald-600 for the thumb */
+            border-radius: 4px;
+        }
         .document-table-container::-webkit-scrollbar-track {
-            background-color: #0f1511; /* Darker track */
-        }
+            background-color: #0f1511; /* Darker track */
+    }
         /* Explicitly apply Poppins via standard CSS */
         body { font-family: 'Poppins', sans-serif; }
 

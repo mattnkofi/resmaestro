@@ -6,7 +6,6 @@
     <title>Upload Document - Maestro UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <!-- Poppins Font Import -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script>
@@ -31,14 +30,12 @@
         /* Explicitly apply Poppins via standard CSS */
         body { font-family: 'Poppins', sans-serif; }
         
-        /* Sidebar Custom Styles (for consistency) */
         .maestro-bg { background-color: #0b0f0c; } 
         .green-primary { color: #10b981; } 
         .green-secondary { color: #34d399; } 
         .dark-bg-subtle { background-color: #0d1310; } 
     </style>
 </head>
-<!-- Applying font-poppins explicitly to the body tag -->
 <body class="bg-maestro-bg text-white font-poppins" x-data="{}">
 
     <?php 
@@ -61,17 +58,15 @@
     ?>
 
 
-    <!-- START SIDEBAR CONTENT -->
-    <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
+    <!--<aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
-            <!-- Placeholder for logo image -->
             <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
             <h1 class="text-2xl font-bold text-green-400 tracking-wider">MAESTRO</h1>
         </div>
 
         <nav class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
 
-            <div>
+            <!<div>
                 <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">Main</h2>
                 <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition
                     <?= $current_uri == BASE_URL.'/org/dashboard' ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">
@@ -80,7 +75,6 @@
                 </a>
             </div>
 
-            <!-- Documents Dropdown -->
             <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -99,7 +93,6 @@
                 </div>
             </div>
 
-            <!-- Review & Workflow Dropdown -->
             <div x-data='{ open: <?= $is_review_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -115,7 +108,6 @@
                 </div>
             </div>
 
-            <!-- Organization Dropdown -->
             <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -132,7 +124,6 @@
                 </div>
             </div>
             
-            <!-- Reports Dropdown -->
             <div x-data='{ open: <?= $is_reports_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -166,7 +157,6 @@
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <!-- Placeholder for user image -->
                         <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
@@ -187,24 +177,17 @@
         <div class="border-t border-green-800 p-3 text-xs text-gray-500 text-center">
             Maestro Organization © <?=date('Y')?>
         </div>
-    </aside>
-    <!-- END SIDEBAR CONTENT -->
-
-    <!-- Main Content Area (offset by sidebar) -->
+    </aside> -->
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         
-        <!-- Header -->
         <h1 class="text-3xl font-bold text-green-400 mb-8">Upload New Document</h1>
         
-        <!-- Main Grid for Form and Additional Content -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
-            <!-- Left Column: Document Upload Form -->
             <div>
                 <form action="<?=BASE_URL?>/org/documents/store" method="POST" enctype="multipart/form-data" 
                     class="bg-green-950/50 p-8 rounded-xl space-y-6 max-w-2xl border border-green-800 shadow-2xl shadow-green-900/10">
 
-                    <!-- Title Input -->
                     <div>
                         <label for="title" class="block mb-2 text-sm font-medium text-gray-300">Document Title</label>
                         <input type="text" id="title" name="title" 
@@ -212,22 +195,19 @@
                                placeholder="e.g., Q4 Financial Report, Internal Policy Update v2.0" required>
                     </div>
 
-                    <!-- Type Selector -->
                     <div>
                         <label for="type" class="block mb-2 text-sm font-medium text-gray-300">Document Type</label>
                         <select id="type" name="type" 
                                 class="w-full bg-green-900 border border-green-800 p-3 rounded-lg focus:ring-green-500 focus:border-green-500 transition text-green-100">
-                            <option value="report">Financial Report</option>
-                            <option value="policy">Budgetary Report</option>
-                            <option value="legal">Accomplishment Report</option>
-                            <option value="proposal">Project Proposal</option>
-                            <option value="marketing">Legal Document</option>
-                            <option value="hr">HR Document</option>
-                            <option value="other">Other</option>
+                            <option value="Finance">Financial Report</option>
+                            <option value="Budget">Budgetary Report</option>
+                            <option value="Accomplishmeent">Accomplishment Report</option>
+                            <option value="Proposal">Project Proposal</option>
+                            <option value="Legal">Legal Document</option>
+                            <option value="Other">Other</option>
                         </select>
                     </div>
 
-                    <!-- File Input -->
                     <div>
                         <label for="file" class="block mb-2 text-sm font-medium text-gray-300">Select File (PDF, DOCX, XLSX, JPG)</label>
                         <input type="file" id="file" name="document_file" required
@@ -236,7 +216,6 @@
                                       file:bg-green-700 file:text-white hover:file:bg-green-600 transition duration-150">
                     </div>
 
-                    <!-- Tags/Keywords Input (New Field) -->
                     <div>
                         <label for="tags" class="block mb-2 text-sm font-medium text-gray-300">Tags / Keywords (comma-separated)</label>
                         <input type="text" id="tags" name="tags" 
@@ -244,7 +223,6 @@
                                placeholder="e.g., Q4, Finance, 2024, Report">
                     </div>
 
-                    <!-- Reviewer Assignment (New Field) -->
                     <div>
                         <label for="reviewer" class="block mb-2 text-sm font-medium text-gray-300">Assign Reviewer (Optional)</label>
                         <select id="reviewer" name="reviewer" 
@@ -263,7 +241,6 @@
                         </select>
                     </div>
 
-                    <!-- Description Textarea -->
                     <div>
                         <label for="description" class="block mb-2 text-sm font-medium text-gray-300">Description / Summary</label>
                         <textarea id="description" name="description" 
@@ -271,7 +248,6 @@
                                   rows="4" placeholder="Provide a brief summary and context for this document, including any important notes for reviewers."></textarea>
                     </div>
                     
-                    <!-- Submit Button -->
                     <div class="pt-2">
                         <button type="submit" class="w-full bg-green-700 px-6 py-3 rounded-xl hover:bg-green-600 font-bold text-lg transition shadow-lg shadow-green-900/40">
                             <i class="fa-solid fa-cloud-arrow-up mr-2"></i> Upload Document
@@ -280,9 +256,7 @@
                 </form>
             </div>
 
-            <!-- Right Column: Instructions and Recent Activity -->
             <div class="space-y-8">
-                <!-- Upload Guidelines Section -->
                 <div class="bg-green-950/50 p-8 rounded-xl border border-green-800 shadow-2xl shadow-green-900/10">
                     <h2 class="text-xl font-bold text-green-300 mb-4 flex items-center gap-2">
                         <i class="fa-solid fa-circle-info text-green-500"></i> Upload Guidelines
@@ -300,7 +274,6 @@
                     </p>
                 </div>
 
-                <!-- Recent Uploads / Drafts Section -->
                 <div class="bg-green-950/50 p-8 rounded-xl border border-green-800 shadow-2xl shadow-green-900/10">
                     <h2 class="text-xl font-bold text-green-300 mb-5 flex items-center gap-2"> 
                         <i class="fa-solid fa-history text-green-500"></i> Your Recent Uploads / Drafts
@@ -341,8 +314,5 @@
                 </div>
             </div>
 
-        </div> <!-- End Main Grid -->
-    </div> <!-- End Main Content Area -->
-
-</body>
+        </div> </div> </body>
 </html>

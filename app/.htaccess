@@ -1,6 +1,21 @@
-<IfModule authz_core_module>
-    Require all denied
+# --- START PHP UPLOAD FIX ---
+# Set the PHP values higher than the required 25MB limit
+php_value upload_max_filesize 32M
+php_value post_max_size 32M
+# --- END PHP UPLOAD FIX ---
+
+# Directives to ensure proper routing in the LavaLust framework
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php/$1 [L]
 </IfModule>
-<IfModule !authz_core_module>
-    Deny from all
-</IfModule>
+
+# Ensure PHP files are executed (optional, but good practice)
+<FilesMatch "\.php$">
+    SetHandler application/x-httpd-php
+</FilesMatch>
+
+# Optional security to prevent listing of files
+Options -Indexes

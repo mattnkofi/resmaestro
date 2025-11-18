@@ -43,6 +43,11 @@ class OrgController extends Controller
     }
     
     public function documents_store() {
+
+        ini_set('upload_max_filesize', '64M');
+        ini_set('post_max_size', '64M');
+        ini_set('memory_limit', '512M');
+        ini_set('max_execution_time', '300');
         // Dependencies must be loaded explicitly for non-autoloaded components
         $this->call->library('Form_validation'); 
         $this->call->library('Upload'); 
@@ -77,11 +82,30 @@ class OrgController extends Controller
         }
 
         // 1. File Upload Execution
-        $this->upload->file = $uploaded_file; // Manually assign file data
+        $allowed_mimes = [
+            // PDF
+            'application/pdf', 
+            // DOCX, XLSX (Microsoft Office Open XML formats)
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            // Legacy Microsoft Office formats (good for compatibility)
+            'application/msword', 
+            'application/vnd.ms-excel',
+            // Image formats (JPG, PNG)
+            'image/jpeg', 
+            'image/pjpeg', // Alternate JPEG MIME type
+            'image/png', 
+        ];
+
+        $this->upload->file = $uploaded_file; 
         $this->upload->set_dir($upload_dir);
+        
+        // Use both extension and the comprehensive MIME list
         $this->upload->allowed_extensions(['pdf', 'docx', 'xlsx', 'jpg', 'png']);
+        $this->upload->allowed_mimes($allowed_mimes); // <-- This prevents the MIME Type error
+        
         $this->upload->max_size(25);
-        $this->upload->encrypt_name(); 
+        $this->upload->encrypt_name();
 
         if (!$this->upload->do_upload(FALSE)) {
             $errors = implode(' ', $this->upload->get_errors());
