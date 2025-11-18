@@ -58,7 +58,7 @@
     ?>
 
 
-    <!--<aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
+    <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
             <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
             <h1 class="text-2xl font-bold text-green-400 tracking-wider">MAESTRO</h1>
@@ -177,7 +177,7 @@
         <div class="border-t border-green-800 p-3 text-xs text-gray-500 text-center">
             Maestro Organization © <?=date('Y')?>
         </div>
-    </aside> -->
+    </aside>
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         
         <h1 class="text-3xl font-bold text-green-400 mb-8">Upload New Document</h1>
@@ -201,7 +201,7 @@
                                 class="w-full bg-green-900 border border-green-800 p-3 rounded-lg focus:ring-green-500 focus:border-green-500 transition text-green-100">
                             <option value="Finance">Financial Report</option>
                             <option value="Budget">Budgetary Report</option>
-                            <option value="Accomplishmeent">Accomplishment Report</option>
+                            <option value="Accomplishment">Accomplishment Report</option>
                             <option value="Proposal">Project Proposal</option>
                             <option value="Legal">Legal Document</option>
                             <option value="Other">Other</option>

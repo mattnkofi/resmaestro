@@ -6,7 +6,6 @@
     <title>Approved Documents - Maestro UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <!-- Poppins Font Import -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script>
@@ -31,7 +30,6 @@
         body { font-family: 'Poppins', sans-serif; }
     </style>
 </head>
-<!-- Applying font-poppins explicitly to the body tag -->
 <body class="bg-maestro-bg text-white font-poppins" x-data="{}">
 
     <?php 
@@ -44,17 +42,14 @@
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
-    ?>
 
-    <!-- 
-        NOTE: The mock fixed sidebar has been replaced with the actual sidebar content 
-        you provided, injected with PHP to maintain the open/closed state of dropdowns 
-        across page loads.
-    -->
+    // FIX: Initialize filter variables (passed from OrgController)
+    $q = $q ?? '';
+    $type = $type ?? '';
+    ?>
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
-            <!-- Mock Logo path for Canvas preview -->
             <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
             <h1 class="text-2xl font-bold text-green-400 tracking-wider">MAESTRO</h1>
         </div>
@@ -70,7 +65,6 @@
                 </a>
             </div>
 
-            <!-- Documents Dropdown -->
             <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -89,7 +83,6 @@
                 </div>
             </div>
 
-            <!-- Review & Workflow Dropdown -->
             <div x-data='{ open: <?= $is_review_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -105,7 +98,6 @@
                 </div>
             </div>
 
-            <!-- Organization Dropdown -->
             <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -122,7 +114,6 @@
                 </div>
             </div>
             
-            <!-- Reports Dropdown -->
             <div x-data='{ open: <?= $is_reports_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -156,7 +147,6 @@
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <!-- Placeholder for user image -->
                         <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
@@ -179,67 +169,82 @@
         </div>
     </aside>
 
-    <!-- Main Content Area -->
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         
         <h1 class="text-3xl font-bold text-green-400 mb-6 tracking-wide">
             Approved Documents
         </h1>
 
-        <!-- Optional: Filter Bar for Approved Documents -->
-        <div class="flex flex-col md:flex-row gap-4 mb-8">
-            <input type="text" placeholder="Search approved documents..." 
-                   class="w-full md:w-1/3 bg-green-900 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-green-100">
-            <select class="w-full md:w-1/6 bg-green-900 border border-green-800 p-3 rounded-xl text-green-100">
-                <option>Filter by Approver</option>
-                <option>Admin User</option>
-                <option>Jane Doe</option>
-                <option>John Smith</option>
-            </select>
-            <button class="bg-green-700 hover:bg-green-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-green-900/40">
-                <i class="fa-solid fa-search mr-2"></i> Search
+        <form method="GET" action="<?= BASE_URL ?>/org/documents/approved">
+            <div class="flex flex-col md:flex-row gap-4 mb-8">
+                <input type="text" name="q" placeholder="Search by title or approver..." 
+                       value="<?= html_escape($q) ?>"
+                       class="w-full md:w-1/3 bg-green-900 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-green-100">
+                
+                <select name="type" class="w-full md:w-1/6 bg-green-900 border border-green-800 p-3 rounded-xl text-green-100">
+                    <option value="">Filter by Type</option>
+                    <?php 
+                    $doc_types = ['Report', 'Policy', 'Legal', 'Project Proposal', 'HR Document', 'Marketing'];
+                    foreach ($doc_types as $doc_type): ?>
+                        <option value="<?= html_escape(strtolower($doc_type)) ?>" 
+                            <?= (strtolower($doc_type) === strtolower($type)) ? 'selected' : '' ?>>
+                            <?= $doc_type ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <button type="submit" class="bg-green-700 hover:bg-green-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-green-900/40">
+                    <i class="fa-solid fa-filter mr-2"></i> Apply Filters
+                </button>
+                
+                <?php if (!empty($q) || !empty($type)): ?>
+                    <a href="<?= BASE_URL ?>/org/documents/approved" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
+                        <i class="fa-solid fa-xmark mr-2"></i> Clear
+                    </a>
+                <?php endif; ?>
+            </div>
+        </form>
+        <div class="space-y-4">
+    <?php
+    // Use the real data passed from the controller
+    $docs = $approved_docs ?? [];
+    
+    foreach($docs as $doc): 
+        // Use the approver's name from the JOIN
+        $approver_name = html_escape($doc['approver_fname'] . ' ' . $doc['approver_lname']);
+        
+        // FIX: Use 'created_at' field which is guaranteed to exist.
+        $approved_date = date('M d, Y', strtotime($doc['created_at']));
+    ?>
+    <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-green-900/40 transition">
+        <div class="flex flex-col mb-2 md:mb-0">
+            <span class="text-lg font-semibold text-green-200"><?= html_escape($doc['title']) ?></span>
+            <span class="text-sm text-gray-400">Type: <?= html_escape(ucwords($doc['type'])) ?></span>
+        </div>
+        <div class="flex items-center space-x-6">
+            <div class="text-right hidden sm:block">
+                <span class="block text-xs text-gray-500">Approved By: <?= $approver_name ?></span>
+                <span class="block text-sm text-green-400 font-medium">Date: <?= $approved_date ?></span>
+            </div>
+            <a href="<?=BASE_URL?>/public/uploads/documents/<?= urlencode($doc['file_name']) ?>" 
+               target="_blank" 
+               class="bg-green-700 hover:bg-green-600 px-4 py-2 rounded-lg text-sm transition">
+                <i class="fa-solid fa-download mr-1"></i> Download
+            </a>
+            <button class="text-gray-500 hover:text-green-300 transition text-sm">
+                <i class="fa-solid fa-share-nodes"></i>
             </button>
         </div>
+    </div>
+    <?php endforeach; ?>
 
-        <!-- Approved Documents List (Dynamic Cards) -->
-        <div class="space-y-4">
-            <?php
-            // Mock data to demonstrate the loop and detailed card styling
-            $approved_docs = [
-                ['title' => 'Annual Financial Statement 2024', 'type' => 'Report', 'approver' => 'Admin User', 'date' => 'Oct 28, 2025'],
-                ['title' => 'Community Event Plan V1.0', 'type' => 'Marketing', 'approver' => 'Jane Doe', 'date' => 'Oct 30, 2025'],
-                ['title' => 'Quarterly HR Policy Update', 'type' => 'Policy', 'approver' => 'John Smith', 'date' => 'Nov 1, 2025'],
-            ];
-
-            foreach($approved_docs as $doc): ?>
-            <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-green-900/40 transition">
-                <div class="flex flex-col mb-2 md:mb-0">
-                    <span class="text-lg font-semibold text-green-200"><?= $doc['title'] ?></span>
-                    <span class="text-sm text-gray-400">Type: <?= $doc['type'] ?></span>
-                </div>
-                <div class="flex items-center space-x-6">
-                    <div class="text-right hidden sm:block">
-                        <span class="block text-xs text-gray-500">Approved By: <?= $doc['approver'] ?></span>
-                        <span class="block text-sm text-green-400 font-medium">Date: <?= $doc['date'] ?></span>
-                    </div>
-                    <button class="bg-green-700 hover:bg-green-600 px-4 py-2 rounded-lg text-sm transition">
-                        <i class="fa-solid fa-download mr-1"></i> Download
-                    </button>
-                    <button class="text-gray-500 hover:text-green-300 transition text-sm">
-                        <i class="fa-solid fa-share-nodes"></i>
-                    </button>
-                </div>
-            </div>
-            <?php endforeach; ?>
-            
-            <!-- No Data Placeholder (for completeness) -->
-            <?php if (empty($approved_docs)): ?>
-            <div class="p-8 text-center text-gray-500 bg-green-950/50 rounded-xl border border-green-800">
-                <i class="fa-solid fa-check-circle text-4xl mb-3 text-green-500"></i>
-                <p class="text-lg">No documents have been approved yet.</p>
-            </div>
-            <?php endif; ?>
-        </div>
+    <?php if (empty($docs)): ?>
+    <div class="p-8 text-center text-gray-500 bg-green-950/50 rounded-xl border border-green-800">
+        <i class="fa-solid fa-check-circle text-4xl mb-3 text-green-500"></i>
+        <p class="text-lg">No documents match the current filters or have been approved yet.</p>
+    </div>
+    <?php endif; ?>
+</div>
 
     </div>
 

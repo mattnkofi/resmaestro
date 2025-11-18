@@ -139,14 +139,96 @@ class OrgController extends Controller
         }
     }
 
+    public function update_document_status() {
+        // Load dependencies for common tasks (flash messages, user info, redirect)
+        $this->call->helper('common');
+        
+        // 1. Get POST data
+        $doc_id = $this->io->post('document_id');
+        $new_status = $this->io->post('new_status');
+        $doc_title = $this->io->post('document_title') ?? 'Document'; // Optional title for messages
+        
+        // Safety check
+        if (!is_logged_in() || empty($doc_id) || empty($new_status)) {
+            set_flash_alert('danger', 'Invalid action or missing document data. Please log in.');
+            redirect(BASE_URL . '/org/documents/pending');
+            return;
+        }
+
+        $data_to_update = [
+            'status' => $new_status,
+        ];
+
+        // If the status is one that requires a recorded action (Approved/Rejected), set the reviewer
+        if (in_array($new_status, ['Approved', 'Rejected'])) {
+            $data_to_update['reviewer_id'] = get_user_id();
+            // Note: Since 'approved_at' is missing, we rely on the database's 
+            // general 'updated_at' or 'modified_at' column to record the time.
+        }
+        
+        // 2. Call Model to update
+        $success = $this->OrgModel->updateDocument((int)$doc_id, $data_to_update);
+        
+        // 3. Handle response and redirect
+        if ($success) {
+            $message = "Status for '{$doc_title}' successfully changed to {$new_status}.";
+            set_flash_alert('success', $message);
+            
+            // Redirect to the list corresponding to the new status (e.g., Approved Documents)
+            $redirect_segment = strtolower(str_replace(' ', '', $new_status));
+            redirect(BASE_URL . '/org/documents/' . $redirect_segment);
+        } else {
+            set_flash_alert('danger', 'Failed to update document status in the database.');
+            redirect(BASE_URL . '/org/documents/pending'); 
+        }
+    } 
+
     public function documents_pending() { 
-        $docs = $this->OrgModel->getPendingDocuments(); 
-        $this->call->view('org/documents/pending', compact('docs')); 
+        // 1. Get filter input from URL
+        $q = $this->io->get('q'); 
+        $type = $this->io->get('type'); 
+        
+        // 2. Pass filters to the model
+        $docs = $this->OrgModel->getPendingDocuments($q, $type); 
+        
+        // 3. Pass results AND filters back to the view
+        // The view uses $q and $type to retain values in the form fields.
+        $this->call->view('org/documents/pending', [
+            'docs' => $docs,
+            'q' => $q, 
+            'type' => $type
+        ]); 
     }
-    public function documents_approved(){ 
-        $docs = $this->OrgModel->getApprovedDocuments(); 
-        $this->call->view('org/documents/approved', compact('docs')); 
+
+    public function documents_approved() { 
+        // 1. Get filter input from URL
+        $q = $this->io->get('q'); 
+        $type = $this->io->get('type'); 
+        
+        // 2. Call model with filters
+        $approved_docs = $this->OrgModel->getApprovedDocuments($q, $type); 
+        
+        // 3. Pass results AND filters back to the view
+        $this->call->view('org/documents/approved', [
+            'approved_docs' => $approved_docs,
+            'q' => $q, 
+            'type' => $type
+        ]); 
     }
+
+    public function documents_review($doc_id) {
+        // You'll need a method in OrgModel to fetch a single document by ID
+        $doc = $this->OrgModel->getDocumentById((int)$doc_id); 
+
+        if (empty($doc)) {
+            set_flash_alert('danger', 'Document not found.');
+            redirect(BASE_URL . '/org/documents/pending');
+            return;
+        }
+
+        $this->call->view('org/documents/review_detail', ['doc' => $doc]);
+    }
+    
     public function documents_rejected(){ 
         $docs = $this->OrgModel->getRejectedDocuments(); 
         $this->call->view('org/documents/rejected', compact('docs')); 

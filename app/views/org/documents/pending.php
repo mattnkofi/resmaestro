@@ -6,7 +6,6 @@
     <title>Pending Documents - Maestro UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <!-- Poppins Font Import -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script>
@@ -34,7 +33,6 @@
         .maestro-bg { background-color: #0b0f0c; } 
     </style>
 </head>
-<!-- Applying font-poppins explicitly to the body tag -->
 <body class="bg-maestro-bg text-white font-poppins" x-data="{}">
 
     <?php 
@@ -47,12 +45,18 @@
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
+    
+    // --- START OF FIX ---
+    // The variables MUST be initialized inside a PHP block.
+    // This assumes $q and $type are passed from the controller, 
+    // but this sets them as empty string defaults if not provided.
+    $q = $q ?? '';
+    $type = $type ?? '';
+    // --- END OF FIX ---
     ?>
 
-    <!-- START SIDEBAR CONTENT -->
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
-            <!-- Placeholder for logo image -->
             <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
             <h1 class="text-2xl font-bold text-green-400 tracking-wider">MAESTRO</h1>
         </div>
@@ -68,7 +72,6 @@
                 </a>
             </div>
 
-            <!-- Documents Dropdown -->
             <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -87,7 +90,6 @@
                 </div>
             </div>
 
-            <!-- Review & Workflow Dropdown -->
             <div x-data='{ open: <?= $is_review_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -103,7 +105,6 @@
                 </div>
             </div>
 
-            <!-- Organization Dropdown -->
             <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -120,7 +121,6 @@
                 </div>
             </div>
             
-            <!-- Reports Dropdown -->
             <div x-data='{ open: <?= $is_reports_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -154,7 +154,6 @@
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <!-- Placeholder for user image -->
                         <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
@@ -176,36 +175,47 @@
             Maestro Organization © <?=date('Y')?>
         </div>
     </aside>
-    <!-- END SIDEBAR CONTENT -->
-
-    <!-- Main Content Area -->
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         
         <h1 class="text-3xl font-bold text-yellow-400 mb-6 tracking-wide">
             Pending Documents
         </h1>
 
-        <!-- Search/Filter Bar -->
-        <div class="flex flex-col md:flex-row gap-4 mb-6">
-            <input type="text" placeholder="Search by title, author, or date..." 
-                    class="w-full md:w-1/3 bg-green-900 border border-green-800 p-3 rounded-xl focus:ring-yellow-500 focus:border-yellow-500 transition placeholder-gray-500 text-green-100">
-            <select class="w-full md:w-1/6 bg-green-900 border border-green-800 p-3 rounded-xl text-green-100">
-                <option>Filter by Type</option>
-                <option>Report</option>
-                <option>Policy</option>
-                <option>Legal</option>
-            </select>
-            <button class="bg-yellow-700 hover:bg-yellow-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-yellow-900/40">
-                <i class="fa-solid fa-filter mr-2"></i> Apply Filters
-            </button>
-        </div>
+        <form method="GET" action="<?= BASE_URL ?>/org/documents/pending">
+            <div class="flex flex-col md:flex-row gap-4 mb-6">
+                
+                <input type="text" name="q" placeholder="Search by title, author, or date..." 
+                        value="<?= html_escape($q) ?>"
+                        class="w-full md:w-1/3 bg-green-900 border border-green-800 p-3 rounded-xl focus:ring-yellow-500 focus:border-yellow-500 transition placeholder-gray-500 text-green-100">
+                
+                <select name="type" class="w-full md:w-1/6 bg-green-900 border border-green-800 p-3 rounded-xl text-green-100">
+                    <option value="">Filter by Type</option>
+                    <?php 
+                    $doc_types = ['Finance', 'Budget', 'Accomplishment', 'Proposal', 'Legal', 'Other'];
+                    foreach ($doc_types as $doc_type): ?>
+                        <option value="<?= html_escape(strtolower($doc_type)) ?>" 
+                            <?= (strtolower($doc_type) === strtolower($type)) ? 'selected' : '' ?>>
+                            <?= $doc_type ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <button type="submit" class="bg-yellow-700 hover:bg-yellow-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-yellow-900/40">
+                    <i class="fa-solid fa-filter mr-2"></i> Apply Filters
+                </button>
+                
+                <?php if (!empty($q) || !empty($type)): ?>
+                    <a href="<?= BASE_URL ?>/org/documents/pending" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
+                        <i class="fa-solid fa-xmark mr-2"></i> Clear
+                    </a>
+                <?php endif; ?>
+            </div>
+        </form>
 
 
-        <!-- Documents Table -->
         <div class="overflow-x-auto rounded-xl border border-green-800 shadow-2xl shadow-green-900/10">
             <table class="w-full text-left">
                 
-                <!-- Table Header -->
                 <thead class="bg-yellow-900/40 text-gray-200 uppercase text-sm tracking-wider">
                     <tr>
                         <th class="p-4 border-b border-green-800">Title</th>
@@ -216,30 +226,30 @@
                     </tr>
                 </thead>
                 
-                <!-- Table Body (PHP Loop) -->
                 <tbody class="bg-[#0f1511] text-gray-300">
                     
                     <?php 
-                    // Mock data to demonstrate the loop and styling
-                    $pending_docs = [
-                        ['title' => 'Q4 Budget Report', 'submitter' => 'Ellaine Cordero', 'date' => 'Oct 30, 2025', 'days' => 5],
-                        ['title' => 'Vendor Contract V2.1', 'submitter' => 'John Smith', 'date' => 'Oct 28, 2025', 'days' => 7],
-                        ['title' => 'Holiday Policy Draft', 'submitter' => 'Jane Doe', 'date' => 'Oct 20, 2025', 'days' => 15], // Overdue example
-                        ['title' => 'IT Security Audit', 'submitter' => 'System Bot', 'date' => 'Nov 1, 2025', 'days' => 0],
-                    ];
-                    
-                    foreach($pending_docs as $doc): 
-                        // Apply special overdue styling if pending for more than 7 days
-                        $row_class = $doc['days'] > 7 ? 'bg-red-900/10 hover:bg-red-900/20' : 'hover:bg-green-700/10';
-                        $days_class = $doc['days'] > 7 ? 'text-red-400 font-bold' : 'text-yellow-400';
+                    // Calculate "Days Pending" dynamically
+                    foreach($docs as $doc): 
+                        // Calculate days pending (assuming created_at is a valid SQL timestamp string)
+                        $submit_time = strtotime($doc['created_at']);
+                        $days_pending = round((time() - $submit_time) / (60 * 60 * 24));
+                        
+                        // Determine styling based on urgency (Overdue after 7 days)
+                        $row_class = $days_pending > 7 ? 'bg-red-900/10 hover:bg-red-900/20' : 'hover:bg-green-700/10';
+                        $days_class = $days_pending > 7 ? 'text-red-400 font-bold' : 'text-yellow-400';
+                        
+                        // Format the submission date
+                        $display_date = date('M d, Y', $submit_time);
                     ?>
+                    
                     <tr class="border-b border-green-800 transition <?= $row_class ?>">
                         <td class="p-4 font-medium text-green-200"><?= $doc['title'] ?></td>
-                        <td class="p-4"><?= $doc['submitter'] ?></td>
-                        <td class="p-4 text-sm text-gray-400"><?= $doc['date'] ?></td>
-                        <td class="p-4 <?= $days_class ?>"><?= $doc['days'] ?></td>
+                        <td class="p-4"><?= $doc['fname'] . ' ' . $doc['lname'] ?></td>
+                        <td class="p-4 text-sm text-gray-400"><?= $display_date ?></td>
+                        <td class="p-4 <?= $days_class ?>"><?= $days_pending ?></td>
                         <td class="p-4 text-center">
-                            <a href="<?=BASE_URL?>/org/documents/review/<?= urlencode($doc['title']) ?>" class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
+                            <a href="<?=BASE_URL?>/org/documents/review/<?= $doc['id'] ?>" class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
                                 <i class="fa-solid fa-pen-to-square mr-1"></i> Review
                             </a>
                             <button class="text-gray-500 hover:text-gray-300 transition text-sm">
@@ -249,8 +259,7 @@
                     </tr>
                     <?php endforeach; ?>
 
-                    <!-- No Data Placeholder (for completeness) -->
-                    <?php if (empty($pending_docs)): ?>
+                    <?php if (empty($docs)): ?>
                     <tr>
                         <td colspan="5" class="p-8 text-center text-gray-500">
                             <i class="fa-solid fa-check-circle text-4xl mb-3 text-green-500"></i>
