@@ -10,19 +10,6 @@ class OrgController extends Controller
         
         // 1. Attempt to load the three most likely helpers using array syntax
         $this->call->helper(['common', 'auth', 'session']); 
-
-        // 2. 🚨 FAILSAFE: Direct File Inclusion (Use this if the line above still fails)
-        // If the error persists, UNCOMMENT this block and CHECK the file paths/names.
-        /*
-        $auth_helper_path = ROOT_DIR . 'app/helpers/auth_helper.php';
-        $session_helper_path = ROOT_DIR . 'app/helpers/session_helper.php';
-        
-        if (file_exists($auth_helper_path)) {
-            require_once($auth_helper_path);
-        } else if (file_exists($session_helper_path)) {
-            require_once($session_helper_path);
-        }
-        */
     }
 
     public function dashboard()

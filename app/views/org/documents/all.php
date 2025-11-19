@@ -59,8 +59,17 @@
         }
     </script>
 </head>
-<!-- Applying font-poppins explicitly to the body tag to ensure loading -->
-<body class="bg-maestro-bg text-white font-poppins" x-data="{}">
+
+<body class="bg-maestro-bg text-white font-poppins" 
+    x-data="{ 
+        modalOpen: false, 
+        currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
+        setDoc(doc) { 
+            this.currentDoc = doc; 
+            this.modalOpen = true; 
+        }
+    }" 
+    @keydown.escape="modalOpen = false">
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
@@ -224,25 +233,157 @@
                 </thead>
                 <tbody class="bg-[#0f1511] text-gray-300">
 
-                    <!-- PHP Data Loop -->
-                    <?php foreach($docs as $doc): ?>
+                                        <?php 
+                    $docs = $docs ?? [];
+                    if (!empty($docs)):
+                    foreach($docs as $doc): 
+                        // Safely extract data, assuming objects/arrays
+                        $doc_id = $doc['id'] ?? $doc->id ?? 0;
+                        $doc_title = $doc['title'] ?? $doc->title ?? '';
+                        $doc_file_name = $doc['file_name'] ?? $doc->file_name ?? '';
+                        $doc_status = $doc['status'] ?? $doc->status ?? '';
+                        $doc_type = $doc['type'] ?? $doc->type ?? '';
+                        $submitter = html_escape(($doc['fname'] ?? $doc->fname ?? '') . ' ' . ($doc['lname'] ?? $doc->lname ?? ''));
+
+                        // Determine status color/class dynamically
+                        $status_class = match ($doc_status) {
+                            'Approved' => 'text-green-400',
+                            'Pending Review' => 'text-yellow-400',
+                            'Rejected' => 'text-red-500',
+                            default => 'text-gray-400',
+                        };
+                        // Ensure data passed to JS is correctly escaped/quoted
+                        $js_doc = json_encode([
+                            'id' => $doc_id, 
+                            'title' => $doc_title, 
+                            'file_name' => $doc_file_name, 
+                            'status' => $doc_status, 
+                            'submitter' => $submitter,
+                            'type' => $doc_type,
+                            'created_at' => $doc['created_at'] ?? $doc->created_at ?? ''
+                        ]);
+                    ?>
                     <tr class="border-b border-green-800 hover:bg-green-700/10 transition">
-                        <td class="p-4 font-medium text-green-200"><?= $doc['title'] ?></td>
-                        <td class="p-4"><?= $doc['type'] ?></td>
-                        <td class="p-4 font-semibold <?= $doc['status']=='Approved'?'text-green-400':'' ?> <?= $doc['status']=='Pending'?'text-yellow-400':'' ?> <?= $doc['status']=='Rejected'?'text-red-500':'' ?>"><?= $doc['status'] ?></td>
+                        <td class="p-4 font-medium text-green-200"><?= html_escape($doc_title) ?></td>
+                        <td class="p-4"><?= html_escape($doc_type) ?></td>
+                        <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
                         <td class="p-4 text-center">
-                            <button class="text-green-400 hover:text-green-200 hover:underline transition">
-                                <i class="fa-solid fa-eye mr-1"></i> View
+                                                        <button @click="setDoc(<?= html_escape($js_doc) ?>)" class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
+                                <i class="fa-solid fa-pen-to-square mr-1"></i> Review
                             </button>
                         </td>
                     </tr>
-                    <?php endforeach; ?>
-                    <!-- End PHP Data Loop -->
-                    
-                </tbody>
+                    </tr>
+                    <?php endforeach; 
+                    else: ?>
+                    <tr>
+                        <td colspan="4" class="p-8 text-center text-gray-500">
+                            <i class="fa-solid fa-file-alt text-4xl mb-3 text-green-500"></i>
+                            <p class="text-lg">No documents found in the system.</p>
+                        </td>
+                    </tr>
+                    <?php endif; ?>
+                                    </tbody>
             </table>
         </div>
     </div>
 
-</body>
+    <style>
+        /* MODAL FIX: Defines the grid layout for the internal review panel */
+        .review-content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* 2/3 viewer, 1/3 sidebar */
+            height: 100%; 
+            gap: 1rem;
+            padding: 1rem; 
+        }
+    </style>
+    <div x-show="modalOpen" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
+        style="display: none;">
+
+        <div @click.outside="modalOpen = false" class="w-full max-w-7xl mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-green-800 h-[90vh] flex flex-col">
+            
+            <header class="p-4 border-b border-green-800 flex justify-between items-center bg-sidebar-dark" :class="currentDoc.status === 'Approved' ? 'border-green-500' : 'border-yellow-500'">
+                <h3 class="text-xl font-bold" x-text="'Review: ' + currentDoc.title">Review: Document Title</h3>
+                <button @click="modalOpen = false" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </header>
+
+            <div class="review-content-grid flex-1 overflow-y-auto"> 
+                
+                <div class="pr-4 border-r border-green-800 flex flex-col">
+                    <h4 class="text-lg font-semibold text-gray-400 mb-3">Document Content (PDF Viewer)</h4>
+                    <iframe 
+                        :src="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" 
+                        class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900" 
+                        frameborder="0">
+                    </iframe>
+                </div>
+
+                <div class="pl-4 space-y-6 flex flex-col">
+                    <h4 class="text-lg font-semibold text-gray-400">Review Details & Status</h4>
+
+                    <div class="bg-green-950/50 p-4 rounded-lg border border-green-800">
+                        <p class="text-sm text-gray-400">Status: <span :class="currentDoc.status === 'Approved' ? 'text-green-300' : 'text-yellow-300'" x-text="currentDoc.status"></span></p>
+                        <p class="text-sm text-gray-400">Type: <span x-text="currentDoc.type"></span></p>
+                        <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
+                        <p class="text-sm text-gray-400">Submitted On: <span x-text="currentDoc.created_at ? new Date(currentDoc.created_at).toLocaleDateString('en-US') : 'N/A'"></span></p>
+                    </div>
+
+                    <h5 class="text-md font-bold text-green-300">Update Status:</h5>
+                    <div class="space-y-4">
+                        
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Approved">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
+
+                            <button type="submit" class="w-full bg-green-700 hover:bg-green-600 px-5 py-2 rounded-lg font-medium transition"
+                                :disabled="currentDoc.status === 'Approved' || currentDoc.status === 'Archived'"
+                                :class="currentDoc.status === 'Approved' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                                <i class="fa-solid fa-thumbs-up mr-2"></i> Approve
+                            </button>
+                        </form>
+
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Rejected">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
+                            
+                            <button type="submit" class="w-full bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition"
+                                :disabled="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived'"
+                                :class="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                                <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
+                            </button>
+                        </form>
+
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Archived">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
+
+                            <button type="submit" onclick="return confirm('Confirm archive?')"
+                                class="w-full bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg font-medium transition"
+                                :disabled="currentDoc.status === 'Archived'"
+                                :class="currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                                <i class="fa-solid fa-box-archive mr-2"></i> Archive
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+    </body>
 </html>

@@ -66,16 +66,12 @@
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
     
-    // --- START OF FIX (kept initialization of variables) ---
+    // --- START OF CLEANUP ---
     $q = $q ?? '';
     $type = $type ?? '';
 
-    // Mock $docs if not provided (for standalone testing)
-    $docs = $docs ?? [
-        ['id' => 1, 'title' => 'Q3 Financial Report', 'file_name' => 'q3_report.pdf', 'status' => 'Pending', 'fname' => 'Alice', 'lname' => 'Smith', 'created_at' => '2025-11-10 09:00:00', 'type' => 'Finance'],
-        ['id' => 2, 'title' => 'Project Alpha Proposal', 'file_name' => 'alpha_proposal.pdf', 'status' => 'Pending', 'fname' => 'Bob', 'lname' => 'Johnson', 'created_at' => '2025-11-18 14:30:00', 'type' => 'Proposal'],
-        ['id' => 3, 'title' => 'Budget Request 2026', 'file_name' => 'budget_2026.pdf', 'status' => 'Pending', 'fname' => 'Charlie', 'lname' => 'Brown', 'created_at' => '2025-11-01 11:00:00', 'type' => 'Budget'], 
-    ];
+    // FIX: Ensure $docs is initialized from controller
+    $docs = $docs ?? []; 
 
     // Mock BASE_URL and html_escape if not provided
     if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
@@ -84,7 +80,7 @@
             return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
         }
     }
-    // --- END OF FIX ---
+    // --- END OF CLEANUP ---
     ?>
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
@@ -198,7 +194,8 @@
                 <div x-show="open" x-transition.duration.200ms class="absolute bottom-full mb-3 left-0 w-full bg-[#151a17] border border-green-700 rounded-lg shadow-2xl text-sm z-20">
                     <a href="<?=BASE_URL?>/org/profile" class="block px-4 py-2 hover:bg-green-700/30 rounded-t-lg transition">View Profile</a>
                     <a href="<?=BASE_URL?>/org/settings" class="block px-4 py-2 hover:bg-green-700/30 transition">Settings</a>
-                    <a href="<?=BASE_URL?>/logout" class="block px-4 py-2 text-red-400 hover:bg-red-700/30 rounded-b-lg transition">Logout</a>                </div>
+                    <a href="<?=BASE_URL?>/logout" class="block px-4 py-2 text-red-400 hover:bg-red-700/30 rounded-b-lg transition">Logout</a>
+                </div>
             </div>
         </div>
 
@@ -208,7 +205,7 @@
     </aside>
 
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
-    
+        
         <h1 class="text-3xl font-bold text-yellow-400 mb-6 tracking-wide">
             Pending Documents
         </h1>
@@ -263,19 +260,17 @@
                 <tbody class="bg-[#0f1511] text-gray-300">
     
     <?php 
-    // Calculate "Days Pending" dynamically
-    // Ensure $docs is treated as an array of objects or arrays
     $docs = $docs ?? [];
     foreach($docs as $doc): 
-        // Use object/array safe access
-        $doc_id = $doc['id'] ?? $doc->id ?? 0;
-        $doc_title = $doc['title'] ?? $doc->title ?? '';
-        $doc_file_name = $doc['file_name'] ?? $doc->file_name ?? '';
-        $doc_status = $doc['status'] ?? $doc->status ?? '';
-        $doc_fname = $doc['fname'] ?? $doc->fname ?? '';
-        $doc_lname = $doc['lname'] ?? $doc->lname ?? '';
-        $doc_type = $doc['type'] ?? $doc->type ?? '';
-        $doc_created_at = $doc['created_at'] ?? $doc->created_at ?? 'now';
+        // CRITICAL FIX 1: Safely extract ALL data fields regardless of object or array return type
+        $doc_id = $doc->id ?? $doc['id'] ?? 0;
+        $doc_title = $doc->title ?? $doc['title'] ?? 'Document';
+        $doc_file_name = $doc->file_name ?? $doc['file_name'] ?? '';
+        $doc_status = $doc->status ?? $doc['status'] ?? 'Pending Review';
+        $doc_fname = $doc->fname ?? $doc['fname'] ?? '';
+        $doc_lname = $doc->lname ?? $doc['lname'] ?? '';
+        $doc_type = $doc->type ?? $doc['type'] ?? '';
+        $doc_created_at = $doc->created_at ?? $doc['created_at'] ?? 'now';
         
         $submit_time = strtotime($doc_created_at);
         $days_pending = round((time() - $submit_time) / (60 * 60 * 24));
@@ -293,11 +288,11 @@
         <td class="p-4 text-center">
             <button @click="setDoc({ 
                 id: <?= $doc_id ?>, 
-                title: '<?= html_escape($doc_title) ?>', 
-                file_name: '<?= html_escape($doc_file_name) ?>', 
-                status: '<?= html_escape($doc_status) ?>', 
-                submitter: '<?= html_escape($doc_fname . ' ' . $doc_lname) ?>',
-                type: '<?= html_escape($doc_type) ?>'
+                title: '<?= addslashes(html_escape($doc_title)) ?>', 
+                file_name: '<?= addslashes(html_escape($doc_file_name)) ?>', 
+                status: '<?= addslashes(html_escape($doc_status)) ?>', 
+                submitter: '<?= addslashes(html_escape($doc_fname . ' ' . $doc_lname)) ?>',
+                type: '<?= addslashes(html_escape($doc_type)) ?>'
             })" 
                 class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
                 <i class="fa-solid fa-pen-to-square mr-1"></i> Review
@@ -311,14 +306,15 @@
 
     <?php if (empty($docs)): ?>
     <tr>
-                        <td colspan="5" class="p-8 text-center text-gray-500">
-                            <i class="fa-solid fa-check-circle text-4xl mb-3 text-green-500"></i>
-                            <p class="text-lg">No documents are currently pending review!</p>
-                        </td>
-                    </tr>
-                    <?php endif; ?>
-                    
-                </tbody>
+        <td colspan="5" class="p-8 text-center text-gray-500">
+            <i class="fa-solid fa-check-circle text-4xl mb-3 text-green-500"></i>
+            <p class="text-lg">No documents are currently pending review!</p>
+        </td>
+    </tr>
+    <?php endif; ?>
+    
+</tbody>
+
             </table>
         </div>
 
@@ -360,9 +356,11 @@
                     </div>
 
                     <h5 class="text-md font-bold text-green-300">Update Status:</h5>
+
                     <div class="space-y-4">
                         
                         <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
                             <input type="hidden" name="document_id" :value="currentDoc.id">
                             <input type="hidden" name="new_status" value="Approved">
                             <input type="hidden" name="document_title" :value="currentDoc.title">
@@ -375,6 +373,7 @@
                         </form>
 
                         <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
                             <input type="hidden" name="document_id" :value="currentDoc.id">
                             <input type="hidden" name="new_status" value="Rejected">
                             <input type="hidden" name="document_title" :value="currentDoc.title">
@@ -387,6 +386,7 @@
                         </form>
 
                         <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
                             <input type="hidden" name="document_id" :value="currentDoc.id">
                             <input type="hidden" name="new_status" value="Archived">
                             <input type="hidden" name="document_title" :value="currentDoc.title">
