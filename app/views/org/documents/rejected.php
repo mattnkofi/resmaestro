@@ -197,20 +197,6 @@
 
         <?php if (function_exists('flash_alert')) flash_alert(); ?>
 
-        <div class="flex flex-col md:flex-row gap-4 mb-8">
-            <input type="text" placeholder="Search rejected documents..." 
-                   class="w-full md:w-1/3 bg-red-900/50 border border-red-800 p-3 rounded-xl focus:ring-red-500 focus:border-red-500 transition placeholder-gray-500 text-white">
-            <select class="w-full md:w-1/6 bg-red-900/50 border border-red-800 p-3 rounded-xl text-white">
-                <option>Filter by Reason</option>
-                <option>Missing Information</option>
-                <option>Budget Exceeded</option>
-                <option>Incorrect Format</option>
-            </select>
-            <button class="bg-red-700 hover:bg-red-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-red-900/40">
-                <i class="fa-solid fa-search mr-2"></i> Search
-            </button>
-        </div>
-
         <div class="space-y-4">
             <?php
             
@@ -237,7 +223,6 @@
                 </div>
                 <div class="flex items-center space-x-6">
                     <div class="text-right hidden sm:block">
-                        <span class="block text-xs text-gray-300 uppercase tracking-wider">Reason:</span>
                         <span class="block text-sm text-red-400 font-medium max-w-[200px] truncate" title="<?= html_escape($reason) ?>"><?= html_escape($reason) ?></span>
                     </div>
                     <button @click="setDocForResubmit({ 

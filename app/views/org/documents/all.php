@@ -64,6 +64,42 @@
     x-data="{ 
         modalOpen: false, 
         currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
+        
+        // START NEW FUNCTIONS FOR VIEWING ALL FILE TYPES
+        getFileExtension(fileName) {
+            return fileName ? fileName.split('.').pop().toLowerCase() : '';
+        },
+        isImage(fileName) {
+            const ext = this.getFileExtension(fileName);
+            return ['jpg', 'jpeg', 'png'].includes(ext);
+        },
+        isPDF(fileName) {
+            return this.getFileExtension(fileName) === 'pdf';
+        },
+        toSentenceCase(str) {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        },
+        getDocViewerURL(fileName) {
+            if (!fileName) return '';
+            // Construct the full, absolute public URL required by Google Viewer
+            const publicUrl = '<?= BASE_URL ?>/public/uploads/documents/' + fileName;
+            const absoluteUrl = window.location.origin + publicUrl;
+
+            if (this.isPDF(fileName)) {
+                // PDF can be viewed natively in iframe
+                return publicUrl;
+            }
+            if (this.isImage(fileName)) {
+                // Images are handled by <img> tag
+                return publicUrl;
+            }
+            
+            // Use Google Docs Viewer for other documents (DOCX, XLSX, etc.)
+            return 'https://docs.google.com/gview?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
+        },
+        // END NEW FUNCTIONS
+        
         setDoc(doc) { 
             this.currentDoc = doc; 
             this.modalOpen = true; 
@@ -233,7 +269,7 @@
                 </thead>
                 <tbody class="bg-[#0f1511] text-gray-300">
 
-                                        <?php 
+                <?php 
                     $docs = $docs ?? [];
                     if (!empty($docs)):
                     foreach($docs as $doc): 
@@ -268,7 +304,7 @@
                         <td class="p-4"><?= html_escape($doc_type) ?></td>
                         <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
                         <td class="p-4 text-center">
-                                                        <button @click="setDoc(<?= html_escape($js_doc) ?>)" class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
+                                                        <button @click="setDoc(<?= html_escape($js_doc) ?>)"class="text-yellow-400 hover:text-yellow-200 hover: font-xl mr-4">
                                 <i class="fa-solid fa-pen-to-square mr-1"></i> Review
                             </button>
                         </td>
@@ -316,12 +352,15 @@
             <div class="review-content-grid flex-1 overflow-y-auto"> 
                 
                 <div class="pr-4 border-r border-green-800 flex flex-col">
-                    <h4 class="text-lg font-semibold text-gray-400 mb-3">Document Content (PDF Viewer)</h4>
+                    <h4 class="text-lg font-semibold text-gray-400 mb-3">Document Content 
+                    <span x-text="'(' + getFileExtension(currentDoc.file_name).toUpperCase() + ' Viewer)'" class="text-yellow-400"></span>
+                    </h4>                    
                     <iframe 
-                        :src="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" 
-                        class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900" 
-                        frameborder="0">
-                    </iframe>
+                            :src="getDocViewerURL(currentDoc.file_name)" 
+                            class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900" 
+                            frameborder="0"
+                            allowfullscreen>
+                        </iframe>
                 </div>
 
                 <div class="pl-4 space-y-6 flex flex-col">

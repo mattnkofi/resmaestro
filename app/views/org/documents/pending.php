@@ -16,7 +16,6 @@
                         'sidebar-dark': '#0f1511',
                         'maestro-bg': '#0b0f0c',
                     },
-                    // Applying Poppins font family
                     fontFamily: {
                         poppins: ['Poppins', 'sans-serif'],
                         sans: ['Poppins', 'sans-serif'], 
@@ -26,28 +25,48 @@
         }
     </script>
     <style>
-        /* Explicitly apply Poppins via standard CSS */
         body { font-family: 'Poppins', sans-serif; }
-        
-        /* Sidebar Custom Styles (for consistency) */
         .maestro-bg { background-color: #0b0f0c; } 
 
-        /* MODAL FIX: Defines the grid layout for the internal review panel */
         .review-content-grid {
             display: grid;
             grid-template-columns: 2fr 1fr; /* 2/3 viewer, 1/3 sidebar */
-            height: calc(100% - 4rem); /* Deduct header/footer space if needed, setting to 100% for inner div is generally safer with flex/grid */
+            height: 100%; 
             gap: 1rem;
-            padding: 1rem; /* Added padding to the internal grid container */
+            padding: 1rem;
         }
     </style>
 </head>
 <body class="bg-maestro-bg text-white font-poppins" 
     x-data="{ 
         modalOpen: false, 
-        approveModalOpen: false, 
-        rejectModalOpen: false,
-        currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '' },
+        currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
+
+        getFileExtension(fileName) {
+            return fileName ? fileName.split('.').pop().toLowerCase() : '';
+        },
+        isImage(fileName) {
+            const ext = this.getFileExtension(fileName);
+            return ['jpg', 'jpeg', 'png'].includes(ext);
+        },
+        isPDF(fileName) {
+            return this.getFileExtension(fileName) === 'pdf';
+        },
+        toSentenceCase(str) {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        },
+        getDocViewerURL(fileName) {
+            if (!fileName) return '';
+            const publicUrl = '<?= BASE_URL ?>/public/uploads/documents/' + fileName;
+            const absoluteUrl = window.location.origin + publicUrl;
+
+            if (this.isPDF(fileName)) {
+                return publicUrl;
+            }
+            return 'https://docs.google.com/gview?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
+        },
+        
         setDoc(doc) { 
             this.currentDoc = doc; 
             this.modalOpen = true; 
@@ -57,30 +76,28 @@
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    // For "Pending Documents" page:
     $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/pending'; 
-
-    // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
     $is_documents_open = str_contains($current_uri, '/org/documents/');
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
     
-    // --- START OF CLEANUP ---
     $q = $q ?? '';
     $type = $type ?? '';
 
-    // FIX: Ensure $docs is initialized from controller
     $docs = $docs ?? []; 
 
-    // Mock BASE_URL and html_escape if not provided
     if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
     if (!function_exists('html_escape')) {
         function html_escape($str) {
             return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
         }
     }
-    // --- END OF CLEANUP ---
+    if (!function_exists('csrf_field')) {
+        function csrf_field() {
+            echo '<input type="hidden" name="csrf_token" value="MOCK_CSRF_TOKEN">';
+        }
+    }
     ?>
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
@@ -90,7 +107,6 @@
         </div>
 
         <nav class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-
             <div>
                 <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">Main</h2>
                 <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition
@@ -210,7 +226,7 @@
             Pending Documents
         </h1>
 
-        <?php if (function_exists('flash_alert')) flash_alert(); // ADDED: Display Toast/flash messages ?>
+        <?php if (function_exists('flash_alert')) flash_alert(); ?>
 
         <form method="GET" action="<?= BASE_URL ?>/org/documents/pending">
             <div class="flex flex-col md:flex-row gap-4 mb-6">
@@ -262,7 +278,7 @@
     <?php 
     $docs = $docs ?? [];
     foreach($docs as $doc): 
-        // CRITICAL FIX 1: Safely extract ALL data fields regardless of object or array return type
+        // Safely extract ALL data fields regardless of object or array return type
         $doc_id = $doc->id ?? $doc['id'] ?? 0;
         $doc_title = $doc->title ?? $doc['title'] ?? 'Document';
         $doc_file_name = $doc->file_name ?? $doc['file_name'] ?? '';
@@ -278,6 +294,17 @@
         $row_class = $days_pending > 7 ? 'bg-red-900/10 hover:bg-red-900/20' : 'hover:bg-green-700/10';
         $days_class = $days_pending > 7 ? 'text-red-400 font-bold' : 'text-yellow-400';
         $display_date = date('M d, Y', $submit_time);
+
+        // Prepare document data for Alpine.js model, ensuring all required fields are passed
+        $js_doc = json_encode([
+            'id' => $doc_id, 
+            'title' => html_escape($doc_title), 
+            'file_name' => $doc_file_name, 
+            'status' => $doc_status, 
+            'submitter' => html_escape($doc_fname . ' ' . $doc_lname),
+            'type' => $doc_type,
+            'created_at' => $doc_created_at 
+        ]);
     ?>
     
     <tr class="border-b border-green-800 transition <?= $row_class ?>">
@@ -286,14 +313,7 @@
         <td class="p-4 text-sm text-gray-400"><?= $display_date ?></td>
         <td class="p-4 <?= $days_class ?>"><?= $days_pending ?></td>
         <td class="p-4 text-center">
-            <button @click="setDoc({ 
-                id: <?= $doc_id ?>, 
-                title: '<?= addslashes(html_escape($doc_title)) ?>', 
-                file_name: '<?= addslashes(html_escape($doc_file_name)) ?>', 
-                status: '<?= addslashes(html_escape($doc_status)) ?>', 
-                submitter: '<?= addslashes(html_escape($doc_fname . ' ' . $doc_lname)) ?>',
-                type: '<?= addslashes(html_escape($doc_type)) ?>'
-            })" 
+            <button @click="setDoc(<?= html_escape($js_doc) ?>)" 
                 class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
                 <i class="fa-solid fa-pen-to-square mr-1"></i> Review
             </button>
@@ -338,72 +358,92 @@
             <div class="review-content-grid flex-1 overflow-y-auto"> 
                 
                 <div class="pr-4 border-r border-green-800 flex flex-col">
-                    <h4 class="text-lg font-semibold text-gray-400 mb-3">Document Content (PDF Viewer)</h4>
-                    <iframe 
-                        :src="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" 
-                        class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900" 
-                        frameborder="0">
-                    </iframe>
+                    <h4 class="text-lg font-semibold text-gray-400 mb-3">Document Content 
+                        <span x-text="'(' + getFileExtension(currentDoc.file_name).toUpperCase() + ' Viewer)'" class="text-yellow-400"></span>
+                    </h4>
+                    
+                    <div x-show="isImage(currentDoc.file_name)" 
+                         class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900 flex items-center justify-center overflow-hidden">
+                        <img :src="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" 
+                             :alt="'Viewing ' + currentDoc.title"
+                             class="max-w-full max-h-full object-contain">
+                    </div>
+
+                    <div x-show="!isImage(currentDoc.file_name)" class="w-full flex-1 flex flex-col">
+                        <iframe 
+                            :src="getDocViewerURL(currentDoc.file_name)" 
+                            class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900" 
+                            frameborder="0"
+                            allowfullscreen>
+                        </iframe>
+
+                        <template x-if="!isPDF(currentDoc.file_name)">
+                            <div class="mt-2 text-center text-sm text-gray-500">
+                                If the document viewer is blank or fails, use the direct download:
+                                <a :href="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" download
+                                   class="text-yellow-400 hover:text-yellow-200 underline">
+                                    <i class="fa-solid fa-download mr-1"></i> Direct Download (<span x-text="toSentenceCase(getFileExtension(currentDoc.file_name))"></span>)
+                                </a>
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
                 <div class="pl-4 space-y-6 flex flex-col">
                     <h4 class="text-lg font-semibold text-gray-400">Review Details & Status</h4>
 
                     <div class="bg-green-950/50 p-4 rounded-lg border border-green-800">
-                        <p class="text-sm text-gray-400">Status: <span :class="currentDoc.status === 'Approved' ? 'text-green-300' : 'text-yellow-300'" x-text="currentDoc.status"></span></p>
-                        <p class="text-sm text-gray-400">Type: <span x-text="currentDoc.type"></span></p>
+                        <p class="text-sm text-gray-400">Status: <span :class="currentDoc.status === 'Approved' ? 'text-green-300' : 'text-yellow-300'" x-text="toSentenceCase(currentDoc.status)"></span></p>
+                        <p class="text-sm text-gray-400">Type: <span x-text="toSentenceCase(currentDoc.type)"></span></p>
                         <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
+                        <p class="text-sm text-gray-400">Submitted On: <span x-text="currentDoc.created_at ? new Date(currentDoc.created_at).toLocaleDateString('en-US') : 'N/A'"></span></p>
                     </div>
 
-                    <h5 class="text-md font-bold text-green-300">Update Status:</h5>
+                    <div class="pl-4 space-y-6 flex flex-col">
+    <h5 class="text-md font-bold text-green-300">Update Status:</h5>
+    <div class="space-y-4">
+        
+        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+            <?php csrf_field(); ?>
+            <input type="hidden" name="document_id" :value="currentDoc.id">
+            <input type="hidden" name="new_status" value="Approved">
+            <input type="hidden" name="document_title" :value="currentDoc.title">
 
-                    <div class="space-y-4">
-                        
-                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
-                            <input type="hidden" name="document_id" :value="currentDoc.id">
-                            <input type="hidden" name="new_status" value="Approved">
-                            <input type="hidden" name="document_title" :value="currentDoc.title">
+            <button type="submit" class="w-full bg-green-700 hover:bg-green-600 px-5 py-2 rounded-lg font-medium transition"
+                :disabled="currentDoc.status === 'Approved' || currentDoc.status === 'Archived'"
+                :class="currentDoc.status === 'Approved' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                <i class="fa-solid fa-thumbs-up mr-2"></i> Approve
+            </button>
+        </form>
 
-                            <button type="submit" class="w-full bg-green-700 hover:bg-green-600 px-5 py-2 rounded-lg font-medium transition"
-                                :disabled="currentDoc.status === 'Approved'"
-                                :class="currentDoc.status === 'Approved' ? 'opacity-50 cursor-not-allowed' : ''">
-                                <i class="fa-solid fa-thumbs-up mr-2"></i> Approve
-                            </button>
-                        </form>
+        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+            <?php csrf_field(); ?>
+            <input type="hidden" name="document_id" :value="currentDoc.id">
+            <input type="hidden" name="new_status" value="Rejected">
+            <input type="hidden" name="document_title" :value="currentDoc.title">
+            
+            <button type="submit" class="w-full bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition"
+                :disabled="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived'"
+                :class="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
+            </button>
+        </form>
 
-                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
-                            <input type="hidden" name="document_id" :value="currentDoc.id">
-                            <input type="hidden" name="new_status" value="Rejected">
-                            <input type="hidden" name="document_title" :value="currentDoc.title">
-                            
-                            <button type="submit" class="w-full bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition"
-                                :disabled="currentDoc.status === 'Rejected'"
-                                :class="currentDoc.status === 'Rejected' ? 'opacity-50 cursor-not-allowed' : ''">
-                                <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
-                            </button>
-                        </form>
+        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+            <?php csrf_field(); ?>
+            <input type="hidden" name="document_id" :value="currentDoc.id">
+            <input type="hidden" name="new_status" value="Archived">
+            <input type="hidden" name="document_title" :value="currentDoc.title">
 
-                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
-                            <input type="hidden" name="document_id" :value="currentDoc.id">
-                            <input type="hidden" name="new_status" value="Archived">
-                            <input type="hidden" name="document_title" :value="currentDoc.title">
-
-                            <button type="submit" onclick="return confirm('Confirm archive?')"
-                                class="w-full bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg font-medium transition">
-                                <i class="fa-solid fa-box-archive mr-2"></i> Archive
-                            </button>
-                        </form>
-                    </div>
-                    
-                    <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
-
-                </div>
-            </div>
-
-        </div>
+            <button type="submit" onclick="return confirm('Confirm archive?')"
+                class="w-full bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg font-medium transition"
+                :disabled="currentDoc.status === 'Archived'"
+                :class="currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                <i class="fa-solid fa-box-archive mr-2"></i> Archive
+            </button>
+        </form>
     </div>
-</body>
-</html>
+    
+    <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
+
+</div>
