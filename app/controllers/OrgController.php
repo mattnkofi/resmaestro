@@ -7,6 +7,22 @@ class OrgController extends Controller
     public function __construct() {
         parent::__construct();
         $this->call->model('OrgModel');
+        
+        // 1. Attempt to load the three most likely helpers using array syntax
+        $this->call->helper(['common', 'auth', 'session']); 
+
+        // 2. 🚨 FAILSAFE: Direct File Inclusion (Use this if the line above still fails)
+        // If the error persists, UNCOMMENT this block and CHECK the file paths/names.
+        /*
+        $auth_helper_path = ROOT_DIR . 'app/helpers/auth_helper.php';
+        $session_helper_path = ROOT_DIR . 'app/helpers/session_helper.php';
+        
+        if (file_exists($auth_helper_path)) {
+            require_once($auth_helper_path);
+        } else if (file_exists($session_helper_path)) {
+            require_once($session_helper_path);
+        }
+        */
     }
 
     public function dashboard()
@@ -30,7 +46,6 @@ class OrgController extends Controller
     }
 
     public function documents_upload() {
-        $this->call->helper('common');
         
         $reviewers = $this->OrgModel->getPotentialReviewers();
         $user_id = get_user_id();
@@ -51,7 +66,7 @@ class OrgController extends Controller
         // Dependencies must be loaded explicitly for non-autoloaded components
         $this->call->library('Form_validation'); 
         $this->call->library('Upload'); 
-        $this->call->helper(['common', 'directory']); 
+        $this->call->helper(['directory']); 
         
         $file_input_name = 'document_file';
         $uploaded_file = $_FILES[$file_input_name] ?? null;
@@ -83,26 +98,21 @@ class OrgController extends Controller
 
         // 1. File Upload Execution
         $allowed_mimes = [
-            // PDF
             'application/pdf', 
-            // DOCX, XLSX (Microsoft Office Open XML formats)
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            // Legacy Microsoft Office formats (good for compatibility)
             'application/msword', 
             'application/vnd.ms-excel',
-            // Image formats (JPG, PNG)
             'image/jpeg', 
-            'image/pjpeg', // Alternate JPEG MIME type
+            'image/pjpeg', 
             'image/png', 
         ];
 
         $this->upload->file = $uploaded_file; 
         $this->upload->set_dir($upload_dir);
         
-        // Use both extension and the comprehensive MIME list
         $this->upload->allowed_extensions(['pdf', 'docx', 'xlsx', 'jpg', 'png']);
-        $this->upload->allowed_mimes($allowed_mimes); // <-- This prevents the MIME Type error
+        $this->upload->allowed_mimes($allowed_mimes); 
         
         $this->upload->max_size(25);
         $this->upload->encrypt_name();
@@ -125,7 +135,7 @@ class OrgController extends Controller
             'tags'          => $this->io->post('tags'),
             'reviewer_id'   => $this->io->post('reviewer') ?: NULL, 
             'file_name'     => $uploaded_file_name, 
-            'user_id'       => $user_id,
+            'user_id'       => get_user_id(),
         ];
 
         $new_doc_id = $this->OrgModel->insertDocument($data);
@@ -140,15 +150,12 @@ class OrgController extends Controller
     }
 
     public function update_document_status() {
-        // Load dependencies for common tasks (flash messages, user info, redirect)
-        $this->call->helper('common');
-        
         // 1. Get POST data
         $doc_id = $this->io->post('document_id');
         $new_status = $this->io->post('new_status');
         $doc_title = $this->io->post('document_title') ?? 'Document'; // Optional title for messages
         
-        // Safety check
+        // Safety check (is_logged_in() is on line 154 in this trace)
         if (!is_logged_in() || empty($doc_id) || empty($new_status)) {
             set_flash_alert('danger', 'Invalid action or missing document data. Please log in.');
             redirect(BASE_URL . '/org/documents/pending');
@@ -162,8 +169,9 @@ class OrgController extends Controller
         // If the status is one that requires a recorded action (Approved/Rejected), set the reviewer
         if (in_array($new_status, ['Approved', 'Rejected'])) {
             $data_to_update['reviewer_id'] = get_user_id();
-            // Note: Since 'approved_at' is missing, we rely on the database's 
-            // general 'updated_at' or 'modified_at' column to record the time.
+            // Using updated logic to set/clear audit timestamps
+            $data_to_update['approved_at'] = ($new_status === 'Approved') ? date('Y-m-d H:i:s') : NULL;
+            $data_to_update['rejected_at'] = ($new_status === 'Rejected') ? date('Y-m-d H:i:s') : NULL;
         }
         
         // 2. Call Model to update
@@ -216,17 +224,19 @@ class OrgController extends Controller
         ]); 
     }
 
-    public function documents_review($doc_id) {
-        // You'll need a method in OrgModel to fetch a single document by ID
-        $doc = $this->OrgModel->getDocumentById((int)$doc_id); 
-
-        if (empty($doc)) {
-            set_flash_alert('danger', 'Document not found.');
-            redirect(BASE_URL . '/org/documents/pending');
-            return;
-        }
-
-        $this->call->view('org/documents/review_detail', ['doc' => $doc]);
+    public function documents_review_test() {
+        // Mock data to ensure the review_detail.php view renders the UI without crashing
+        $mock_doc = [
+            'id' => 999, 
+            'title' => 'MOCK Document for UI Test',
+            'type' => 'report',
+            'file_name' => 'd1f8fab2bb3799910e8f2da081c7a72fe90f9597.pdf', 
+            'status' => 'Pending Review',
+            'submitter_fname' => 'Test',
+            'submitter_lname' => 'User'
+        ];
+        
+        $this->call->view('org/documents/review_detail', ['doc' => $mock_doc]);
     }
     
     public function documents_rejected(){ 

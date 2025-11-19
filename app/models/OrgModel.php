@@ -77,9 +77,39 @@ class OrgModel extends Model
     return $this->db->order_by('d.created_at', 'ASC')->get_all();
 }
 
-    
-    public function getApprovedDocuments() {
-        return $this->db->table('documents')->where('status', 'Approved')->get_all();
+    /**
+     * Fetches documents with the 'Approved' status, applying search and type filters.
+     * @param string $query Search term for title/approver.
+     * @param string $type Document type filter.
+     * @return array
+     */
+    public function getApprovedDocuments($query = '', $type = '') {
+        $search_term = "%{$query}%";
+        $this->db
+            // Select necessary fields, including the file name and the approver's name
+            ->select('d.id, d.title, d.file_name, d.status, d.created_at, d.type, u.fname AS approver_fname, u.lname AS approver_lname')
+            ->table('documents d')
+            // Join users on the reviewer ID who approved the document
+            ->left_join('users u', 'd.reviewer_id = u.id') 
+            ->where('d.status', 'Approved'); // Filter by Approved status
+
+        // 1. Apply Search Query Filter (if present)
+        if (!empty($query)) {
+            $this->db->grouped(function($q) use ($search_term) {
+                // Search by document title, approver first name, or approver last name
+                $q->like('d.title', $search_term)
+                  ->or_like('u.fname', $search_term)
+                  ->or_like('u.lname', $search_term);
+            });
+        }
+
+        // 2. Apply Document Type Filter (if present)
+        if (!empty($type)) {
+            $this->db->where('d.type', $type);
+        }
+
+        // 3. Apply Ordering and Execute (Use created_at as approved_at doesn't exist)
+        return $this->db->order_by('d.created_at', 'DESC')->get_all();
     }
     
     public function getRejectedDocuments() {
@@ -94,10 +124,6 @@ class OrgModel extends Model
 
     /**
      * Generic method to update a document's attributes by ID.
-     * This is used by OrgController::update_document_status().
-     * @param int $doc_id The ID of the document to update.
-     * @param array $data An associative array of field => value to update.
-     * @return bool True on success, false on failure.
      */
     public function updateDocument(int $doc_id, array $data) {
         return $this->db->table('documents')
@@ -107,9 +133,6 @@ class OrgModel extends Model
 
     /**
      * Fetches a single document by ID, including the submitter's name.
-     * This is used by OrgController::documents_review($doc_id).
-     * @param int $doc_id The ID of the document.
-     * @return array|null The document data or null if not found.
      */
     public function getDocumentById(int $doc_id) {
         return $this->db
@@ -126,7 +149,7 @@ class OrgModel extends Model
         return $this->db->table('users')
                         ->select('id, fname, lname, email') 
                         ->order_by('lname', 'ASC')
-                        ->get_all(); 
+                        ->get_all();
     }
 
     public function getRecentUserUploads($user_id, $limit = 3) {

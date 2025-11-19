@@ -31,9 +31,29 @@
         
         /* Sidebar Custom Styles (for consistency) */
         .maestro-bg { background-color: #0b0f0c; } 
+
+        /* MODAL FIX: Defines the grid layout for the internal review panel */
+        .review-content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* 2/3 viewer, 1/3 sidebar */
+            height: calc(100% - 4rem); /* Deduct header/footer space if needed, setting to 100% for inner div is generally safer with flex/grid */
+            gap: 1rem;
+            padding: 1rem; /* Added padding to the internal grid container */
+        }
     </style>
 </head>
-<body class="bg-maestro-bg text-white font-poppins" x-data="{}">
+<body class="bg-maestro-bg text-white font-poppins" 
+    x-data="{ 
+        modalOpen: false, 
+        approveModalOpen: false, 
+        rejectModalOpen: false,
+        currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '' },
+        setDoc(doc) { 
+            this.currentDoc = doc; 
+            this.modalOpen = true; 
+        }
+    }" 
+    @keydown.escape="modalOpen = false">
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
@@ -46,12 +66,24 @@
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
     
-    // --- START OF FIX ---
-    // The variables MUST be initialized inside a PHP block.
-    // This assumes $q and $type are passed from the controller, 
-    // but this sets them as empty string defaults if not provided.
+    // --- START OF FIX (kept initialization of variables) ---
     $q = $q ?? '';
     $type = $type ?? '';
+
+    // Mock $docs if not provided (for standalone testing)
+    $docs = $docs ?? [
+        ['id' => 1, 'title' => 'Q3 Financial Report', 'file_name' => 'q3_report.pdf', 'status' => 'Pending', 'fname' => 'Alice', 'lname' => 'Smith', 'created_at' => '2025-11-10 09:00:00', 'type' => 'Finance'],
+        ['id' => 2, 'title' => 'Project Alpha Proposal', 'file_name' => 'alpha_proposal.pdf', 'status' => 'Pending', 'fname' => 'Bob', 'lname' => 'Johnson', 'created_at' => '2025-11-18 14:30:00', 'type' => 'Proposal'],
+        ['id' => 3, 'title' => 'Budget Request 2026', 'file_name' => 'budget_2026.pdf', 'status' => 'Pending', 'fname' => 'Charlie', 'lname' => 'Brown', 'created_at' => '2025-11-01 11:00:00', 'type' => 'Budget'], 
+    ];
+
+    // Mock BASE_URL and html_escape if not provided
+    if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+    if (!function_exists('html_escape')) {
+        function html_escape($str) {
+            return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+        }
+    }
     // --- END OF FIX ---
     ?>
 
@@ -249,9 +281,17 @@
                         <td class="p-4 text-sm text-gray-400"><?= $display_date ?></td>
                         <td class="p-4 <?= $days_class ?>"><?= $days_pending ?></td>
                         <td class="p-4 text-center">
-                            <a href="<?=BASE_URL?>/org/documents/review/<?= $doc['id'] ?>" class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
+                            <button @click="setDoc({ 
+                                id: <?= $doc['id'] ?>, 
+                                title: '<?= html_escape($doc['title']) ?>', 
+                                file_name: '<?= $doc['file_name'] ?>', 
+                                status: '<?= $doc['status'] ?>', 
+                                submitter: '<?= html_escape($doc['fname'] . ' ' . $doc['lname']) ?>',
+                                type: '<?= $doc['type'] ?>'
+                            })" 
+                                class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
                                 <i class="fa-solid fa-pen-to-square mr-1"></i> Review
-                            </a>
+                            </button>
                             <button class="text-gray-500 hover:text-gray-300 transition text-sm">
                                 <i class="fa-solid fa-clock mr-1"></i> Remind
                             </button>
@@ -273,6 +313,87 @@
         </div>
 
     </div>
+    
+    <div x-show="modalOpen" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
+        style="display: none;">
 
+        <div @click.outside="modalOpen = false" class="w-full max-w-7xl mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-green-800 h-[90vh] flex flex-col">
+            
+            <header class="p-4 border-b border-green-800 flex justify-between items-center bg-sidebar-dark" :class="currentDoc.status === 'Approved' ? 'border-green-500' : 'border-yellow-500'">
+                <h3 class="text-xl font-bold" x-text="'Review: ' + currentDoc.title">Review: Document Title</h3>
+                <button @click="modalOpen = false" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </header>
+
+            <div class="review-content-grid flex-1 overflow-y-auto"> 
+                
+                <div class="pr-4 border-r border-green-800 flex flex-col">
+                    <h4 class="text-lg font-semibold text-gray-400 mb-3">Document Content (PDF Viewer)</h4>
+                    <iframe 
+                        :src="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" 
+                        class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900" 
+                        frameborder="0">
+                    </iframe>
+                </div>
+
+                <div class="pl-4 space-y-6 flex flex-col">
+                    <h4 class="text-lg font-semibold text-gray-400">Review Details & Status</h4>
+
+                    <div class="bg-green-950/50 p-4 rounded-lg border border-green-800">
+                        <p class="text-sm text-gray-400">Status: <span :class="currentDoc.status === 'Approved' ? 'text-green-300' : 'text-yellow-300'" x-text="currentDoc.status"></span></p>
+                        <p class="text-sm text-gray-400">Type: <span x-text="currentDoc.type"></span></p>
+                        <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
+                    </div>
+
+                    <h5 class="text-md font-bold text-green-300">Update Status:</h5>
+                    <div class="space-y-4">
+                        
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Approved">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
+
+                            <button type="submit" class="w-full bg-green-700 hover:bg-green-600 px-5 py-2 rounded-lg font-medium transition"
+                                :disabled="currentDoc.status === 'Approved'"
+                                :class="currentDoc.status === 'Approved' ? 'opacity-50 cursor-not-allowed' : ''">
+                                <i class="fa-solid fa-thumbs-up mr-2"></i> Approve
+                            </button>
+                        </form>
+
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Rejected">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
+                            
+                            <button type="submit" class="w-full bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition"
+                                :disabled="currentDoc.status === 'Rejected'"
+                                :class="currentDoc.status === 'Rejected' ? 'opacity-50 cursor-not-allowed' : ''">
+                                <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
+                            </button>
+                        </form>
+
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Archived">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
+
+                            <button type="submit" onclick="return confirm('Confirm archive?')"
+                                class="w-full bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg font-medium transition">
+                                <i class="fa-solid fa-box-archive mr-2"></i> Archive
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
 </body>
 </html>
