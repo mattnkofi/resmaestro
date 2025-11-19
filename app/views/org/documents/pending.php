@@ -198,8 +198,7 @@
                 <div x-show="open" x-transition.duration.200ms class="absolute bottom-full mb-3 left-0 w-full bg-[#151a17] border border-green-700 rounded-lg shadow-2xl text-sm z-20">
                     <a href="<?=BASE_URL?>/org/profile" class="block px-4 py-2 hover:bg-green-700/30 rounded-t-lg transition">View Profile</a>
                     <a href="<?=BASE_URL?>/org/settings" class="block px-4 py-2 hover:bg-green-700/30 transition">Settings</a>
-                    <a href="<?=BASE_URL?>/logout" class="block px-4 py-2 text-red-400 hover:bg-red-700/30 rounded-b-lg transition">Logout</a>
-                </div>
+                    <a href="<?=BASE_URL?>/logout" class="block px-4 py-2 text-red-400 hover:bg-red-700/30 rounded-b-lg transition">Logout</a>                </div>
             </div>
         </div>
 
@@ -207,11 +206,14 @@
             Maestro Organization © <?=date('Y')?>
         </div>
     </aside>
+
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
-        
+    
         <h1 class="text-3xl font-bold text-yellow-400 mb-6 tracking-wide">
             Pending Documents
         </h1>
+
+        <?php if (function_exists('flash_alert')) flash_alert(); // ADDED: Display Toast/flash messages ?>
 
         <form method="GET" action="<?= BASE_URL ?>/org/documents/pending">
             <div class="flex flex-col md:flex-row gap-4 mb-6">
@@ -259,48 +261,56 @@
                 </thead>
                 
                 <tbody class="bg-[#0f1511] text-gray-300">
-                    
-                    <?php 
-                    // Calculate "Days Pending" dynamically
-                    foreach($docs as $doc): 
-                        // Calculate days pending (assuming created_at is a valid SQL timestamp string)
-                        $submit_time = strtotime($doc['created_at']);
-                        $days_pending = round((time() - $submit_time) / (60 * 60 * 24));
-                        
-                        // Determine styling based on urgency (Overdue after 7 days)
-                        $row_class = $days_pending > 7 ? 'bg-red-900/10 hover:bg-red-900/20' : 'hover:bg-green-700/10';
-                        $days_class = $days_pending > 7 ? 'text-red-400 font-bold' : 'text-yellow-400';
-                        
-                        // Format the submission date
-                        $display_date = date('M d, Y', $submit_time);
-                    ?>
-                    
-                    <tr class="border-b border-green-800 transition <?= $row_class ?>">
-                        <td class="p-4 font-medium text-green-200"><?= $doc['title'] ?></td>
-                        <td class="p-4"><?= $doc['fname'] . ' ' . $doc['lname'] ?></td>
-                        <td class="p-4 text-sm text-gray-400"><?= $display_date ?></td>
-                        <td class="p-4 <?= $days_class ?>"><?= $days_pending ?></td>
-                        <td class="p-4 text-center">
-                            <button @click="setDoc({ 
-                                id: <?= $doc['id'] ?>, 
-                                title: '<?= html_escape($doc['title']) ?>', 
-                                file_name: '<?= $doc['file_name'] ?>', 
-                                status: '<?= $doc['status'] ?>', 
-                                submitter: '<?= html_escape($doc['fname'] . ' ' . $doc['lname']) ?>',
-                                type: '<?= $doc['type'] ?>'
-                            })" 
-                                class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
-                                <i class="fa-solid fa-pen-to-square mr-1"></i> Review
-                            </button>
-                            <button class="text-gray-500 hover:text-gray-300 transition text-sm">
-                                <i class="fa-solid fa-clock mr-1"></i> Remind
-                            </button>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
+    
+    <?php 
+    // Calculate "Days Pending" dynamically
+    // Ensure $docs is treated as an array of objects or arrays
+    $docs = $docs ?? [];
+    foreach($docs as $doc): 
+        // Use object/array safe access
+        $doc_id = $doc['id'] ?? $doc->id ?? 0;
+        $doc_title = $doc['title'] ?? $doc->title ?? '';
+        $doc_file_name = $doc['file_name'] ?? $doc->file_name ?? '';
+        $doc_status = $doc['status'] ?? $doc->status ?? '';
+        $doc_fname = $doc['fname'] ?? $doc->fname ?? '';
+        $doc_lname = $doc['lname'] ?? $doc->lname ?? '';
+        $doc_type = $doc['type'] ?? $doc->type ?? '';
+        $doc_created_at = $doc['created_at'] ?? $doc->created_at ?? 'now';
+        
+        $submit_time = strtotime($doc_created_at);
+        $days_pending = round((time() - $submit_time) / (60 * 60 * 24));
+        
+        $row_class = $days_pending > 7 ? 'bg-red-900/10 hover:bg-red-900/20' : 'hover:bg-green-700/10';
+        $days_class = $days_pending > 7 ? 'text-red-400 font-bold' : 'text-yellow-400';
+        $display_date = date('M d, Y', $submit_time);
+    ?>
+    
+    <tr class="border-b border-green-800 transition <?= $row_class ?>">
+        <td class="p-4 font-medium text-green-200"><?= html_escape($doc_title) ?></td>
+        <td class="p-4"><?= html_escape($doc_fname . ' ' . $doc_lname) ?></td>
+        <td class="p-4 text-sm text-gray-400"><?= $display_date ?></td>
+        <td class="p-4 <?= $days_class ?>"><?= $days_pending ?></td>
+        <td class="p-4 text-center">
+            <button @click="setDoc({ 
+                id: <?= $doc_id ?>, 
+                title: '<?= html_escape($doc_title) ?>', 
+                file_name: '<?= html_escape($doc_file_name) ?>', 
+                status: '<?= html_escape($doc_status) ?>', 
+                submitter: '<?= html_escape($doc_fname . ' ' . $doc_lname) ?>',
+                type: '<?= html_escape($doc_type) ?>'
+            })" 
+                class="text-yellow-400 hover:text-yellow-200 hover:underline transition font-medium mr-4">
+                <i class="fa-solid fa-pen-to-square mr-1"></i> Review
+            </button>
+            <button class="text-gray-500 hover:text-gray-300 transition text-sm">
+                <i class="fa-solid fa-clock mr-1"></i> Remind
+            </button>
+        </td>
+    </tr>
+    <?php endforeach; ?>
 
-                    <?php if (empty($docs)): ?>
-                    <tr>
+    <?php if (empty($docs)): ?>
+    <tr>
                         <td colspan="5" class="p-8 text-center text-gray-500">
                             <i class="fa-solid fa-check-circle text-4xl mb-3 text-green-500"></i>
                             <p class="text-lg">No documents are currently pending review!</p>

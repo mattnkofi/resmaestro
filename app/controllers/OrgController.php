@@ -143,9 +143,11 @@ class OrgController extends Controller
         if ($new_doc_id) {
             set_flash_alert('success', 'Document "' . htmlspecialchars($data['title']) . '" uploaded successfully and submitted for review.');
             redirect(BASE_URL . '/org/documents/pending');
+            return;
         } else {
             set_flash_alert('danger', 'Document uploaded but failed to save record in database. Please contact IT.');
             redirect(BASE_URL . '/org/documents/upload');
+            return;
         }
     }
 
@@ -154,42 +156,150 @@ class OrgController extends Controller
         $doc_id = $this->io->post('document_id');
         $new_status = $this->io->post('new_status');
         $doc_title = $this->io->post('document_title') ?? 'Document'; // Optional title for messages
-        
-        // Safety check (is_logged_in() is on line 154 in this trace)
-        if (!is_logged_in() || empty($doc_id) || empty($new_status)) {
+
+        // FIX: Use direct session check to reliably check if the user is logged in
+        $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+
+        if (!$is_authenticated || ((int)$doc_id) <= 0 || empty($new_status)) {
             set_flash_alert('danger', 'Invalid action or missing document data. Please log in.');
             redirect(BASE_URL . '/org/documents/pending');
-            return;
+            return; // CRITICAL: Terminate script
         }
 
         $data_to_update = [
             'status' => $new_status,
+            'reviewer_id' => get_user_id(), // Set reviewer for any status change
+            'approved_at' => NULL,
+            'rejected_at' => NULL,
+            'deleted_at' => NULL
         ];
-
-        // If the status is one that requires a recorded action (Approved/Rejected), set the reviewer
-        if (in_array($new_status, ['Approved', 'Rejected'])) {
-            $data_to_update['reviewer_id'] = get_user_id();
-            // Using updated logic to set/clear audit timestamps
-            $data_to_update['approved_at'] = ($new_status === 'Approved') ? date('Y-m-d H:i:s') : NULL;
-            $data_to_update['rejected_at'] = ($new_status === 'Rejected') ? date('Y-m-d H:i:s') : NULL;
+        
+        // FIX: Handle specific timestamps and clear others for clarity
+        if ($new_status === 'Approved') {
+            $data_to_update['approved_at'] = date('Y-m-d H:i:s');
+        } elseif ($new_status === 'Rejected') {
+            $data_to_update['rejected_at'] = date('Y-m-d H:i:s');
+        } elseif ($new_status === 'Archived') {
+            $data_to_update['deleted_at'] = date('Y-m-d H:i:s');
         }
         
-        // 2. Call Model to update
-        $success = $this->OrgModel->updateDocument((int)$doc_id, $data_to_update);
+        // 2. Call Model to update. Returns row count (0 or 1+) or FALSE on error.
+        $success_indicator = $this->OrgModel->updateDocument((int)$doc_id, $data_to_update);
         
         // 3. Handle response and redirect
-        if ($success) {
+        // FIX: Check for !== FALSE (accept 0 rows changed) and ensure termination
+        if ($success_indicator !== FALSE) {
             $message = "Status for '{$doc_title}' successfully changed to {$new_status}.";
             set_flash_alert('success', $message);
             
-            // Redirect to the list corresponding to the new status (e.g., Approved Documents)
+            // Redirect to the list corresponding to the new status 
             $redirect_segment = strtolower(str_replace(' ', '', $new_status));
             redirect(BASE_URL . '/org/documents/' . $redirect_segment);
+            return; // CRITICAL: Terminate script
         } else {
             set_flash_alert('danger', 'Failed to update document status in the database.');
             redirect(BASE_URL . '/org/documents/pending'); 
+            return; // CRITICAL: Terminate script
         }
-    } 
+    }
+
+    // ----------------------------------------------------------------------
+    //  RESUBMISSION LOGIC
+    // ----------------------------------------------------------------------
+
+    /**
+     * Displays the edit/resubmit form for a specific document.
+     */
+    public function documents_edit($doc_id) {
+        // FIX: Use robust session check
+        $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+
+        if (!$is_authenticated || ((int)$doc_id) <= 0) {
+            set_flash_alert('danger', 'Invalid document ID or please log in.');
+            redirect(BASE_URL . '/org/documents/rejected');
+            return;
+        }
+        
+        // Fetch document details including the original submitter (via getDocumentById)
+        $doc = $this->OrgModel->getDocumentById((int)$doc_id); // Assumes getDocumentById returns an object/array
+        
+        if (empty($doc)) {
+            set_flash_alert('danger', 'Document not found.');
+            redirect(BASE_URL . '/org/documents/rejected');
+            return;
+        }
+
+        // Only the original submitter should be able to edit/resubmit
+        // NOTE: $doc is likely an object if fetched by getDocumentById
+        if (($doc->user_id ?? $doc['user_id'] ?? null) !== get_user_id()) {
+            set_flash_alert('danger', 'You do not have permission to edit this document.');
+            redirect(BASE_URL . '/org/dashboard');
+            return;
+        }
+        
+        $reviewers = $this->OrgModel->getPotentialReviewers();
+        
+        $this->call->view('org/documents/edit', [ // User needs to create 'edit.php' view
+            'doc' => $doc,
+            'reviewers' => $reviewers
+        ]);
+    }
+
+    /**
+     * Handles the POST request to resubmit an edited document.
+     */
+    public function documents_resubmit() {
+        $doc_id = $this->io->post('document_id');
+        
+        // FIX: Use robust session check
+        $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+
+        if (!$is_authenticated || ((int)$doc_id) <= 0) {
+            set_flash_alert('danger', 'Invalid action or missing document data. Please log in.');
+            redirect(BASE_URL . '/org/documents/rejected');
+            return;
+        }
+
+        // Load validation library 
+        $this->call->library('Form_validation'); 
+        
+        $title = $this->io->post('title');
+        
+        // Simple validation check (should be extended)
+        if (empty($title)) {
+             set_flash_alert('danger', 'Document Title is required.');
+             redirect(BASE_URL . '/org/documents/edit/' . $doc_id);
+             return;
+        }
+        
+        // Data for update/resubmission
+        $data = [
+            'title'         => $title,
+            'type'          => $this->io->post('type'),
+            'status'        => 'Pending Review', // CRITICAL: Reset status
+            'description'   => $this->io->post('description'),
+            'tags'          => $this->io->post('tags'),
+            'reviewer_id'   => $this->io->post('reviewer') ?: NULL, 
+            'updated_at'    => date('Y-m-d H:i:s'),
+            'rejected_at'   => NULL, // Clear rejection timestamp
+            'approved_at'   => NULL, // Clear approval timestamp
+            'deleted_at'    => NULL  // Clear archived status
+        ];
+        
+        // NOTE: File upload/update logic is complex and omitted here, assuming the existing file is kept.
+
+        $success_indicator = $this->OrgModel->updateDocument((int)$doc_id, $data);
+
+        if ($success_indicator !== FALSE) {
+            set_flash_alert('success', 'Document "' . htmlspecialchars($title) . '" successfully resubmitted for review.');
+            redirect(BASE_URL . '/org/documents/pending');
+            return;
+        } else {
+            set_flash_alert('danger', 'Resubmission failed to update record in database. Please try again.');
+            redirect(BASE_URL . '/org/documents/edit/' . $doc_id);
+            return;
+        }
+    }
 
     public function documents_pending() { 
         // 1. Get filter input from URL
@@ -241,7 +351,13 @@ class OrgController extends Controller
     
     public function documents_rejected(){ 
         $docs = $this->OrgModel->getRejectedDocuments(); 
-        $this->call->view('org/documents/rejected', compact('docs')); 
+        // FIX: Fetch reviewers for the resubmit modal on the rejected page
+        $reviewers = $this->OrgModel->getPotentialReviewers();
+        
+        $this->call->view('org/documents/rejected', [
+            'docs' => $docs, 
+            'reviewers' => $reviewers
+        ]); 
     }
     public function documents_archived(){ 
         $docs = $this->OrgModel->getArchivedDocuments(); 

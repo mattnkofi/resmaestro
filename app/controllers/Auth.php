@@ -156,9 +156,9 @@ class Auth extends Controller
             }
 
             // ENHANCED ERROR MESSAGE 8: Account not verified
-            if (isset($user->email_verified) && $user->email_verified == 0) {
-                set_flash_alert('danger', 'Your account is not verified. Please check your inbox for the verification link.');
-                redirect('login');
+            if (isset($user->email_verified) && $user->email_verified === '0') {
+                set_flash_alert('danger', 'Your email address has not been verified. Please check your inbox.');
+                redirect('verify_email');
                 return;
             }
 
@@ -237,7 +237,8 @@ class Auth extends Controller
     }
 
     public function logout() {
-        // FIX: Replaced $this->lauth->logout() with direct session destruction
+        // FIX: Since login manually sets $_SESSION keys, logout must manually destroy the session.
+        // This avoids the 'Call to undefined method Lauth::logout()' error.
         if (isset($_SESSION)) {
              session_destroy();
         }
@@ -245,7 +246,10 @@ class Auth extends Controller
         // ENHANCED SUCCESS MESSAGE 4
         set_flash_alert('success', 'You have been successfully logged out.');
         redirect('login');
+        return; // CRITICAL: Stop script execution after redirect
     }
+
+    
 
     // Utility function to test email configuration
     public function test_email()

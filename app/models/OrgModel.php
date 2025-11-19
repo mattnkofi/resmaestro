@@ -53,7 +53,7 @@ class OrgModel extends Model
     $search_term = "%{$query}%";
     $this->db
         // Ensure d.id is selected for the review link
-        ->select('d.id, d.title, d.status, d.created_at, u.fname, u.lname')
+        ->select('d.id, d.title, d.status, d.created_at, d.type, d.file_name, u.fname, u.lname')
         ->table('documents d')
         ->left_join('users u', 'd.user_id = u.id')
         ->where('d.status', 'Pending Review'); // Always filter by status
@@ -113,11 +113,18 @@ class OrgModel extends Model
     }
     
     public function getRejectedDocuments() {
-        return $this->db->table('documents')->where('status', 'Rejected')->get_all();
+        // FIX: Join with users to get reviewer names and select necessary fields (id, title, description, created_at)
+        return $this->db
+            ->select('d.id, d.title, d.created_at, d.description, d.file_name, d.type, u.fname AS reviewer_fname, u.lname AS reviewer_lname')
+            ->table('documents d')
+            ->left_join('users u', 'd.reviewer_id = u.id') 
+            ->where('d.status', 'Rejected')
+            ->order_by('d.created_at', 'DESC')
+            ->get_all();
     }
     
     public function getArchivedDocuments() {
-        return $this->db->table('documents')->where_not_null('deleted_at')->get_all();
+        return $this->db->table('documents')->where('status', 'Archived')->get_all();
     }
 
     // --- Status Update Methods ---

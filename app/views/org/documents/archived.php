@@ -185,6 +185,8 @@
             Archived Documents
         </h1>
 
+        <?php if (function_exists('flash_alert')) flash_alert(); // ADDED: Display flash messages ?>
+
         <!-- Optional: Filter Bar for Archived Documents -->
         <div class="flex flex-col md:flex-row gap-4 mb-8">
             <input type="text" placeholder="Search archived documents by title or date..." 

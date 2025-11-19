@@ -170,10 +170,12 @@
     </aside>
 
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
-        
+    
         <h1 class="text-3xl font-bold text-green-400 mb-6 tracking-wide">
             Approved Documents
         </h1>
+
+        <?php if (function_exists('flash_alert')) flash_alert(); // ADDED: Display Toast/flash messages ?>
 
         <form method="GET" action="<?= BASE_URL ?>/org/documents/approved">
             <div class="flex flex-col md:flex-row gap-4 mb-8">
@@ -210,8 +212,13 @@
     $docs = $approved_docs ?? [];
     
     foreach($docs as $doc): 
+        // FIX: Safely access approver names using the null coalescing operator (??) 
+        // and default to 'System' if the reviewer data is missing.
+        $approver_fname = $doc['approver_fname'] ?? 'System'; //
+        $approver_lname = $doc['approver_lname'] ?? ''; //
+        
         // Use the approver's name from the JOIN
-        $approver_name = html_escape($doc['approver_fname'] . ' ' . $doc['approver_lname']);
+        $approver_name = html_escape(trim($approver_fname . ' ' . $approver_lname)); //
         
         // FIX: Use 'created_at' field which is guaranteed to exist.
         $approved_date = date('M d, Y', strtotime($doc['created_at']));

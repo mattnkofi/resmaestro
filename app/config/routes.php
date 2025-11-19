@@ -11,6 +11,7 @@ $router->match('/login', 'Auth::login', ['GET', 'POST']);
 $router->match('/register', 'Auth::register', ['GET', 'POST']);
 $router->get('/verify-email', 'Auth::verify_email');
 $router->get('/test-email', 'Auth::test_email');
+$router->get('/logout', 'Auth::logout');
 
 /*
 |--------------------------------------------------------------------------
@@ -36,8 +37,13 @@ $router->get('/org/documents/review/(:num)', 'OrgController::documents_review/$1
 $router->post('/org/documents/update_status', 'OrgController::update_document_status');
 
 $router->get('/org/documents/pending', 'OrgController::documents_pending');
+
 $router->get('/org/documents/approved', 'OrgController::documents_approved');
+
 $router->get('/org/documents/rejected', 'OrgController::documents_rejected');
+$router->get('/org/documents/edit/(:num)', 'OrgController::documents_edit/$1');
+$router->post('/org/documents/resubmit', 'OrgController::documents_resubmit');
+
 $router->get('/org/documents/archived', 'OrgController::documents_archived');
 
 // Review

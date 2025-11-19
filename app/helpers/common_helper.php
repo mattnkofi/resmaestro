@@ -16,33 +16,40 @@ if (! function_exists('set_flash_alert')) {
 if (! function_exists('flash_alert')) {
     function flash_alert()
     {
-        // FIX: Removed reference operator for PHP 8+ compatibility
+        // FIX: Changed output to a Toast Notification system using Alpine.js and Tailwind CSS.
+        
         $LAVA = lava_instance();
         $alert_type = $LAVA->session->flashdata('alert');
         $message = $LAVA->session->flashdata('message');
         
         if ($alert_type !== null) {
+            $is_success = ($alert_type === 'success');
+            $bg_color = $is_success ? 'bg-green-700' : 'bg-red-700'; // Determine background color
+            $icon = $is_success ? 'fa-check-circle' : 'fa-triangle-exclamation'; // Determine icon
 
-            // The target message is primarily for login, but all DANGER alerts 
-            // on registration should use the highly visible style for consistency.
-            if ($alert_type === 'danger') {
-                // 1. CUSTOM NOTIFICATION UI for ALL DANGER Alerts (uses credential-error-notification CSS)
-                echo '
-                <div class="credential-error-notification">
-                    <svg class="credential-error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <!-- Exclamation Triangle Icon -->
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.332 16c-.77 1.333.192 3 1.732 3z"></path>
-                    </svg>
-                    <span>' . htmlspecialchars($message) . '</span>
-                </div>';
-            } else {
-                // 2. DEFAULT ALERT STRUCTURE for SUCCESS messages (uses the new alert-success CSS)
-                echo '
-                <div class="alert alert-' . $alert_type . ' p-4 rounded-lg mb-6 text-center text-sm">
-                    ' . htmlspecialchars($message) . '
+            // Toast HTML/Alpine.js Structure
+            echo "
+            <div x-data=\"{ show: true }\" 
+                 x-show=\"show\" 
+                 x-init=\"setTimeout(() => show = false, 5000)\"
+                 x-transition:enter=\"transition ease-out duration-300\"
+                 x-transition:enter-start=\"opacity-0 translate-y-full sm:translate-y-0 sm:translate-x-full\"
+                 x-transition:enter-end=\"opacity-100 translate-y-0 sm:translate-x-0\"
+                 x-transition:leave=\"transition ease-in duration-200\"
+                 x-transition:leave-start=\"opacity-100 translate-y-0 sm:translate-x-0\"
+                 x-transition:leave-end=\"opacity-0 translate-y-full sm:translate-y-0 sm:translate-x-full\"
+                 class='fixed bottom-0 right-0 p-4 z-50 w-full max-w-sm'>
+                
+                <div class='{$bg_color} text-white p-4 rounded-lg shadow-2xl flex items-center space-x-3 border border-white/20'>
+                    <i class='fa-solid {$icon} text-lg'></i>
+                    <p class='text-sm font-medium flex-1'>
+                        " . htmlspecialchars($message) . "
+                    </p>
+                    <button @click='show = false' class='flex-shrink-0 text-white opacity-75 hover:opacity-100 transition'>
+                        <i class='fa-solid fa-xmark'></i>
+                    </button>
                 </div>
-                ';
-            }
+            </div>";
         }
     }
 }
@@ -69,6 +76,15 @@ if ( ! function_exists('logged_in'))
         $LAVA->call->library('lauth');
         if($LAVA->lauth->is_logged_in())
             return true;
+    }
+}
+
+// CRITICAL FIX: Re-adding the missing is_logged_in alias
+if ( ! function_exists('is_logged_in'))
+{
+    // Alias/Wrapper for the primary logged-in check
+    function is_logged_in() {
+        return logged_in();
     }
 }
 

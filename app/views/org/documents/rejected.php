@@ -6,7 +6,6 @@
     <title>Rejected Documents - Maestro UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <!-- Poppins Font Import -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script>
@@ -34,8 +33,16 @@
         .maestro-bg { background-color: #0b0f0c; } 
     </style>
 </head>
-<!-- Applying font-poppins explicitly to the body tag -->
-<body class="bg-maestro-bg text-white font-poppins" x-data="{}">
+<body class="bg-maestro-bg text-white font-poppins" 
+    x-data="{ 
+        resubmitModalOpen: false,
+        currentDoc: { id: 0, title: '', description: '', type: '', reviewer_id: '' },
+        setDocForResubmit(doc) {
+            this.currentDoc = doc;
+            this.resubmitModalOpen = true;
+        }
+    }"
+    @keydown.escape="resubmitModalOpen = false">
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
@@ -47,12 +54,23 @@
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
+
+    // Mock BASE_URL and html_escape if not defined (safe guard)
+    if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+    if (!function_exists('html_escape')) {
+        function html_escape($str) {
+            return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+        }
+    }
+    
+    // FIX 1: Safely initialize variables passed by the controller (no mock data)
+    $docs = $docs ?? [];
+    $reviewers = $reviewers ?? []; // Must be passed by OrgController::documents_rejected()
+    $doc_types = $doc_types ?? ['Finance', 'Budget', 'Accomplishment', 'Proposal', 'Legal', 'Other']; // Assume default if not passed
     ?>
 
-    <!-- START SIDEBAR CONTENT -->
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
-            <!-- Placeholder for logo image -->
             <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
             <h1 class="text-2xl font-bold text-green-400 tracking-wider">MAESTRO</h1>
         </div>
@@ -68,7 +86,6 @@
                 </a>
             </div>
 
-            <!-- Documents Dropdown -->
             <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -87,7 +104,6 @@
                 </div>
             </div>
 
-            <!-- Review & Workflow Dropdown -->
             <div x-data='{ open: <?= $is_review_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -103,7 +119,6 @@
                 </div>
             </div>
 
-            <!-- Organization Dropdown -->
             <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -120,7 +135,6 @@
                 </div>
             </div>
             
-            <!-- Reports Dropdown -->
             <div x-data='{ open: <?= $is_reports_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -154,7 +168,6 @@
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <!-- Placeholder for user image -->
                         <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
@@ -176,16 +189,14 @@
             Maestro Organization © <?=date('Y')?>
         </div>
     </aside>
-    <!-- END SIDEBAR CONTENT -->
-
-    <!-- Main Content Area -->
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         
         <h1 class="text-3xl font-bold text-red-400 mb-6 tracking-wide">
             Rejected Documents
         </h1>
 
-        <!-- Optional: Filter Bar for Rejected Documents -->
+        <?php if (function_exists('flash_alert')) flash_alert(); ?>
+
         <div class="flex flex-col md:flex-row gap-4 mb-8">
             <input type="text" placeholder="Search rejected documents..." 
                    class="w-full md:w-1/3 bg-red-900/50 border border-red-800 p-3 rounded-xl focus:ring-red-500 focus:border-red-500 transition placeholder-gray-500 text-white">
@@ -200,30 +211,45 @@
             </button>
         </div>
 
-        <!-- Rejected Documents List (Dynamic Cards) -->
         <div class="space-y-4">
             <?php
-            // Mock data to demonstrate the loop and detailed card styling
-            $rejected_docs = [
-                ['title' => 'Project Proposal Q3 Expansion', 'reason' => 'Missing Signatures', 'reviewer' => 'John Smith', 'date' => 'Oct 29, 2025'],
-                ['title' => 'Marketing Budget Draft H1', 'reason' => 'Budget Exceeded Cap', 'reviewer' => 'Admin User', 'date' => 'Oct 25, 2025'],
-                ['title' => 'New HR Onboarding Guide V2', 'reason' => 'Incorrect Template/Format', 'reviewer' => 'Jane Doe', 'date' => 'Oct 20, 2025'],
-            ];
+            
+            // FIX 2: Loop through the real $docs data
+            foreach($docs as $doc): 
+                
+                // FIX 3: Safely retrieve reviewer name and rejection date
+                // Uses object access (->) first, then array access ([]) for robustness.
+                $reviewer_fname = $doc->reviewer_fname ?? $doc['reviewer_fname'] ?? 'System';
+                $reviewer_lname = $doc->reviewer_lname ?? $doc['reviewer_lname'] ?? '';
+                $reviewer_name = html_escape(trim($reviewer_fname . ' ' . $reviewer_lname));
 
-            foreach($rejected_docs as $doc): ?>
+                $rejection_date = date('M d, Y', strtotime($doc->created_at ?? $doc['created_at'] ?? 'now'));
+                $reason = $doc->description ?? $doc['description'] ?? 'No reason provided';
+                $doc_id = $doc->id ?? $doc['id'] ?? 0;
+                $title = $doc->title ?? $doc['title'] ?? '';
+                $type = $doc->type ?? $doc['type'] ?? '';
+                $reviewer_id = $doc->reviewer_id ?? $doc['reviewer_id'] ?? '';
+            ?>
             <div class="bg-red-950/20 p-5 rounded-xl border-l-4 border-red-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-red-900/30 transition">
                 <div class="flex flex-col mb-2 md:mb-0">
-                    <span class="text-lg font-semibold text-red-200"><?= $doc['title'] ?></span>
-                    <span class="text-sm text-gray-400">Rejected By: <?= $doc['reviewer'] ?> on <?= $doc['date'] ?></span>
+                    <span class="text-lg font-semibold text-red-200"><?= html_escape($title) ?></span>
+                    <span class="text-sm text-gray-400">Rejected By: <?= $reviewer_name ?> on <?= $rejection_date ?></span>
                 </div>
                 <div class="flex items-center space-x-6">
                     <div class="text-right hidden sm:block">
                         <span class="block text-xs text-gray-300 uppercase tracking-wider">Reason:</span>
-                        <span class="block text-sm text-red-400 font-medium"><?= $doc['reason'] ?></span>
+                        <span class="block text-sm text-red-400 font-medium max-w-[200px] truncate" title="<?= html_escape($reason) ?>"><?= html_escape($reason) ?></span>
                     </div>
-                    <a href="<?=BASE_URL?>/org/documents/edit/<?= urlencode($doc['title']) ?>" class="bg-red-700 hover:bg-red-600 px-4 py-2 rounded-lg text-sm transition">
+                    <button @click="setDocForResubmit({ 
+                        id: <?= $doc_id ?>, 
+                        title: '<?= html_escape($title) ?>', 
+                        description: '<?= html_escape($reason) ?>', 
+                        type: '<?= html_escape($type) ?>',
+                        reviewer_id: '<?= html_escape($reviewer_id) ?>'
+                    })" 
+                    class="bg-red-700 hover:bg-red-600 px-4 py-2 rounded-lg text-sm transition">
                         <i class="fa-solid fa-paper-plane mr-1"></i> Resubmit
-                    </a>
+                    </button>
                     <button class="text-gray-500 hover:text-red-300 transition text-sm">
                         <i class="fa-solid fa-trash"></i>
                     </button>
@@ -231,10 +257,9 @@
             </div>
             <?php endforeach; ?>
             
-            <!-- No Data Placeholder (for completeness) -->
-            <?php if (empty($rejected_docs)): ?>
+            <?php if (empty($docs)): ?>
             <div class="p-8 text-center text-gray-500 bg-red-950/20 rounded-xl border border-red-800">
-                <i class="fa-solid fa-thumbs-up text-4xl mb-3 text-green-500"></i>
+                <i class="fa-solid fa-thumbs-down text-4xl mb-3 text-red-500"></i>
                 <p class="text-lg">No documents have been rejected!</p>
             </div>
             <?php endif; ?>
@@ -242,5 +267,96 @@
 
     </div>
 
+    <div x-show="resubmitModalOpen" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
+        style="display: none;">
+
+        <div @click.outside="resubmitModalOpen = false" class="w-full max-w-2xl mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-red-800 flex flex-col">
+            
+            <header class="p-4 border-b border-red-800 flex justify-between items-center bg-sidebar-dark">
+                <h3 class="text-xl font-bold text-red-300" x-text="'Resubmit: ' + currentDoc.title">Resubmit Document</h3>
+                <button type="button" @click="resubmitModalOpen = false" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </header>
+
+            <div class="p-6">
+                <p class="text-sm text-gray-400 mb-4">Make the necessary corrections and resubmit this document for review.</p>
+                
+                <form method="POST" action="<?= BASE_URL ?>/org/documents/resubmit" enctype="multipart/form-data" class="space-y-4">
+                    
+                    <input type="hidden" name="document_id" :value="currentDoc.id">
+
+                    <div>
+                        <label for="title" class="block text-sm font-medium text-gray-300 mb-1">Document Title</label>
+                        <input type="text" name="title" id="title" :value="currentDoc.title" required
+                                class="w-full bg-gray-900 border border-gray-700 p-3 rounded-lg text-white focus:ring-red-500 focus:border-red-500">
+                    </div>
+
+                    <div class="flex space-x-4">
+                        <div class="flex-1">
+                            <label for="type" class="block text-sm font-medium text-gray-300 mb-1">Document Type</label>
+                            <select name="type" id="type" :value="currentDoc.type" required
+                                    class="w-full bg-gray-900 border border-gray-700 p-3 rounded-lg text-white focus:ring-red-500 focus:border-red-500">
+                                <template x-for="docType in <?= htmlspecialchars(json_encode($doc_types)) ?>" :key="docType">
+                                    <option :value="docType.toLowerCase()" :selected="docType.toLowerCase() === currentDoc.type.toLowerCase()" x-text="docType"></option>
+                                </template>
+                            </select>
+                        </div>
+                        
+                        <div class="flex-1">
+                            <label for="reviewer" class="block text-sm font-medium text-gray-300 mb-1">Select Reviewer</label>
+                            <select name="reviewer" id="reviewer" 
+                                    class="w-full bg-gray-900 border border-gray-700 p-3 rounded-lg text-white focus:ring-red-500 focus:border-red-500">
+                                <option value="">Auto-Assign (Optional)</option>
+                                <?php 
+                                // Loop through dynamically provided reviewers
+                                if (!empty($reviewers) && (is_array($reviewers) || is_object($reviewers))):
+                                    foreach($reviewers as $reviewer): 
+                                        $rev_id = $reviewer->id ?? $reviewer['id'] ?? null;
+                                        $rev_fname = $reviewer->fname ?? $reviewer['fname'] ?? '';
+                                        $rev_lname = $reviewer->lname ?? $reviewer['lname'] ?? '';
+                                        if ($rev_id !== null):
+                                ?>
+                                    <option value="<?= $rev_id ?>" :selected="!isNaN(currentDoc.reviewer_id) && <?= $rev_id ?> == currentDoc.reviewer_id"><?= html_escape($rev_fname . ' ' . $rev_lname) ?></option>
+                                <?php 
+                                        endif; 
+                                    endforeach; 
+                                endif; 
+                                ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-300 mb-1">Notes/Corrections Made</label>
+                        <textarea name="description" id="description" rows="3" 
+                                class="w-full bg-gray-900 border border-gray-700 p-3 rounded-lg text-white focus:ring-red-500 focus:border-red-500"
+                                x-model="currentDoc.description"
+                                placeholder="Explain the corrections made or the reason for resubmission."></textarea>
+                    </div>
+
+                    <div>
+                        <label for="document_file" class="block text-sm font-medium text-gray-300 mb-1">Upload New File (Optional)</label>
+                        <input type="file" name="document_file" id="document_file" 
+                                class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100">
+                        <p class="text-xs text-gray-500 mt-1">Leave blank to resubmit with the existing file.</p>
+                    </div>
+
+                    <div class="flex justify-end space-x-4 pt-2">
+                        <button type="button" @click="resubmitModalOpen = false" class="text-gray-400 hover:text-white transition px-4 py-2">
+                            Cancel
+                        </button>
+                        <button type="submit" class="bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition shadow-lg shadow-red-900/40">
+                            <i class="fa-solid fa-paper-plane mr-2"></i> Confirm Resubmit
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
 </body>
 </html>
