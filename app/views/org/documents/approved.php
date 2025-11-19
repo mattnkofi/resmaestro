@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Approved Documents - Maestro UI</title>
+    <title>Approved Documents - Maestro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -33,8 +33,6 @@
 <body class="bg-maestro-bg text-white font-poppins" x-data="{}">
 
     <?php 
-    // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    // In your actual sidebar.php, you should get the real URI from your framework.
     $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/approved'; 
 
     // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN

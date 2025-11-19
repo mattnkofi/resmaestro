@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pending Documents - Maestro UI</title>
+    <title>Pending Documents - Maestro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -390,16 +390,15 @@
                 </div>
 
                 <div class="pl-4 space-y-6 flex flex-col">
-                    <h4 class="text-lg font-semibold text-gray-400">Review Details & Status</h4>
+    <h4 class="text-lg font-semibold text-gray-400">Review Details & Status</h4>
 
-                    <div class="bg-green-950/50 p-4 rounded-lg border border-green-800">
-                        <p class="text-sm text-gray-400">Status: <span :class="currentDoc.status === 'Approved' ? 'text-green-300' : 'text-yellow-300'" x-text="toSentenceCase(currentDoc.status)"></span></p>
-                        <p class="text-sm text-gray-400">Type: <span x-text="toSentenceCase(currentDoc.type)"></span></p>
-                        <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
-                        <p class="text-sm text-gray-400">Submitted On: <span x-text="currentDoc.created_at ? new Date(currentDoc.created_at).toLocaleDateString('en-US') : 'N/A'"></span></p>
-                    </div>
+    <div class="bg-green-950/50 p-4 rounded-lg border border-green-800">
+        <p class="text-sm text-gray-400">Status: <span :class="currentDoc.status === 'Approved' ? 'text-green-300' : 'text-yellow-300'" x-text="toSentenceCase(currentDoc.status)"></span></p>
+        <p class="text-sm text-gray-400">Type: <span x-text="toSentenceCase(currentDoc.type)"></span></p>
+        <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
+        <p class="text-sm text-gray-400">Submitted On: <span x-text="currentDoc.created_at ? new Date(currentDoc.created_at).toLocaleDateString('en-US') : 'N/A'"></span></p>
+    </div>
 
-                    <div class="pl-4 space-y-6 flex flex-col">
     <h5 class="text-md font-bold text-green-300">Update Status:</h5>
     <div class="space-y-4">
         

@@ -6,7 +6,6 @@
     <title>Archived Documents - Maestro UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <!-- Poppins Font Import -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script>
@@ -32,33 +31,110 @@
         
         /* Sidebar Custom Styles (for consistency) */
         .maestro-bg { background-color: #0b0f0c; } 
+        
+        /* Modal grid style for document viewer */
+        .review-content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* 2/3 viewer, 1/3 sidebar */
+            height: 100%; 
+            gap: 1rem;
+            padding: 1rem;
+        }
     </style>
 </head>
-<!-- Applying font-poppins explicitly to the body tag -->
-<body class="bg-maestro-bg text-white font-poppins" x-data="{}">
+<body class="bg-maestro-bg text-white font-poppins" 
+    x-data="{
+        modalOpen: false, 
+        confirmActionModalOpen: false, 
+        
+        currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '', deleted_at: '' },
+        actionFormElement: null, 
+
+        getFileExtension(fileName) {
+            return fileName ? fileName.split('.').pop().toLowerCase() : '';
+        },
+        isImage(fileName) {
+            const ext = this.getFileExtension(fileName);
+            return ['jpg', 'jpeg', 'png'].includes(ext);
+        },
+        isPDF(fileName) {
+            return this.getFileExtension(fileName) === 'pdf';
+        },
+        toSentenceCase(str) {
+            if (!str) return '';
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        },
+        getDocViewerURL(fileName) {
+            if (!fileName) return '';
+            const publicUrl = '<?= BASE_URL ?>/public/uploads/documents/' + fileName;
+            const absoluteUrl = window.location.origin + publicUrl;
+
+            if (this.isPDF(fileName)) {
+                return publicUrl;
+            }
+            return 'https://docs.google.com/gview?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
+        },
+        
+        setDoc(doc) { 
+            this.currentDoc = doc; 
+            this.modalOpen = true; 
+        },
+        
+        prepareConfirmation(form, doc) {
+            this.actionFormElement = form;
+            this.currentDoc = doc; 
+            this.confirmActionModalOpen = true;
+        },
+
+        executeAction() {
+            if (this.actionFormElement) {
+                this.actionFormElement.submit(); 
+            }
+            this.confirmActionModalOpen = false;
+        }
+    }"
+    @keydown.escape="modalOpen = false; confirmActionModalOpen = false">
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    // For "Archived Documents" page:
     $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/archived'; 
 
-    // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
     $is_documents_open = str_contains($current_uri, '/org/documents/');
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
+
+    // Mocks/Helpers (assuming BASE_URL is defined and helper functions exist)
+    if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+    if (!function_exists('html_escape')) {
+        function html_escape($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
+    }
+    if (!function_exists('csrf_field')) {
+        function csrf_field() { echo '<input type="hidden" name="csrf_token" value="MOCK_CSRF_TOKEN">'; }
+    }
+    
+    // PHP GET variables for search/filter
+    $q = $_GET['q'] ?? ''; 
+    $year = $_GET['year'] ?? ''; // Keep definition for clear button logic
+    
+    // PHP document data assumed to be passed from controller
+    $docs = $docs ?? [];
+    
+    // --- MOCK DATA FOR DEMONSTRATION ---
+    $archived_docs_mock = $docs ?? [
+        ['id' => 101, 'title' => 'Resolution 2022-15', 'file_name' => 'res_101.pdf', 'deleted_at' => '2024-10-01 10:00:00', 'fname' => 'System', 'lname' => 'Archive', 'type' => 'Legal', 'description' => 'Legal resolution from 2022'],
+        ['id' => 102, 'title' => 'Q4 Sales Report 2023', 'file_name' => 'sales_102.docx', 'deleted_at' => '2024-01-15 14:30:00', 'fname' => 'Admin', 'lname' => 'User', 'type' => 'Finance', 'description' => 'End of year sales performance'],
+    ];
+    $docs = $archived_docs_mock;
+    // --- END MOCK DATA ---
     ?>
 
-    <!-- START SIDEBAR CONTENT -->
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
-            <!-- Placeholder for logo image -->
             <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
             <h1 class="text-2xl font-bold text-green-400 tracking-wider">MAESTRO</h1>
         </div>
-
         <nav class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-
             <div>
                 <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">Main</h2>
                 <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition
@@ -67,8 +143,6 @@
                     <span>Dashboard</span>
                 </a>
             </div>
-
-            <!-- Documents Dropdown -->
             <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -86,8 +160,6 @@
                     <a href="<?=BASE_URL?>/org/documents/archived" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/archived') ? 'text-green-400 font-semibold' : '' ?>">Archived</a>
                 </div>
             </div>
-
-            <!-- Review & Workflow Dropdown -->
             <div x-data='{ open: <?= $is_review_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -102,8 +174,6 @@
                     <a href="<?=BASE_URL?>/org/review/comments" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/review/comments') ? 'text-green-400 font-semibold' : '' ?>">Comment Threads</a>
                 </div>
             </div>
-
-            <!-- Organization Dropdown -->
             <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -119,8 +189,6 @@
                     <a href="<?=BASE_URL?>/org/roles" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/roles') ? 'text-green-400 font-semibold' : '' ?>">Roles & Permissions</a>
                 </div>
             </div>
-            
-            <!-- Reports Dropdown -->
             <div x-data='{ open: <?= $is_reports_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -136,25 +204,20 @@
                     <a href="<?=BASE_URL?>/org/reports/storage" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/storage') ? 'text-green-400 font-semibold' : '' ?>">Storage Usage</a>
                 </div>
             </div>
-
             <div class="pt-4">
                 <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">System</h2>
             </div>
-            
             <div>
                 <a href="<?=BASE_URL?>/org/settings" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/30 transition <?= str_contains($current_uri, '/org/settings') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">
                     <i class="fa-solid fa-gear w-5 text-center"></i>
                     <span>Settings</span>
                 </a>
             </div>
-
         </nav>
-
         <div class="border-t border-green-800 px-4 py-4">
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <!-- Placeholder for user image -->
                         <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
@@ -163,7 +226,6 @@
                     </div>
                     <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs text-gray-400 ml-2"></i>
                 </button>
-
                 <div x-show="open" x-transition.duration.200ms class="absolute bottom-full mb-3 left-0 w-full bg-[#151a17] border border-green-700 rounded-lg shadow-2xl text-sm z-20">
                     <a href="<?=BASE_URL?>/org/profile" class="block px-4 py-2 hover:bg-green-700/30 rounded-t-lg transition">View Profile</a>
                     <a href="<?=BASE_URL?>/org/settings" class="block px-4 py-2 hover:bg-green-700/30 transition">Settings</a>
@@ -171,78 +233,216 @@
                 </div>
             </div>
         </div>
-
         <div class="border-t border-green-800 p-3 text-xs text-gray-500 text-center">
             Maestro Organization © <?=date('Y')?>
         </div>
     </aside>
-    <!-- END SIDEBAR CONTENT -->
-
-    <!-- Main Content Area -->
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         
         <h1 class="text-3xl font-bold text-blue-400 mb-6 tracking-wide">
             Archived Documents
         </h1>
 
-        <?php if (function_exists('flash_alert')) flash_alert(); // ADDED: Display flash messages ?>
+        <?php if (function_exists('flash_alert')) flash_alert(); ?>
 
-        <!-- Optional: Filter Bar for Archived Documents -->
-        <div class="flex flex-col md:flex-row gap-4 mb-8">
-            <input type="text" placeholder="Search archived documents by title or date..." 
-                   class="w-full md:w-1/3 bg-blue-900/50 border border-blue-800 p-3 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition placeholder-gray-500 text-white">
-            <select class="w-full md:w-1/6 bg-blue-900/50 border border-blue-800 p-3 rounded-xl text-white">
-                <option>Filter by Year</option>
-                <option>2024</option>
-                <option>2023</option>
-                <option>2022</option>
-            </select>
-            <button class="bg-blue-700 hover:bg-blue-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-blue-900/40">
-                <i class="fa-solid fa-box-archive mr-2"></i> Search Archive
-            </button>
-        </div>
+        <form method="GET" action="<?= BASE_URL ?>/org/documents/archived">
+            <div class="flex flex-col md:flex-row gap-4 mb-8">
+                <input type="text" name="q" value="<?= html_escape($q) ?>"
+                       placeholder="Search archived documents by title or description..." 
+                       class="w-full md:w-1/2 bg-blue-900/50 border border-blue-800 p-3 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition placeholder-gray-500 text-white">
+                
+                <button type="submit" class="bg-blue-700 hover:bg-blue-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-blue-900/40">
+                    <i class="fa-solid fa-search mr-2"></i> Search Documents
+                </button>
 
-        <!-- Archived Documents List (Dynamic Cards) -->
+                <?php if (!empty($q)): ?>
+                    <a href="<?= BASE_URL ?>/org/documents/archived" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
+                        <i class="fa-solid fa-xmark mr-2"></i> Clear
+                    </a>
+                <?php endif; ?>
+            </div>
+        </form>
+
         <div class="space-y-4">
             <?php
-            // Mock data to demonstrate the loop and detailed card styling
-            $archived_docs = [
-                ['title' => 'Resolution 2022-15', 'archived_by' => 'System Archive', 'date' => 'Oct 1, 2024'],
-                ['title' => 'Q4 Sales Report 2023', 'archived_by' => 'Admin User', 'date' => 'Jan 15, 2024'],
-                ['title' => 'Old HR Manual V1.0', 'archived_by' => 'Jane Doe', 'date' => 'Dec 1, 2023'],
+            // Mock data setup
+            $archived_docs_mock = $docs ?? [
+                ['id' => 101, 'title' => 'Resolution 2022-15', 'file_name' => 'res_101.pdf', 'deleted_at' => '2024-10-01 10:00:00', 'fname' => 'System', 'lname' => 'Archive', 'type' => 'Legal', 'description' => 'Legal resolution from 2022'],
+                ['id' => 102, 'title' => 'Q4 Sales Report 2023', 'file_name' => 'sales_102.docx', 'deleted_at' => '2024-01-15 14:30:00', 'fname' => 'Admin', 'lname' => 'User', 'type' => 'Finance', 'description' => 'End of year sales performance'],
             ];
-
-            foreach($archived_docs as $doc): ?>
+            $docs = $archived_docs_mock;
+            
+            if (!empty($docs)):
+            foreach($docs as $doc): 
+                // Safely extract data, treating object/array consistently
+                $doc_id = $doc->id ?? $doc['id'] ?? 0;
+                $doc_title = $doc->title ?? $doc['title'] ?? 'N/A';
+                $doc_file_name = $doc->file_name ?? $doc['file_name'] ?? '';
+                $doc_deleted_at = $doc->deleted_at ?? $doc['deleted_at'] ?? null;
+                $submitter = html_escape(($doc->fname ?? $doc['fname'] ?? 'N/A') . ' ' . ($doc->lname ?? $doc['lname'] ?? ''));
+                $display_date = $doc_deleted_at ? date('M d, Y', strtotime($doc_deleted_at)) : 'N/A';
+                
+                // Prepare document data for Alpine.js modal
+                $js_doc = json_encode([
+                    'id' => $doc_id, 
+                    'title' => html_escape($doc_title), 
+                    'file_name' => $doc_file_name, 
+                    'status' => 'Archived', 
+                    'submitter' => $submitter,
+                    'type' => $doc->type ?? $doc['type'] ?? 'N/A',
+                    'deleted_at' => $doc_deleted_at
+                ]);
+            ?>
             <div class="bg-blue-950/20 p-5 rounded-xl border-l-4 border-blue-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-blue-900/30 transition">
                 <div class="flex flex-col mb-2 md:mb-0">
-                    <span class="text-lg font-semibold text-blue-200"><?= $doc['title'] ?></span>
-                    <span class="text-sm text-gray-400">Archived By: <?= $doc['archived_by'] ?></span>
+                    <span class="text-lg font-semibold text-blue-200"><?= html_escape($doc_title) ?></span>
+                    <span class="text-sm text-gray-400">Archived By: <?= $submitter ?></span>
                 </div>
                 <div class="flex items-center space-x-6">
                     <div class="text-right hidden sm:block">
-                        <span class="block text-xs text-gray-300 uppercase tracking-wider">Date Archived:</span>
-                        <span class="block text-sm text-blue-400 font-medium"><?= $doc['date'] ?></span>
+                        <span class="block text-xs text-gray-300 uppercase tracking-wider">Archived Date:</span>
+                        <span class="block text-sm text-blue-400 font-medium"><?= $display_date ?></span>
                     </div>
-                    <button class="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm transition">
+                    
+                    <button @click="setDoc(<?= html_escape($js_doc) ?>)" class="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm transition">
                         <i class="fa-solid fa-download mr-1"></i> View/Download
                     </button>
-                    <button class="text-gray-500 hover:text-blue-300 transition text-sm">
-                        <i class="fa-solid fa-box-open"></i>
-                    </button>
+                    
+                    <form method="POST" action="<?= BASE_URL ?>/org/documents/update_status" x-ref="unarchiveForm<?= $doc_id ?>">
+                        <?php csrf_field(); ?>
+                        <input type="hidden" name="document_id" value="<?= $doc_id ?>">
+                        <input type="hidden" name="new_status" value="Pending Review"> 
+                        <input type="hidden" name="document_title" value="<?= html_escape($doc_title) ?>">
+                        
+                        <button type="button" @click="prepareConfirmation($refs.unarchiveForm<?= $doc_id ?>, <?= html_escape($js_doc) ?>)"
+                            class="text-gray-500 hover:text-blue-300 transition text-lg p-2 leading-none">
+                            <i class="fa-solid fa-box-open"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
-            <?php endforeach; ?>
-            
-            <!-- No Data Placeholder (for completeness) -->
-            <?php if (empty($archived_docs)): ?>
+            <?php endforeach; 
+            else: ?>
             <div class="p-8 text-center text-gray-500 bg-blue-950/20 rounded-xl border border-blue-800">
                 <i class="fa-solid fa-box-archive text-4xl mb-3 text-blue-500"></i>
-                <p class="text-lg">The archive is currently empty.</p>
+                <p class="text-lg">No documents are currently in the archive.</p>
             </div>
             <?php endif; ?>
         </div>
 
     </div>
 
-</body>
+    <div x-show="modalOpen" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
+        style="display: none;">
+
+        <div @click.outside="modalOpen = false" class="w-full max-w-7xl mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-green-800 h-[90vh] flex flex-col">
+            
+            <header class="p-4 border-b border-green-800 flex justify-between items-center bg-sidebar-dark border-blue-500">
+                <h3 class="text-xl font-bold" x-text="'Viewing Archived: ' + currentDoc.title">Viewing Archived Document</h3>
+                <button @click="modalOpen = false" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </header>
+
+            <div class="review-content-grid flex-1 overflow-y-auto"> 
+                
+                <div class="pr-4 border-r border-green-800 flex flex-col">
+                    <h4 class="text-lg font-semibold text-gray-400 mb-3">Document Content 
+                        <span x-text="'(' + getFileExtension(currentDoc.file_name).toUpperCase() + ' Viewer)'" class="text-blue-400"></span>
+                    </h4>
+                    
+                    <div x-show="isImage(currentDoc.file_name)" 
+                         class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900 flex items-center justify-center overflow-hidden">
+                        <img :src="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" 
+                             :alt="'Viewing ' + currentDoc.title"
+                             class="max-w-full max-h-full object-contain">
+                    </div>
+
+                    <div x-show="!isImage(currentDoc.file_name)" class="w-full flex-1 flex flex-col">
+                        <iframe 
+                            :src="getDocViewerURL(currentDoc.file_name)" 
+                            class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900" 
+                            frameborder="0"
+                            allowfullscreen>
+                        </iframe>
+
+                        <template x-if="!isPDF(currentDoc.file_name)">
+                            <div class="mt-2 text-center text-sm text-gray-500">
+                                If the document viewer is blank or fails, use the direct download:
+                                <a :href="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" download
+                                   class="text-blue-400 hover:text-blue-200 underline">
+                                    <i class="fa-solid fa-download mr-1"></i> Direct Download (<span x-text="toSentenceCase(getFileExtension(currentDoc.file_name))"></span>)
+                                </a>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <div class="pl-4 space-y-6 flex flex-col">
+                    <h4 class="text-lg font-semibold text-gray-400">Archive Details</h4>
+
+                    <div class="bg-blue-950/50 p-4 rounded-lg border border-blue-800">
+                        <p class="text-sm text-gray-400">Status: <span class="text-blue-300" x-text="toSentenceCase(currentDoc.status)"></span></p>
+                        <p class="text-sm text-gray-400">Type: <span x-text="toSentenceCase(currentDoc.type)"></span></p>
+                        <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
+                        <p class="text-sm text-gray-400">Archived On: <span x-text="currentDoc.deleted_at ? new Date(currentDoc.deleted_at).toLocaleDateString('en-US') : 'N/A'"></span></p>
+                    </div>
+
+                    <h5 class="text-md font-bold text-blue-300">Action:</h5>
+                    <div class="space-y-4">
+                        
+                        <form method="POST" action="<?= BASE_URL ?>/org/documents/update_status" x-ref="unarchiveFormViewer">
+                            <?php csrf_field(); ?>
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Pending Review">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
+
+                            <button type="button" @click="prepareConfirmation($refs.unarchiveFormViewer, currentDoc)"
+                                class="w-full bg-green-700 hover:bg-green-600 px-5 py-2 rounded-lg font-medium transition">
+                                <i class="fa-solid fa-box-open mr-2"></i> Restore to Pending Review
+                            </button>
+                        </form>
+
+                    </div>
+                    
+                    <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Viewer</button>
+
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div x-show="confirmActionModalOpen" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-[60] overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
+        style="display: none;">
+
+        <div @click.outside="confirmActionModalOpen = false" class="w-full max-w-md mx-auto bg-[#151a17] rounded-xl shadow-2xl border border-red-800 p-6">
+            
+            <div class="text-center">
+                <i class="fa-solid fa-triangle-exclamation text-4xl text-yellow-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-white mb-2">Confirm Restore Action</h3>
+                
+                <p class="text-gray-400 mb-6">
+                    Are you sure you want to restore "<strong x-text="currentDoc.title">Document Title</strong>" from the archive? 
+                    It will be set back to <b>Pending Review</b>.
+                </p>
+            </div>
+
+            <div class="flex justify-center gap-4">
+                <button @click="confirmActionModalOpen = false" class="bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg transition w-full">
+                    Cancel
+                </button>
+                <button @click="executeAction()" class="bg-green-700 hover:bg-green-600 text-white font-medium px-4 py-2 rounded-lg transition w-full">
+                    <i class="fa-solid fa-box-open mr-1"></i> Confirm Restore
+                </button>
+            </div>
+
+        </div>
+    </div>
+    </body>
 </html>

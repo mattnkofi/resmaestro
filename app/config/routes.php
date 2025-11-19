@@ -29,10 +29,6 @@ $router->get('/org/documents/all', 'OrgController::documents_all');
 $router->get('/org/documents/upload', 'OrgController::documents_upload');
 $router->post('/org/documents/store', 'OrgController::documents_store');
 
-// CRITICAL FIX: Load the Document Review Page by ID (:num)
-// This must be defined before the general list routes.
-$router->get('/org/documents/review/(:num)', 'OrgController::documents_review/$1'); 
-
 // Document Status Update Route (The POST handler for Approve/Reject/Archive)
 $router->post('/org/documents/update_status', 'OrgController::update_document_status');
 
