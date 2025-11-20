@@ -38,6 +38,14 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.1);
         }
+        /* MODAL FIX: Defines the grid layout for the internal review panel */
+        .review-content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* 2/3 viewer, 1/3 sidebar */
+            height: 100%; 
+            gap: 1rem;
+            padding: 1rem; 
+        }
     </style>
     <script>
         tailwind.config = {
@@ -64,6 +72,10 @@
         modalOpen: false, 
         currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
         
+        // >> NEW: Archive Modal State <<
+        archiveModalOpen: false,
+        docToArchive: { id: 0, title: '' },
+
         // START NEW FUNCTIONS FOR VIEWING ALL FILE TYPES
         getFileExtension(fileName) {
             return fileName ? fileName.split('.').pop().toLowerCase() : '';
@@ -102,9 +114,15 @@
         setDoc(doc) { 
             this.currentDoc = doc; 
             this.modalOpen = true; 
+        },
+        // >> NEW: Function to open Archive Modal <<
+        setArchiveDoc(doc) {
+            this.docToArchive = { id: doc.id, title: doc.title };
+            this.modalOpen = false; // Close the main modal
+            this.archiveModalOpen = true; // Open the archive confirmation modal
         }
     }" 
-    @keydown.escape="modalOpen = false">
+    @keydown.escape="modalOpen = false; archiveModalOpen = false;">
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
@@ -119,6 +137,9 @@
 
     $q = $q ?? '';
     $status = $status ?? '';
+    
+    // Base URL definition
+    if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
 
     // Mock/Helper functions if not defined by the framework
     if (!function_exists('html_escape')) {
@@ -261,8 +282,8 @@
             <div class="flex flex-col md:flex-row gap-4 mb-8 items-center">
                 
                 <input type="text" name="q" value="<?= html_escape($q) ?>"
-                       placeholder="Search by title or description..." 
-                       class="w-full md:w-1/3 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white">
+                        placeholder="Search by title or description..." 
+                        class="w-full md:w-1/3 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white">
                 
                 <select name="status" class="w-full md:w-1/6 bg-green-900/50 border border-green-800 p-3 rounded-xl text-white">
                     <option value="">Filter by Status</option>
@@ -314,6 +335,8 @@
                     $doc_status = $doc['status'] ?? $doc->status ?? '';
                     $doc_type = $doc['type'] ?? $doc->type ?? '';
                     $submitter = html_escape(($doc['fname'] ?? $doc->fname ?? '') . ' ' . ($doc['lname'] ?? $doc->lname ?? ''));
+                    $doc_created_at = $doc['created_at'] ?? $doc->created_at ?? '';
+
 
                     // Determine status color/class dynamically
                     $status_class = match ($doc_status) {
@@ -322,6 +345,7 @@
                         'Rejected' => 'text-red-500',
                         default => 'text-gray-400',
                     };
+                    
                     // Ensure data passed to JS is correctly escaped/quoted
                     $js_doc = json_encode([
                         'id' => $doc_id, 
@@ -330,7 +354,7 @@
                         'status' => $doc_status, 
                         'submitter' => $submitter,
                         'type' => $doc_type,
-                        'created_at' => $doc['created_at'] ?? $doc->created_at ?? ''
+                        'created_at' => $doc_created_at
                     ]);
                 ?>
                     <tr class="border-b border-green-800 hover:bg-green-700/10 transition">
@@ -339,7 +363,7 @@
                         <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
                         <td class="p-4 text-center">
                             <button @click="setDoc(<?= html_escape($js_doc) ?>)"class="text-yellow-400 hover:text-yellow-200 hover: font-xl mr-4">
-                                <i class="fa-solid fa-pen-to-square mr-1"></i> Review
+                                <i class="fa-solid fa-eye mr-1"></i> View Details
                             </button>
                         </td>
                     </tr>
@@ -348,7 +372,7 @@
                     <tr>
                         <td colspan="4" class="p-8 text-center text-gray-500">
                             <i class="fa-solid fa-file-alt text-4xl mb-3 text-green-500"></i>
-                            <p class="text-lg">No documents found in the system.</p>
+                            <p class="text-lg">No documents found matching your criteria.</p>
                         </td>
                     </tr>
                     <?php endif; ?>
@@ -357,16 +381,6 @@
         </div>
     </div>
 
-    <style>
-        /* MODAL FIX: Defines the grid layout for the internal review panel */
-        .review-content-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr; /* 2/3 viewer, 1/3 sidebar */
-            height: 100%; 
-            gap: 1rem;
-            padding: 1rem; 
-        }
-    </style>
     <div x-show="modalOpen" 
         x-transition:enter="ease-out duration-300"
         x-transition:leave="ease-in duration-200"
@@ -386,22 +400,42 @@
                 
                 <div class="pr-4 border-r border-green-800 flex flex-col">
                     <h4 class="text-lg font-semibold text-gray-400 mb-3">Document Content 
-                    <span x-text="'(' + getFileExtension(currentDoc.file_name).toUpperCase() + ' Viewer)'" class="text-yellow-400"></span>
+                        <span x-text="'(' + getFileExtension(currentDoc.file_name).toUpperCase() + ' Viewer)'" class="text-yellow-400"></span>
                     </h4>                    
-                    <iframe 
+                    
+                    <div x-show="isImage(currentDoc.file_name)" 
+                        class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900 flex items-center justify-center overflow-hidden">
+                        <img :src="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" 
+                            :alt="'Viewing ' + currentDoc.title"
+                            class="max-w-full max-h-full object-contain">
+                    </div>
+
+                    <div x-show="!isImage(currentDoc.file_name)" class="w-full flex-1 flex flex-col">
+                        <iframe 
                             :src="getDocViewerURL(currentDoc.file_name)" 
                             class="w-full flex-1 border border-gray-700 rounded-lg bg-gray-900" 
                             frameborder="0"
                             allowfullscreen>
                         </iframe>
+                        
+                        <template x-if="!isPDF(currentDoc.file_name)">
+                            <div class="mt-2 text-center text-sm text-gray-500">
+                                If the document viewer is blank or fails, use the direct download:
+                                <a :href="'<?= BASE_URL ?>/public/uploads/documents/' + currentDoc.file_name" download
+                                    class="text-yellow-400 hover:text-yellow-200 underline">
+                                     <i class="fa-solid fa-download mr-1"></i> Direct Download (<span x-text="getFileExtension(currentDoc.file_name).toUpperCase()"></span>)
+                                </a>
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
                 <div class="pl-4 space-y-6 flex flex-col">
                     <h4 class="text-lg font-semibold text-gray-400">Review Details & Status</h4>
 
                     <div class="bg-green-950/50 p-4 rounded-lg border border-green-800">
-                        <p class="text-sm text-gray-400">Status: <span :class="currentDoc.status === 'Approved' ? 'text-green-300' : 'text-yellow-300'" x-text="currentDoc.status"></span></p>
-                        <p class="text-sm text-gray-400">Type: <span x-text="currentDoc.type"></span></p>
+                        <p class="text-sm text-gray-400">Status: <span :class="currentDoc.status === 'Approved' ? 'text-green-300' : (currentDoc.status === 'Rejected' ? 'text-red-400' : 'text-yellow-300')" x-text="toSentenceCase(currentDoc.status)"></span></p>
+                        <p class="text-sm text-gray-400">Type: <span x-text="toSentenceCase(currentDoc.type)"></span></p>
                         <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
                         <p class="text-sm text-gray-400">Submitted On: <span x-text="currentDoc.created_at ? new Date(currentDoc.created_at).toLocaleDateString('en-US') : 'N/A'"></span></p>
                     </div>
@@ -410,7 +444,7 @@
                     <div class="space-y-4">
                         
                         <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
+                            <?php csrf_field(); ?>
                             <input type="hidden" name="document_id" :value="currentDoc.id">
                             <input type="hidden" name="new_status" value="Approved">
                             <input type="hidden" name="document_title" :value="currentDoc.title">
@@ -423,7 +457,7 @@
                         </form>
 
                         <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
+                            <?php csrf_field(); ?>
                             <input type="hidden" name="document_id" :value="currentDoc.id">
                             <input type="hidden" name="new_status" value="Rejected">
                             <input type="hidden" name="document_title" :value="currentDoc.title">
@@ -435,19 +469,14 @@
                             </button>
                         </form>
 
-                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-                            <?php csrf_field(); // <--- FIX: Added CSRF field ?>
-                            <input type="hidden" name="document_id" :value="currentDoc.id">
-                            <input type="hidden" name="new_status" value="Archived">
-                            <input type="hidden" name="document_title" :value="currentDoc.title">
-
-                            <button type="submit" onclick="return confirm('Confirm archive?')"
-                                class="w-full bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg font-medium transition"
-                                :disabled="currentDoc.status === 'Archived'"
-                                :class="currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
-                                <i class="fa-solid fa-box-archive mr-2"></i> Archive
-                            </button>
-                        </form>
+                        <button type="button" 
+                            @click="setArchiveDoc(currentDoc)" 
+                            class="w-full bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg font-medium transition"
+                            :disabled="currentDoc.status === 'Archived'"
+                            :class="currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                            <i class="fa-solid fa-box-archive mr-2"></i> Archive
+                        </button>
+                        
                     </div>
                     
                     <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
@@ -455,6 +484,49 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+    <div x-show="archiveModalOpen" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-[60] overflow-y-auto bg-maestro-bg bg-opacity-90 flex items-center justify-center" 
+        style="display: none;">
+
+        <div @click.outside="archiveModalOpen = false" class="w-full max-w-md mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-red-800">
+            
+            <header class="p-4 border-b border-red-800 flex justify-between items-center bg-sidebar-dark">
+                <h3 class="text-xl font-bold text-red-400">Confirm Archive</h3>
+                <button @click="archiveModalOpen = false" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </header>
+
+            <div class="p-6 space-y-4">
+                <p class="text-gray-300">
+                    Are you sure you want to **Archive** the document: 
+                    <span class="font-semibold text-yellow-300" x-text="docToArchive.title"></span>?
+                </p>
+                <p class="text-sm text-gray-500">
+                    Archiving will remove this document from all active lists. It can be viewed and unarchived later from the "Archived" section.
+                </p>
+
+                <div class="flex justify-end gap-3 pt-4">
+                    <button @click="archiveModalOpen = false" class="px-5 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-medium transition">
+                        Cancel
+                    </button>
+
+                    <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                        <?php csrf_field(); ?>
+                        <input type="hidden" name="document_id" :value="docToArchive.id">
+                        <input type="hidden" name="new_status" value="Archived">
+                        <input type="hidden" name="document_title" :value="docToArchive.title">
+
+                        <button type="submit" class="bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition shadow-lg shadow-red-900/40">
+                            <i class="fa-solid fa-box-archive mr-2"></i> Confirm Archive
+                        </button>
+                    </form>
+                </div>
+            </div>
         </div>
     </div>
     </body>

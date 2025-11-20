@@ -124,14 +124,6 @@
     
     // PHP document data assumed to be passed from controller
     $docs = $docs ?? [];
-    
-    // --- MOCK DATA FOR DEMONSTRATION ---
-    $archived_docs_mock = $docs ?? [
-        ['id' => 101, 'title' => 'Resolution 2022-15', 'file_name' => 'res_101.pdf', 'deleted_at' => '2024-10-01 10:00:00', 'fname' => 'System', 'lname' => 'Archive', 'type' => 'Legal', 'description' => 'Legal resolution from 2022'],
-        ['id' => 102, 'title' => 'Q4 Sales Report 2023', 'file_name' => 'sales_102.docx', 'deleted_at' => '2024-01-15 14:30:00', 'fname' => 'Admin', 'lname' => 'User', 'type' => 'Finance', 'description' => 'End of year sales performance'],
-    ];
-    $docs = $archived_docs_mock;
-    // --- END MOCK DATA ---
     ?>
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
@@ -270,12 +262,6 @@
 
         <div class="space-y-4">
             <?php
-            // Mock data setup
-            $archived_docs_mock = $docs ?? [
-                ['id' => 101, 'title' => 'Resolution 2022-15', 'file_name' => 'res_101.pdf', 'deleted_at' => '2024-10-01 10:00:00', 'fname' => 'System', 'lname' => 'Archive', 'type' => 'Legal'],
-                ['id' => 102, 'title' => 'Q4 Sales Report 2023', 'file_name' => 'sales_102.docx', 'deleted_at' => '2024-01-15 14:30:00', 'fname' => 'Admin', 'lname' => 'User', 'type' => 'Finance'],
-            ];
-            $docs = $archived_docs_mock;
             
             if (!empty($docs)):
             foreach($docs as $doc): 

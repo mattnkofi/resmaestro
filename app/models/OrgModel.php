@@ -147,6 +147,16 @@ class OrgModel extends Model
                         ->where('id', $doc_id)
                         ->update($data);
     }
+
+    public function getRecentUserUploads(int $user_id, int $limit = 10) {
+        return $this->db
+            ->select('id, title, status, created_at, file_name')
+            ->table('documents')
+            ->where('user_id', $user_id)
+            ->order_by('created_at', 'DESC')
+            ->limit($limit)
+            ->get_all();
+    }
     
     // ----------------------------------------------------------------------
     //  ORGANIZATION IMPLEMENTATION (FIXED FOR MISSING COLUMNS/TABLES)
@@ -225,7 +235,6 @@ class OrgModel extends Model
                             ->order_by('name', 'ASC')
                             ->get_all();
         } catch (\Exception $e) {
-            // Log error if needed, but return empty array to prevent fatal crash
             return [];
         }
     }
@@ -265,7 +274,6 @@ class OrgModel extends Model
                   ->or_where('d.status', 'Rejected');
             });
         }
-        // ... (rest of logic omitted for brevity, but remains implemented as before)
         return $this->db->order_by('d.approved_at DESC, d.rejected_at DESC, d.created_at DESC')->get_all();
     }
 
