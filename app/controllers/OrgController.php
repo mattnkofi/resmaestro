@@ -168,15 +168,16 @@ class OrgController extends Controller
         return;
     }
 
-    // --- CRITICAL FIX START: Build Minimal Payload ---
+    // --- CRITICAL FIX START: Build Minimal Payload (Modified to also handle Unarchive) ---
     $data_to_update = [
         'status' => $new_status,
         
-        // Always include these status-clearing fields when status changes
-        'reviewer_id' => $reviewer_id_to_send, // Safe User ID
+        // Always clear all timestamps by default when a status update occurs
         'approved_at' => NULL,
         'rejected_at' => NULL,
-        'deleted_at' => NULL
+        'deleted_at' => NULL,
+        // Set reviewer ID for 'Approved' or 'Pending Review' (unarchive/new submission)
+        'reviewer_id' => ($new_status === 'Approved' || $new_status === 'Pending Review') ? $reviewer_id_to_send : NULL, 
     ];
     
     $current_datetime = date('Y-m-d H:i:s');
@@ -188,8 +189,8 @@ class OrgController extends Controller
         $data_to_update['rejected_at'] = $current_datetime;
     } elseif ($new_status === 'Archived') {
         $data_to_update['deleted_at'] = $current_datetime;
-    }
-    // Note: For Pending Review, the status dates remain NULL (correct).
+    } 
+    // Note: For Pending Review (unarchive), status dates remain NULL (correct).
     // --- CRITICAL FIX END ---
 
     // 2. Call Model to update.
@@ -202,61 +203,18 @@ class OrgController extends Controller
         
         $redirect_segment = strtolower(str_replace(' ', '', $new_status));
         $redirect_segment = $redirect_segment === 'pendingreview' ? 'pending' : $redirect_segment;
+        $redirect_segment = $redirect_segment === 'archived' ? 'archived' : $redirect_segment;
+        // If the new status is Pending Review, redirect to /pending.
+        // If the new status is Archived, redirect to /archived.
+        // If the new status is anything else (Approved, Rejected), redirect to the corresponding page.
 
         header('Location: ' . BASE_URL . '/org/documents/' . $redirect_segment);
         exit(); 
     } else {
         set_flash_alert('danger', 'Failed to update document status in the database. Please check DB logs.');
+        // Redirect back to the ARCHIVED page on failure for an unarchive attempt.
         redirect(BASE_URL . '/org/documents/archived'); 
         return; 
-    }
-}
-
-public function unarchive_document() {
-    // 1. Retrieve the necessary POST data
-    $doc_id = $this->io->post('document_id');
-    $doc_title = $this->io->post('document_title') ?? 'Document';
-    
-    // Check authentication and input validity
-    $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
-
-    if (!$is_authenticated || ((int)$doc_id) <= 0) {
-        set_flash_alert('danger', 'Invalid request or authentication failure.');
-        redirect(BASE_URL . '/org/documents/archived');
-        return;
-    }
-
-    // 2. Prepare the payload to set status to 'Pending Review'
-    $user_id = (int)get_user_id();
-    // Safely determine reviewer ID for the UNSIGNED INT field
-    $reviewer_id_to_send = ($user_id > 0) ? $user_id : NULL;
-
-    $data_to_update = [
-        'status' => 'Pending Review', 
-        'reviewer_id' => $reviewer_id_to_send, 
-        
-        // CRITICAL: Clear all status timestamps to revert to a fresh, pending state
-        'approved_at' => NULL,
-        'rejected_at' => NULL,
-        'deleted_at' => NULL 
-    ];
-
-    // 3. Execute the update using the shared Model function
-    $success_indicator = $this->OrgModel->updateDocument((int)$doc_id, $data_to_update);
-    
-    // 4. Handle response and redirect
-    if ($success_indicator !== FALSE) {
-        // Success indicator means the update query ran without error (even if 0 rows changed).
-        set_flash_alert('success', "Document '{$doc_title}' successfully restored to Pending Review.");
-        
-        // Redirect to the PENDING documents list
-        header('Location: ' . BASE_URL . '/org/documents/pending');
-        exit();
-    } else {
-        // Failure, likely a DB constraint error
-        set_flash_alert('danger', 'Failed to restore document status in the database.');
-        redirect(BASE_URL . '/org/documents/archived');
-        return;
     }
 }
 
@@ -488,55 +446,204 @@ public function unarchive_document() {
 }
 
     // Review & Workflow
-    public function review_queue() { 
-        $reviews = $this->OrgModel->getPendingReviews(); 
-        $this->call->view('org/review/queue', compact('reviews')); 
-    }
-    public function review_history() { 
-        $reviews = $this->OrgModel->getReviewHistory(); 
-        $this->call->view('org/review/history', compact('reviews')); 
-    }
-    public function review_comments(){ 
-        $comments = $this->OrgModel->getComments(); 
-        $this->call->view('org/review/comments', compact('comments')); 
+   public function review_queue() { 
+        $q = $this->io->get('q'); 
+        $sort = $this->io->get('sort') ?: 'oldest'; 
+        
+        $reviews = $this->OrgModel->getPendingReviews($q, $sort); 
+        
+        $this->call->view('org/review/queue', [
+            'reviews' => $reviews,
+            'q' => $q,
+            'sort' => $sort
+        ]); 
     }
 
-    // Organization
+    public function review_history() { 
+        $q = $this->io->get('q'); 
+        $status = $this->io->get('status'); 
+        
+        $reviews = $this->OrgModel->getReviewHistory($q, $status); 
+        
+        $this->call->view('org/review/history', [
+            'reviews' => $reviews,
+            'q' => $q, 
+            'status' => $status
+        ]); 
+    }
+
+    public function review_comments($doc_id = null){ 
+        if (empty($doc_id)) {
+            set_flash_alert('warning', 'Please select a document to view comments.');
+            redirect(BASE_URL . '/org/review/queue');
+            return;
+        }
+
+        $doc = $this->OrgModel->getDocumentById((int)$doc_id);
+        
+        if (empty($doc)) {
+            set_flash_alert('danger', 'Document not found.');
+            redirect(BASE_URL . '/org/review/queue');
+            return;
+        }
+
+        $comments = $this->OrgModel->getReviewComments((int)$doc_id);
+        
+        $this->call->view('org/review/comments', [
+            'comments' => $comments,
+            'doc' => $doc 
+        ]); 
+    }
+
+    public function review_add_comment() {
+        $doc_id = $this->io->post('document_id');
+        $comment_text = trim($this->io->post('comment_text'));
+        $user_id = get_user_id(); 
+
+        $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+
+        if (!$is_authenticated || ((int)$doc_id) <= 0 || empty($comment_text)) {
+            set_flash_alert('danger', 'Invalid request or missing data.');
+            redirect(BASE_URL . '/org/review/queue');
+            return;
+        }
+        
+        $data = [
+            'document_id' => (int)$doc_id,
+            'user_id'     => $user_id, 
+            'comment'     => $comment_text,
+            'created_at'  => date('Y-m-d H:i:s')
+        ];
+
+        $new_comment_id = $this->OrgModel->insertComment($data);
+
+        if ($new_comment_id) {
+            set_flash_alert('success', 'Comment added successfully.');
+        } else {
+            set_flash_alert('danger', 'Failed to add comment to the database.');
+        }
+        redirect(BASE_URL . '/org/review/comments/' . $doc_id);
+    }
+    
+    // ----------------------------------------------------------------------
+    // ORGANIZATION: MEMBERS
+    // ----------------------------------------------------------------------
+
     public function members_list() { 
-        $members = $this->OrgModel->getMembers(); 
-        $this->call->view('org/members/list', compact('members')); 
+        $q = $this->io->get('q');
+        
+        $members = $this->OrgModel->getMembers($q); 
+        
+        $this->call->view('org/members/list', [
+            'members' => $members,
+            'q' => $q
+        ]); 
     }
+    
     public function members_add() { 
-        $this->call->view('org/members/add'); 
+        $departments = $this->OrgModel->getDepartments();
+        $roles = $this->OrgModel->getRoles();
+        
+        $this->call->view('org/members/add', [
+            'departments' => $departments,
+            'roles' => $roles
+        ]); 
     }
+
+    public function members_store() {
+        $this->call->library('Form_validation');
+        $this->call->library('lauth'); 
+
+        $this->form_validation->name('fname|First Name')->required()->max_length(50);
+        $this->form_validation->name('lname|Last Name')->required()->max_length(50);
+        $this->form_validation->name('email|Email Address')->required()->valid_email()->is_unique('users.email'); 
+        $this->form_validation->name('password|Password')->required()->min_length(8);
+        $this->form_validation->name('dept_id|Department')->required()->is_natural_no_zero();
+        $this->form_validation->name('role_id|Role')->required()->is_natural_no_zero();
+        
+        if (!$this->form_validation->run()) {
+            set_flash_alert('danger', $this->form_validation->errors());
+            redirect(BASE_URL . '/org/members/add');
+            return;
+        }
+
+        $password = $this->io->post('password');
+        
+        $data = [
+            'fname'       => $this->io->post('fname'),
+            'lname'       => $this->io->post('lname'),
+            'email'       => $this->io->post('email'),
+            'password'    => $this->lauth->hash_password($password), 
+            'dept_id'     => (int)$this->io->post('dept_id'),
+            'role_id'     => (int)$this->io->post('role_id'),
+            'is_verified' => 1, 
+            'created_at'  => date('Y-m-d H:i:s')
+        ];
+
+        $new_user_id = $this->OrgModel->insertMember($data);
+
+        if ($new_user_id) {
+            set_flash_alert('success', 'New member "' . htmlspecialchars($data['fname'] . ' ' . $data['lname']) . '" added successfully.');
+            redirect(BASE_URL . '/org/members/list');
+        } else {
+            set_flash_alert('danger', 'Failed to add member to the database.');
+            redirect(BASE_URL . '/org/members/add');
+        }
+    }
+    
+    // ----------------------------------------------------------------------
+    // ORGANIZATION: DEPARTMENTS & ROLES (Minimal Implementation)
+    // ----------------------------------------------------------------------
+    
     public function departments() { 
-        $depts = $this->OrgModel->getDepartments(); 
-        $this->call->view('org/departments', compact('depts')); 
+    // CHANGE: Call the new method to get aggregated stats
+    $depts = $this->OrgModel->getDepartmentsWithStats(); 
+    $this->call->view('org/departments', compact('depts')); 
+}
+
+public function departments_store() {
+    $this->call->library('Form_validation');
+    
+    // 1. Set Validation Rules: Name is required, max length 100, and must be unique.
+    $this->form_validation->name('name|Department Name')->required()->max_length(100)->is_unique('departments.name'); 
+    
+    if (!$this->form_validation->run()) {
+        set_flash_alert('danger', $this->form_validation->errors());
+        redirect(BASE_URL . '/org/departments');
+        return;
     }
+
+    // 2. Prepare Data
+    $data = [
+        'name' => $this->io->post('name'),
+    ];
+
+    // 3. Insert Department
+    $new_dept_id = $this->OrgModel->insertDepartment($data);
+
+    if ($new_dept_id) {
+        set_flash_alert('success', 'Department "' . htmlspecialchars($data['name']) . '" added successfully.');
+        redirect(BASE_URL . '/org/departments');
+    } else {
+        set_flash_alert('danger', 'Failed to add department to the database.');
+        redirect(BASE_URL . '/org/departments');
+    }
+}
+    
     public function roles() { 
         $roles = $this->OrgModel->getRoles(); 
         $this->call->view('org/roles', compact('roles')); 
     }
 
-    // Reports
-    public function reports_overview() { 
-        $this->call->view('org/reports/overview'); 
-    }
-    public function reports_documents() { 
-        $this->call->view('org/reports/documents'); 
-    }
-    public function reports_reviewers() { 
-        $this->call->view('org/reports/reviewers'); 
-    }
-    public function reports_storage() { 
-        $this->call->view('org/reports/storage'); 
-    }
+    // ----------------------------------------------------------------------
+    // REPORTS & SYSTEM (Minimal View Loading)
+    // ----------------------------------------------------------------------
 
-    // Settings/Profile
-    public function settings() { 
-        $this->call->view('org/settings'); 
-    }
-    public function profile() { 
-        $this->call->view('org/profile'); 
-    }
+    public function reports_overview() { $this->call->view('org/reports/overview'); }
+    public function reports_documents() { $this->call->view('org/reports/documents'); }
+    public function reports_reviewers() { $this->call->view('org/reports/reviewers'); }
+    public function reports_storage() { $this->call->view('org/reports/storage'); }
+
+    public function settings() { $this->call->view('org/settings'); }
+    public function profile() { $this->call->view('org/profile'); }
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Archived Documents - Maestro UI</title>
+    <title>Archived Documents - Maestro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -45,10 +45,11 @@
 <body class="bg-maestro-bg text-white font-poppins" 
     x-data="{
         modalOpen: false, 
-        confirmActionModalOpen: false, 
+        confirmActionModalOpen: false, // NEW: Confirmation modal state
         
+        // Data for viewing and action confirmation
         currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '', deleted_at: '' },
-        actionFormElement: null, 
+        actionFormElement: null, // NEW: Holds the form element to submit upon confirmation
 
         getFileExtension(fileName) {
             return fileName ? fileName.split('.').pop().toLowerCase() : '';
@@ -80,15 +81,19 @@
             this.modalOpen = true; 
         },
         
+        // NEW: Function to initiate the modal confirmation from any button
         prepareConfirmation(form, doc) {
             this.actionFormElement = form;
+            // Ensure currentDoc is set for the confirmation text
             this.currentDoc = doc; 
             this.confirmActionModalOpen = true;
         },
 
+        // NEW: Function to submit the form after confirmation
         executeAction() {
             if (this.actionFormElement) {
                 this.actionFormElement.submit(); 
+                // PHP controller handles redirect/refresh after success
             }
             this.confirmActionModalOpen = false;
         }
@@ -113,9 +118,9 @@
         function csrf_field() { echo '<input type="hidden" name="csrf_token" value="MOCK_CSRF_TOKEN">'; }
     }
     
-    // PHP GET variables for search/filter
+    // PHP GET variables for search/filter (FIXED: Only using $q)
     $q = $_GET['q'] ?? ''; 
-    $year = $_GET['year'] ?? ''; // Keep definition for clear button logic
+    $year = $_GET['year'] ?? ''; // Keep for mock data/clear button logic, but remove from UI
     
     // PHP document data assumed to be passed from controller
     $docs = $docs ?? [];
@@ -249,13 +254,13 @@
             <div class="flex flex-col md:flex-row gap-4 mb-8">
                 <input type="text" name="q" value="<?= html_escape($q) ?>"
                        placeholder="Search archived documents by title or description..." 
-                       class="w-full md:w-1/2 bg-blue-900/50 border border-blue-800 p-3 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition placeholder-gray-500 text-white">
+                       class="w-full md:w-1/3 bg-blue-900/50 border border-blue-800 p-3 rounded-xl focus:ring-blue-500 focus:border-blue-500 transition placeholder-gray-500 text-white">
                 
                 <button type="submit" class="bg-blue-700 hover:bg-blue-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-blue-900/40">
                     <i class="fa-solid fa-search mr-2"></i> Search Documents
                 </button>
 
-                <?php if (!empty($q)): ?>
+                <?php if (!empty($q) || !empty($year)): ?>
                     <a href="<?= BASE_URL ?>/org/documents/archived" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
                         <i class="fa-solid fa-xmark mr-2"></i> Clear
                     </a>
@@ -267,8 +272,8 @@
             <?php
             // Mock data setup
             $archived_docs_mock = $docs ?? [
-                ['id' => 101, 'title' => 'Resolution 2022-15', 'file_name' => 'res_101.pdf', 'deleted_at' => '2024-10-01 10:00:00', 'fname' => 'System', 'lname' => 'Archive', 'type' => 'Legal', 'description' => 'Legal resolution from 2022'],
-                ['id' => 102, 'title' => 'Q4 Sales Report 2023', 'file_name' => 'sales_102.docx', 'deleted_at' => '2024-01-15 14:30:00', 'fname' => 'Admin', 'lname' => 'User', 'type' => 'Finance', 'description' => 'End of year sales performance'],
+                ['id' => 101, 'title' => 'Resolution 2022-15', 'file_name' => 'res_101.pdf', 'deleted_at' => '2024-10-01 10:00:00', 'fname' => 'System', 'lname' => 'Archive', 'type' => 'Legal'],
+                ['id' => 102, 'title' => 'Q4 Sales Report 2023', 'file_name' => 'sales_102.docx', 'deleted_at' => '2024-01-15 14:30:00', 'fname' => 'Admin', 'lname' => 'User', 'type' => 'Finance'],
             ];
             $docs = $archived_docs_mock;
             

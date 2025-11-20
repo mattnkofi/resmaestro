@@ -6,7 +6,6 @@
     <title>Departments List - Maestro UI</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <!-- Poppins Font Import -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script>
@@ -34,12 +33,11 @@
         .maestro-bg { background-color: #0b0f0c; } 
     </style>
 </head>
-<!-- Applying font-poppins explicitly to the body tag -->
 <body class="bg-maestro-bg text-white font-poppins" x-data="{}">
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    // For "Departments" page:
+    $BASE_URL = BASE_URL ?? '';
     $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/departments'; 
 
     // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
@@ -49,10 +47,8 @@
     $is_reports_open = str_contains($current_uri, '/org/reports/');
     ?>
 
-    <!-- START SIDEBAR CONTENT -->
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
-            <!-- Placeholder for logo image -->
             <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
             <h1 class="text-2xl font-bold text-green-400 tracking-wider">MAESTRO</h1>
         </div>
@@ -68,7 +64,6 @@
                 </a>
             </div>
 
-            <!-- Documents Dropdown -->
             <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -87,7 +82,6 @@
                 </div>
             </div>
 
-            <!-- Review & Workflow Dropdown -->
             <div x-data='{ open: <?= $is_review_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -103,7 +97,6 @@
                 </div>
             </div>
 
-            <!-- Organization Dropdown (This will be open) -->
             <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -120,7 +113,6 @@
                 </div>
             </div>
 
-            <!-- Reports Dropdown -->
             <div x-data='{ open: <?= $is_reports_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -154,7 +146,6 @@
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <!-- Placeholder for user image -->
                         <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
@@ -176,43 +167,37 @@
             Maestro Organization © <?=date('Y')?>
         </div>
     </aside>
-    <!-- END SIDEBAR CONTENT -->
-
-    <!-- Main Content Area -->
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         
         <h1 class="text-3xl font-bold text-green-400 mb-6 tracking-wide">
             Departments
         </h1>
 
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-            <input type="text" placeholder="Search departments..." 
-                class="w-full md:w-1/3 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white mb-4 sm:mb-0">
-            <button class="bg-green-700 hover:bg-green-600 px-5 py-2.5 rounded-xl font-medium transition shadow-lg shadow-green-900/40">
+        <form method="POST" action="<?=BASE_URL?>/org/departments/store" class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
+            <input type="text" name="name" placeholder="Enter new department name (e.g., Marketing, R&D)" 
+                class="w-full md:w-1/3 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white mb-4 sm:mb-0"
+                required>
+            <button type="submit" class="bg-green-700 hover:bg-green-600 px-5 py-2.5 rounded-xl font-medium transition shadow-lg shadow-green-900/40">
                 <i class="fa-solid fa-plus mr-2"></i> Add New Department
             </button>
-        </div>
-
+        </form>
+        
         <?php
-        // Mock data for the department list
-        $departments = [
-            ['name' => 'Executive Department', 'members' => 3, 'documents' => 12, 'pending' => 1],
-            ['name' => 'Finance Department', 'members' => 10, 'documents' => 45, 'pending' => 4],
-            ['name' => 'Operations Department', 'members' => 25, 'documents' => 98, 'pending' => 8],
-            ['name' => 'Legal Department', 'members' => 5, 'documents' => 22, 'pending' => 0],
-            ['name' => 'Human Resources (HR)', 'members' => 8, 'documents' => 30, 'pending' => 2],
-            ['name' => 'Marketing & Sales', 'members' => 15, 'documents' => 60, 'pending' => 3],
-        ];
+        // Dynamic data variables passed from controller
+        $departments_data = $depts ?? [];
 
-        // Stats Calculation
-        $total_depts = count($departments);
-        $total_members_in_depts = array_sum(array_column($departments, 'members'));
-        $total_documents_in_depts = array_sum(array_column($departments, 'documents'));
+        // Stats Calculation (Dynamic)
+        $total_depts = count($departments_data);
+        $total_members_in_depts = 0;
+        $total_documents_in_depts = 0;
+
+        foreach ($departments_data as $dept) {
+            $total_members_in_depts += $dept['members_count'] ?? 0;
+            $total_documents_in_depts += $dept['documents_count'] ?? 0;
+        }
         ?>
         
-        <!-- NEW: Department Statistics Summary -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <!-- Card 1: Total Departments -->
             <div class="bg-green-950/50 p-5 rounded-xl border border-green-800 shadow-lg flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-400 uppercase tracking-wider">Total Departments</p>
@@ -221,7 +206,6 @@
                 <i class="fa-solid fa-sitemap text-4xl text-green-700/50"></i>
             </div>
 
-            <!-- Card 2: Total Members Managed -->
             <div class="bg-green-950/50 p-5 rounded-xl border border-green-800 shadow-lg flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-400 uppercase tracking-wider">Total Members</p>
@@ -230,7 +214,6 @@
                 <i class="fa-solid fa-users text-4xl text-blue-700/50"></i>
             </div>
 
-            <!-- Card 3: Total Documents Managed -->
             <div class="bg-green-950/50 p-5 rounded-xl border border-green-800 shadow-lg flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-400 uppercase tracking-wider">Total Documents</p>
@@ -239,28 +222,28 @@
                 <i class="fa-solid fa-file-lines text-4xl text-yellow-700/50"></i>
             </div>
         </div>
-        <!-- END NEW: Department Statistics Summary -->
-
-        <!-- Main Content Grid: Department List (2/3) + Analytics/Detail (1/3) -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
-            <!-- Left Column: Departments List (2/3 width) -->
             <div class="lg:col-span-2 space-y-4">
-                <?php
-                foreach($departments as $dept): 
+                <?php if (!empty($departments_data)): ?>
+                <?php foreach($departments_data as $dept): 
+                    $pending_count = $dept['pending_count'] ?? 0;
+                    $members_count = $dept['members_count'] ?? 0;
+                    $docs_count = $dept['documents_count'] ?? 0;
+                    $pending_class = $pending_count > 5 ? 'text-red-400 font-semibold' : 'text-yellow-400';
                 ?>
                 <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-lg hover:bg-green-900/40 transition">
                     <div class="flex flex-col mb-2 sm:mb-0">
-                        <span class="text-lg font-semibold text-green-200"><i class="fa-solid fa-building mr-2"></i> <?= $dept['name'] ?></span>
+                        <span class="text-lg font-semibold text-green-200"><i class="fa-solid fa-building mr-2"></i> <?= htmlspecialchars($dept['name']) ?></span>
                         <div class="text-sm text-gray-500 mt-1 space-x-4">
                             <span title="Number of members in this department" class="inline-flex items-center gap-1">
-                                <i class="fa-solid fa-users text-xs"></i> <?= $dept['members'] ?> Members
+                                <i class="fa-solid fa-users text-xs"></i> <?= $members_count ?> Members
                             </span>
                             <span title="Total documents associated with this department" class="inline-flex items-center gap-1">
-                                <i class="fa-solid fa-file-alt text-xs"></i> <?= $dept['documents'] ?> Docs
+                                <i class="fa-solid fa-file-alt text-xs"></i> <?= $docs_count ?> Docs
                             </span>
-                            <span title="Pending reviews in this department" class="inline-flex items-center gap-1 <?= $dept['pending'] > 5 ? 'text-red-400 font-semibold' : 'text-yellow-400' ?>">
-                                <i class="fa-solid fa-hourglass-half text-xs"></i> <?= $dept['pending'] ?> Pending
+                            <span title="Pending reviews in this department" class="inline-flex items-center gap-1 <?= $pending_class ?>">
+                                <i class="fa-solid fa-hourglass-half text-xs"></i> <?= $pending_count ?> Pending
                             </span>
                         </div>
                     </div>
@@ -278,52 +261,32 @@
                 </div>
                 <?php endforeach; ?>
                 
-                <!-- No Data Placeholder -->
-                <?php if (empty($departments)): ?>
+                <?php else: ?>
                 <div class="p-8 text-center text-gray-500 bg-green-950/20 rounded-xl border border-green-800">
                     <i class="fa-solid fa-sitemap text-4xl mb-3 text-green-500"></i>
                     <p class="text-lg">No departments have been set up yet.</p>
+                    <p class="text-sm mt-2">Use the "Add New Department" form above to get started.</p>
                 </div>
                 <?php endif; ?>
             </div>
 
-            <!-- Right Column: Departmental Metrics & Leaderboard (1/3 width) -->
             <div class="lg:col-span-1">
                 <div class="bg-green-950/50 p-6 rounded-xl border border-green-800 shadow-2xl h-full">
                     <h2 class="text-xl font-bold text-green-300 mb-4 flex items-center gap-2 border-b border-green-800/50 pb-2">
                         <i class="fa-solid fa-chart-pie text-lg text-green-500"></i> Performance Insights
                     </h2>
                     
-                    <div class="space-y-4">
-                        <!-- Metric 1: Highest Document Volume -->
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-400 uppercase mb-1">Highest Document Volume</h3>
-                            <p class="text-lg font-bold text-green-200">Operations Dept. (98 Docs)</p>
-                            <p class="text-xs text-gray-500">Highest output volume in the last quarter.</p>
-                        </div>
-                        
-                        <!-- Metric 2: Fastest Review Time -->
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-400 uppercase mb-1 border-t border-green-900/50 pt-3">Fastest Average Review</h3>
-                            <p class="text-lg font-bold text-blue-400">Legal Department</p>
-                            <p class="text-xs text-gray-500">Average review time: 1.2 days.</p>
-                        </div>
-                        
-                        <!-- Metric 3: Departmental Performance Chart Placeholder -->
-                        <div class="border-t border-green-900/50 pt-3">
-                            <h3 class="text-sm font-semibold text-gray-400 uppercase mb-2">Pending Review Distribution</h3>
-                            <div class="h-32 flex items-center justify-center text-gray-500 border border-dashed border-green-800/50 rounded-lg">
-                                Pie Chart Placeholder
-                            </div>
-                            <a href="<?=BASE_URL?>/org/reports/documents" class="mt-2 block text-xs text-green-400 hover:text-green-300">View document analytics &rarr;</a>
-                        </div>
+                    <div class="space-y-4 text-center text-gray-500 py-6">
+                        <i class="fa-solid fa-magnifying-glass-chart text-4xl mb-2"></i>
+                        <p class="text-sm">
+                            Departmental analytics are only available once members and documents have been assigned to departments in the database.
+                        </p>
+                        <a href="<?=BASE_URL?>/org/reports/documents" class="mt-2 block text-xs text-green-400 hover:text-green-300">View document analytics &rarr;</a>
                     </div>
                 </div>
             </div>
 
-        </div> <!-- End Main Content Grid -->
-
-    </div>
-
+        </div> 
+    </div> 
 </body>
 </html>

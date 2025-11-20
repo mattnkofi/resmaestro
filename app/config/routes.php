@@ -50,9 +50,12 @@ $router->get('/org/review/comments', 'OrgController::review_comments');
 // Members
 $router->get('/org/members/list', 'OrgController::members_list');
 $router->get('/org/members/add', 'OrgController::members_add');
+// NEW POST ROUTE for adding a member
+$router->post('/org/members/store', 'OrgController::members_store');
 
 // Departments & Roles
 $router->get('/org/departments', 'OrgController::departments');
+$router->post('/org/departments/store', 'OrgController::departments_store'); // <-- NEW ROUTE
 $router->get('/org/roles', 'OrgController::roles');
 
 // Reports
