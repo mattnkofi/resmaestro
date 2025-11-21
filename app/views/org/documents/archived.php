@@ -271,8 +271,23 @@
                 $doc_file_name = $doc->file_name ?? $doc['file_name'] ?? '';
                 $doc_deleted_at = $doc->deleted_at ?? $doc['deleted_at'] ?? null;
                 $submitter = html_escape(($doc->fname ?? $doc['fname'] ?? 'N/A') . ' ' . ($doc->lname ?? $doc['lname'] ?? ''));
-                $display_date = $doc_deleted_at ? date('M d, Y', strtotime($doc_deleted_at)) : 'N/A';
                 
+                // --- OLD CODE: $display_date = $doc_deleted_at ? date('M d, Y', strtotime($doc_deleted_at)) : 'N/A'; ---
+                // --- NEW CODE START ---
+                $archived_at_display = 'N/A';
+                if (!empty($doc_deleted_at)) {
+                    try {
+                        // ** IMPORTANT: REPLACE 'Asia/Manila' with your local timezone (e.g., 'America/New_York') **
+                        $date_obj = new DateTime($doc_deleted_at);
+                        $date_obj->setTimezone(new DateTimeZone('Asia/Manila')); 
+                        $archived_at_display = $date_obj->format('M d, Y');
+                    } catch (\Exception $e) {
+                        $archived_at_display = date('M d, Y', strtotime($doc_deleted_at)); // Fallback
+                    }
+                }
+                $display_date = $archived_at_display; // Use the corrected date for PHP rendering
+                // --- NEW CODE END ---
+
                 // Prepare document data for Alpine.js modal
                 $js_doc = json_encode([
                     'id' => $doc_id, 
@@ -281,7 +296,8 @@
                     'status' => 'Archived', 
                     'submitter' => $submitter,
                     'type' => $doc->type ?? $doc['type'] ?? 'N/A',
-                    'deleted_at' => $doc_deleted_at
+                    'deleted_at' => $doc_deleted_at,
+                    'deleted_at_display' => $archived_at_display // NEW: pass the corrected date to JS
                 ]);
             ?>
             <div class="bg-blue-950/20 p-5 rounded-xl border-l-4 border-blue-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-blue-900/30 transition">
@@ -379,7 +395,7 @@
                         <p class="text-sm text-gray-400">Status: <span class="text-blue-300" x-text="toSentenceCase(currentDoc.status)"></span></p>
                         <p class="text-sm text-gray-400">Type: <span x-text="toSentenceCase(currentDoc.type)"></span></p>
                         <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
-                        <p class="text-sm text-gray-400">Archived On: <span x-text="currentDoc.deleted_at ? new Date(currentDoc.deleted_at).toLocaleDateString('en-US') : 'N/A'"></span></p>
+                        <p class="text-sm text-gray-400">Archived On: <span x-text="currentDoc.deleted_at_display"></span></p>
                     </div>
 
                     <h5 class="text-md font-bold text-blue-300">Action:</h5>

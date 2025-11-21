@@ -209,12 +209,19 @@
                 $reviewer_lname = $doc->reviewer_lname ?? $doc['reviewer_lname'] ?? '';
                 $reviewer_name = html_escape(trim($reviewer_fname . ' ' . $reviewer_lname));
 
-                $rejection_date = date('M d, Y', strtotime($doc->created_at ?? $doc['created_at'] ?? 'now'));
-                $reason = $doc->description ?? $doc['description'] ?? 'No reason provided';
-                $doc_id = $doc->id ?? $doc['id'] ?? 0;
-                $title = $doc->title ?? $doc['title'] ?? '';
-                $type = $doc->type ?? $doc['type'] ?? '';
-                $reviewer_id = $doc->reviewer_id ?? $doc['reviewer_id'] ?? '';
+                // --- OLD CODE: $rejection_date = date('M d, Y', strtotime($doc->created_at ?? $doc['created_at'] ?? 'now')); ---
+                // --- NEW CODE START ---
+                $doc_created_at = $doc->created_at ?? $doc['created_at'] ?? null;
+                $rejection_date = 'N/A';
+                if (!empty($doc_created_at)) {
+                    try {
+                        $date_obj = new DateTime($doc_created_at);
+                        $date_obj->setTimezone(new DateTimeZone('Asia/Manila')); 
+                        $rejection_date = $date_obj->format('M d, Y');
+                    } catch (\Exception $e) {
+                        $rejection_date = date('M d, Y', strtotime($doc_created_at)); // Fallback
+                    }
+                }
             ?>
             <div class="bg-red-950/20 p-5 rounded-xl border-l-4 border-red-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-red-900/30 transition">
                 <div class="flex flex-col mb-2 md:mb-0">

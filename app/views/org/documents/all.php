@@ -337,6 +337,17 @@
                     $submitter = html_escape(($doc['fname'] ?? $doc->fname ?? '') . ' ' . ($doc['lname'] ?? $doc->lname ?? ''));
                     $doc_created_at = $doc['created_at'] ?? $doc->created_at ?? '';
 
+                    $doc_created_at_display = 'N/A';
+                    if (!empty($doc_created_at)) {
+                        try {
+                            // ** IMPORTANT: REPLACE 'Asia/Manila' with your local timezone (e.g., 'America/New_York') **
+                            $date_obj = new DateTime($doc_created_at);
+                            $date_obj->setTimezone(new DateTimeZone('Asia/Manila')); 
+                            $doc_created_at_display = $date_obj->format('M d, Y');
+                        } catch (\Exception $e) {
+                            $doc_created_at_display = date('M d, Y', strtotime($doc_created_at)); // Fallback
+                        }
+                    }
 
                     // Determine status color/class dynamically
                     $status_class = match ($doc_status) {
@@ -345,8 +356,7 @@
                         'Rejected' => 'text-red-500',
                         default => 'text-gray-400',
                     };
-                    
-                    // Ensure data passed to JS is correctly escaped/quoted
+
                     $js_doc = json_encode([
                         'id' => $doc_id, 
                         'title' => $doc_title, 
@@ -354,8 +364,21 @@
                         'status' => $doc_status, 
                         'submitter' => $submitter,
                         'type' => $doc_type,
-                        'created_at' => $doc_created_at
+                        'created_at' => $doc_created_at_display // Use the corrected date for JS binding
                     ]);
+                    
+                    // Ensure data passed to JS is correctly escaped/quoted
+                    $doc_created_at_display = 'N/A';
+                    if (!empty($doc_created_at)) {
+                        try {
+                            // ** IMPORTANT: REPLACE 'Asia/Manila' with your local timezone (e.g., 'America/New_York') **
+                            $date_obj = new DateTime($doc_created_at);
+                            $date_obj->setTimezone(new DateTimeZone('Asia/Manila')); 
+                            $doc_created_at_display = $date_obj->format('M d, Y');
+                        } catch (\Exception $e) {
+                            $doc_created_at_display = date('M d, Y', strtotime($doc_created_at)); // Fallback
+                        }
+                    }
                 ?>
                     <tr class="border-b border-green-800 hover:bg-green-700/10 transition">
                         <td class="p-4 font-medium text-green-200"><?= html_escape($doc_title) ?></td>

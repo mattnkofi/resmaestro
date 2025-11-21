@@ -51,7 +51,7 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 | You can simply get configs using config_item() function anywhere
 | My Configs:
 */
-
+date_default_timezone_set('Asia/Manila');
 $config['sendgrid_from']        = "deleon.kimberlynicole.9@gmail.com";
 $config['sendgrid_from_name']   = "Maestro";
 $config['sendgrid_api_key']     = "";

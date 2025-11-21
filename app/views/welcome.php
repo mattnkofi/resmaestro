@@ -80,10 +80,10 @@
 
     <div class="flex flex-col md:flex-row gap-4 mb-12">
       <a href="<?= BASE_URL ?>/register" class="btn-primary px-6 py-3 rounded-lg font-semibold">
-        Educators <span class="font-bold">Sign up for free</span>
+        <span class="font-bold">Sign up for free</span>
       </a>
       <a href="<?= BASE_URL ?>/contact" class="btn-secondary px-6 py-3 rounded-lg font-semibold">
-        Administrators <span class="font-bold">Get in touch</span>
+        <span class="font-bold">Get in touch</span>
       </a>
     </div>
 

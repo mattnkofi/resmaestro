@@ -77,15 +77,30 @@ class OrgModel extends Model
     }
 
     public function getApprovedDocuments($query = '', $type = '') {
-        $search_term = "%{$query}%";
-        $this->db
-            ->select('d.id, d.title, d.file_name, d.status, d.created_at, d.type, u.fname AS approver_fname, u.lname AS approver_lname')
-            ->table('documents d')
-            ->left_join('users u', 'd.reviewer_id = u.id') 
-            ->where('d.status', 'Approved');
-        // ... (rest of search/filter logic omitted for brevity, but remains implemented as before)
-        return $this->db->order_by('d.created_at', 'DESC')->get_all();
+    $search_term = "%{$query}%"; // Prepare the search term
+    
+    $this->db
+        ->select('d.id, d.title, d.file_name, d.status, d.created_at, d.type, u.fname AS approver_fname, u.lname AS approver_lname')
+        ->table('documents d')
+        ->left_join('users u', 'd.reviewer_id = u.id') 
+        ->where('d.status', 'Approved');
+
+    // 1. Search Query Filter (Title or Approver Name)
+    if (!empty($query)) {
+        $this->db->grouped(function($q) use ($search_term) {
+            $q->like('d.title', $search_term) // Search by title
+              ->or_like('u.fname', $search_term) // Search by approver first name
+              ->or_like('u.lname', $search_term); // Search by approver last name
+        });
     }
+
+    // 2. Type Filter
+    if (!empty($type)) {
+        $this->db->where('d.type', $type);
+    }
+    
+    return $this->db->order_by('d.created_at', 'DESC')->get_all();
+}
     
     public function getRejectedDocuments() {
         return $this->db
