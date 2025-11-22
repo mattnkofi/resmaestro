@@ -54,7 +54,7 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 date_default_timezone_set('Asia/Manila');
 $config['sendgrid_from']        = "deleon.kimberlynicole.9@gmail.com";
 $config['sendgrid_from_name']   = "Maestro";
-$config['sendgrid_api_key']     = "";
+$config['sendgrid_api_key']     = "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";
 
 /*
 | -------------------------------------------------------------------

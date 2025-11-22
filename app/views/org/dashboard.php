@@ -10,7 +10,8 @@ $stats = $stats ?? [
 
 $recent_activity = $recent_activity ?? [];
 
-include 'sidebar.php'; // Include the existing sidebar structure 
+include 'layout_start.php'; 
+include 'sidebar.php'; 
 ?>
 
 <div class="ml-64 p-8 maestro-bg min-h-screen">
@@ -133,3 +134,8 @@ include 'sidebar.php'; // Include the existing sidebar structure
         }
     }
 </script>
+
+<?php
+// 3. Include the Layout End
+include 'layout_end.php';
+?>

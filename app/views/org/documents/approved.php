@@ -1,224 +1,68 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Approved Documents - Maestro</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        'sidebar-dark': '#0f1511',
-                        'maestro-bg': '#0b0f0c',
-                    },
-                    // Applying Poppins font family
-                    fontFamily: {
-                        poppins: ['Poppins', 'sans-serif'],
-                        sans: ['Poppins', 'sans-serif'], 
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        /* This style block ensures the Poppins font is applied globally */
-        body { font-family: 'Poppins', sans-serif; }
-    </style>
-</head>
-<body class="bg-maestro-bg text-white font-poppins" x-data="{}">
+<?php
+defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 
-    <?php 
-    $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/approved'; 
+// --- 1. Page Specific Variables (Must be defined BEFORE layout_start.php) ---
+$title = 'Approved Documents - Maestro';
 
-    // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
-    $is_documents_open = str_contains($current_uri, '/org/documents/');
-    $is_review_open = str_contains($current_uri, '/org/review/');
-    $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
-    $is_reports_open = str_contains($current_uri, '/org/reports/');
+// Filter variables passed from the controller (retained)
+$q = $q ?? '';
+$type = $type ?? '';
+$docs = $approved_docs ?? [];
+ 
+// Helper function definitions (html_escape, csrf_field, etc.) and sidebar logic
+// are now assumed to be handled by the included layout files.
 
-    // FIX: Initialize filter variables (passed from OrgController)
-    $q = $q ?? '';
-    $type = $type ?? '';
-    ?>
+// --- 2. TEMPLATE INCLUSION ---
+include 'app/views/org/layout_start.php'; 
+include 'app/views/org/sidebar.php'; 
+?>
 
-    <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
-        <div class="flex items-center justify-center py-6 border-b border-green-800">
-            <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
-            <h1 class="text-2xl font-bold text-green-400 tracking-wider">MAESTRO</h1>
-        </div>
-
-        <nav class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-
-            <div>
-                <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">Main</h2>
-                <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition
-                    <?= $current_uri == BASE_URL.'/org/dashboard' ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">
-                    <i class="fa-solid fa-gauge w-5 text-center"></i>
-                    <span>Dashboard</span>
-                </a>
-            </div>
-
-            <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
-                    <span class="flex items-center gap-3">
-                        <i class="fa-solid fa-file-lines w-5 text-center"></i>
-                        <span>Documents</span>
-                    </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=BASE_URL?>/org/documents/all" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/all') ? 'text-green-400 font-semibold' : '' ?>">All Documents</a>
-                    <a href="<?=BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/upload') ? 'text-green-400 font-semibold' : '' ?>">Upload New</a>
-                    <a href="<?=BASE_URL?>/org/documents/pending" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/pending') ? 'text-green-400 font-semibold' : '' ?>">Pending Review</a>
-                    <a href="<?=BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/approved') ? 'text-green-400 font-semibold' : '' ?>">Approved / Noted</a>
-                    <a href="<?=BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/rejected') ? 'text-green-400 font-semibold' : '' ?>">Rejected</a>
-                    <a href="<?=BASE_URL?>/org/documents/archived" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/archived') ? 'text-green-400 font-semibold' : '' ?>">Archived</a>
-                </div>
-            </div>
-
-            <div x-data='{ open: <?= $is_review_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
-                    <span class="flex items-center gap-3">
-                        <i class="fa-solid fa-clipboard-check w-5 text-center"></i>
-                        <span>Reviews</span>
-                    </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=BASE_URL?>/org/review/queue" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/review/queue') ? 'text-green-400 font-semibold' : '' ?>">Pending Reviews</a>
-                    <a href="<?=BASE_URL?>/org/review/history" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/review/history') ? 'text-green-400 font-semibold' : '' ?>">Review History</a>
-                    <a href="<?=BASE_URL?>/org/review/comments" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/review/comments') ? 'text-green-400 font-semibold' : '' ?>">Comment Threads</a>
-                </div>
-            </div>
-
-            <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
-                    <span class="flex items-center gap-3">
-                        <i class="fa-solid fa-users w-5 text-center"></i>
-                        <span>Organization</span>
-                    </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=BASE_URL?>/org/members/list" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/list') ? 'text-green-400 font-semibold' : '' ?>">Members</a>
-                    <a href="<?=BASE_URL?>/org/members/add" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/add') ? 'text-green-400 font-semibold' : '' ?>">Add Member</a>
-                    <a href="<?=BASE_URL?>/org/departments" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/departments') ? 'text-green-400 font-semibold' : '' ?>">Departments</a>
-                    <a href="<?=BASE_URL?>/org/roles" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/roles') ? 'text-green-400 font-semibold' : '' ?>">Roles & Permissions</a>
-                </div>
-            </div>
-            
-            <div x-data='{ open: <?= $is_reports_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
-                    <span class="flex items-center gap-3">
-                        <i class="fa-solid fa-chart-line w-5 text-center"></i>
-                        <span>Reports & Analytics</span>
-                    </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=BASE_URL?>/org/reports/overview" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/overview') ? 'text-green-400 font-semibold' : '' ?>">Overview</a>
-                    <a href="<?=BASE_URL?>/org/reports/documents" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/documents') ? 'text-green-400 font-semibold' : '' ?>">Document Analytics</a>
-                    <a href="<?=BASE_URL?>/org/reports/reviewers" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/reviewers') ? 'text-green-400 font-semibold' : '' ?>">Reviewer Activity</a>
-                    <a href="<?=BASE_URL?>/org/reports/storage" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/storage') ? 'text-green-400 font-semibold' : '' ?>">Storage Usage</a>
-                </div>
-            </div>
-
-            <div class="pt-4">
-                <h2 class="text-xs text-gray-500 uppercase mb-2 ml-2 tracking-wider font-semibold">System</h2>
-            </div>
-            
-            <div>
-                <a href="<?=BASE_URL?>/org/settings" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/30 transition <?= str_contains($current_uri, '/org/settings') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">
-                    <i class="fa-solid fa-gear w-5 text-center"></i>
-                    <span>Settings</span>
-                </a>
-            </div>
-
-        </nav>
-
-        <div class="border-t border-green-800 px-4 py-4">
-            <div x-data="{ open: false }" @click.outside="open = false" class="relative">
-                <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
-                    <div class="flex items-center gap-3">
-                        <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
-                        <div class="text-left">
-                            <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
-                            <p class="text-xs text-gray-400"><?= $_SESSION['user_role'] ?? 'Organization Admin' ?></p>
-                        </div>
-                    </div>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs text-gray-400 ml-2"></i>
-                </button>
-
-                <div x-show="open" x-transition.duration.200ms class="absolute bottom-full mb-3 left-0 w-full bg-[#151a17] border border-green-700 rounded-lg shadow-2xl text-sm z-20">
-                    <a href="<?=BASE_URL?>/org/profile" class="block px-4 py-2 hover:bg-green-700/30 rounded-t-lg transition">View Profile</a>
-                    <a href="<?=BASE_URL?>/org/settings" class="block px-4 py-2 hover:bg-green-700/30 transition">Settings</a>
-                    <a href="<?=BASE_URL?>/logout" class="block px-4 py-2 text-red-400 hover:bg-red-700/30 rounded-b-lg transition">Logout</a>
-                </div>
-            </div>
-        </div>
-
-        <div class="border-t border-green-800 p-3 text-xs text-gray-500 text-center">
-            Maestro Organization © <?=date('Y')?>
-        </div>
-    </aside>
-
-    <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
+<div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white" x-data="{}">
     
-        <h1 class="text-3xl font-bold text-green-400 mb-6 tracking-wide">
-            Approved Documents
-        </h1>
+    <h1 class="text-3xl font-bold text-green-400 mb-6 tracking-wide">
+        Approved Documents
+    </h1>
 
-        <?php if (function_exists('flash_alert')) flash_alert(); // ADDED: Display Toast/flash messages ?>
+    <?php if (function_exists('flash_alert')) flash_alert(); ?>
 
-        <form method="GET" action="<?= BASE_URL ?>/org/documents/approved">
-            <div class="flex flex-col md:flex-row gap-4 mb-8">
-                <input type="text" name="q" placeholder="Search by title or approver..." 
-                       value="<?= html_escape($q) ?>"
-                       class="w-full md:w-1/3 bg-green-900 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-green-100">
-                
-                <select name="type" class="w-full md:w-1/6 bg-green-900 border border-green-800 p-3 rounded-xl text-green-100">
-                    <option value="">Filter by Type</option>
-                    <?php 
-                    $doc_types = ['Report', 'Policy', 'Legal', 'Project Proposal', 'HR Document', 'Marketing'];
-                    foreach ($doc_types as $doc_type): ?>
-                        <option value="<?= html_escape(strtolower($doc_type)) ?>" 
-                            <?= (strtolower($doc_type) === strtolower($type)) ? 'selected' : '' ?>>
-                            <?= $doc_type ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+    <form method="GET" action="<?= BASE_URL ?>/org/documents/approved">
+        <div class="flex flex-col md:flex-row gap-4 mb-8">
+            <input type="text" name="q" placeholder="Search by title or approver..." 
+                   value="<?= html_escape($q) ?>"
+                   class="w-full md:w-1/3 bg-green-900 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-green-100">
+            
+            <select name="type" class="w-full md:w-1/6 bg-green-900 border border-green-800 p-3 rounded-xl text-green-100">
+                <option value="">Filter by Type</option>
+                <?php 
+                $doc_types = ['Report', 'Policy', 'Legal', 'Project Proposal', 'HR Document', 'Marketing'];
+                foreach ($doc_types as $doc_type): ?>
+                    <option value="<?= html_escape(strtolower($doc_type)) ?>" 
+                        <?= (strtolower($doc_type) === strtolower($type)) ? 'selected' : '' ?>>
+                        <?= $doc_type ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
 
-                <button type="submit" class="bg-green-700 hover:bg-green-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-green-900/40">
-                    <i class="fa-solid fa-filter mr-2"></i> Apply Filters
-                </button>
-                
-                <?php if (!empty($q) || !empty($type)): ?>
-                    <a href="<?= BASE_URL ?>/org/documents/approved" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
-                        <i class="fa-solid fa-xmark mr-2"></i> Clear
-                    </a>
-                <?php endif; ?>
-            </div>
-        </form>
-        <div class="space-y-4">
-    <?php
-    // Use the real data passed from the controller
-    $docs = $approved_docs ?? [];
-    
+            <button type="submit" class="bg-green-700 hover:bg-green-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-green-900/40">
+                <i class="fa-solid fa-filter mr-2"></i> Apply Filters
+            </button>
+            
+            <?php if (!empty($q) || !empty($type)): ?>
+                <a href="<?= BASE_URL ?>/org/documents/approved" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
+                    <i class="fa-solid fa-xmark mr-2"></i> Clear
+                </a>
+            <?php endif; ?>
+        </div>
+    </form>
+    <div class="space-y-4">
+<?php
     foreach($docs as $doc): 
-        // FIX: Safely access approver names using the null coalescing operator (??) 
-        // and default to 'System' if the reviewer data is missing.
-        $approver_fname = $doc['approver_fname'] ?? 'System'; //
-        $approver_lname = $doc['approver_lname'] ?? ''; //
+        // Safely access approver names
+        $approver_fname = $doc['approver_fname'] ?? 'System'; 
+        $approver_lname = $doc['approver_lname'] ?? '';
         
-        // Use the approver's name from the JOIN
-        $approver_name = html_escape(trim($approver_fname . ' ' . $approver_lname)); //
+        $approver_name = html_escape(trim($approver_fname . ' ' . $approver_lname)); 
         
-        // FIX: Use 'created_at' field which is guaranteed to exist.
         $approved_date = date('M d, Y', strtotime($doc['created_at']));
     ?>
     <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-green-900/40 transition">
@@ -251,7 +95,9 @@
     <?php endif; ?>
 </div>
 
-    </div>
+</div>
 
-</body>
-</html>
+<?php 
+// --- 3. TEMPLATE END ---
+include 'app/views/org/layout_end.php';
+?>
