@@ -722,83 +722,105 @@ public function members_delete() {
             redirect(BASE_URL . '/org/departments');
         }
     }
-
+    
     public function departments_update() {
         $this->call->library('Form_validation');
+        
         $dept_id = (int)$this->io->post('dept_id');
         $new_name = $this->io->post('name');
-
+        
+        // Basic validation
         if ($dept_id <= 0) {
             set_flash_alert('danger', 'Invalid department ID.');
             redirect(BASE_URL . '/org/departments');
             return;
         }
 
-        $this->form_validation->name('name|Department Name')->required()->max_length(100);
-        
+        $this->form_validation->name('name|Department Name')->required()->max_length(100); 
+
         if (!$this->form_validation->run()) {
             set_flash_alert('danger', $this->form_validation->errors());
             redirect(BASE_URL . '/org/departments');
             return;
         }
 
-        $success = $this->OrgModel->updateDepartment($dept_id, ['name' => $new_name]);
+        // 2. Manual Uniqueness Check (Replacement for is_unique_except)
+        if ($this->OrgModel->isDepartmentNameDuplicate($new_name, $dept_id)) {
+            set_flash_alert('danger', 'The Department Name is already in use by another department.');
+            redirect(BASE_URL . '/org/departments');
+            return;
+        }
+        
+        $data = ['name' => $new_name];
+
+        $success = $this->OrgModel->updateDepartment($dept_id, $data);
 
         if ($success) {
-            set_flash_alert('success', 'Department updated successfully.');
+            set_flash_alert('success', 'Department "' . htmlspecialchars($new_name) . '" updated successfully.');
+            redirect(BASE_URL . '/org/departments');
         } else {
-            set_flash_alert('danger', 'Failed to update department.');
+            set_flash_alert('danger', 'Failed to update department. Please try again or check if the name already exists.');
+            redirect(BASE_URL . '/org/departments');
         }
-        redirect(BASE_URL . '/org/departments');
     }
 
     public function departments_delete() {
         $dept_id = (int)$this->io->post('dept_id');
-        $recaptcha_response = $this->io->post('g-recaptcha-response');
+        $submitted_code = $this->io->post('verification_code'); 
+        $session_code = $_SESSION['dept_delete_code'] ?? null;
         
-        $dept_name = $this->io->post('dept_name') ?? 'Department';
-        
-        $secret_key = '6Lea6BQsAAAAAPc1UtBknkQOQdQuaLW2DK9Vw6Xz'; 
+        $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
 
-        if ($dept_id <= 0 || empty($recaptcha_response)) {
-            set_flash_alert('danger', 'Missing security checks. Please try again.');
+        if (!$is_authenticated || $dept_id <= 0) {
+            set_flash_alert('danger', 'Invalid request or session expired.');
             redirect(BASE_URL . '/org/departments');
             return;
         }
 
-        $verify_url = 'https://www.google.com/recaptcha/api/siteverify';
-        $data = [
-            'secret' => $secret_key,
-            'response' => $recaptcha_response
-        ];
-
-        $context = stream_context_create([
-            'http' => ['method' => 'POST', 'header' => 'Content-Type: application/x-www-form-urlencoded', 'content' => http_build_query($data)]
-        ]);
-
-        $response = file_get_contents($verify_url, false, $context);
-        $result = json_decode($response, true);
-        
-        if (!$result['success']) {
-            set_flash_alert('danger', 'reCAPTCHA verification failed. Please try again.');
+        // 1. Check for verification code mismatch
+        if (empty($submitted_code) || $submitted_code !== $session_code) {
+            
+            // Generate a new code for the next attempt and store it in the session
+            $new_code = (string)random_int(1000, 9999); 
+            $_SESSION['dept_delete_code'] = $new_code;
+            
+            // Fetch the department name for a nicer message
+            $department = $this->OrgModel->getDepartmentById($dept_id);
+            $dept_name = htmlspecialchars($department['name'] ?? 'Department');
+            
+            // Set alert requiring the user to re-submit with the new code
+            set_flash_alert('warning', 
+                "**Verification Required:** To confirm deletion of **{$dept_name}**, please re-submit the form and enter the code **{$new_code}** in the confirmation box."
+            );
+            // Re-redirect to display the alert and new code.
             redirect(BASE_URL . '/org/departments');
             return;
         }
+
+        // 2. Code matches, proceed with deletion
         
+        $department = $this->OrgModel->getDepartmentById($dept_id);
+        $dept_name = $department['name'] ?? 'Department';
+
+        // Before deleting, unassign all members from this department
+        $this->OrgModel->unassignMembersFromDepartment($dept_id);
+
         $success = $this->OrgModel->deleteDepartment($dept_id);
+        
+        // Clean up the temporary session code after successful use
+        unset($_SESSION['dept_delete_code']);
 
         if ($success) {
-            set_flash_alert('success', 'Department "' . htmlspecialchars($dept_name) . '" deleted successfully.');
+            $full_name = htmlspecialchars(trim($dept_name));
+            set_flash_alert('success', "Department **{$full_name}** deleted successfully and all members unassigned.");
         } else {
-            set_flash_alert('danger', 'Failed to delete department. Please ensure all related records are removed first.');
+            set_flash_alert('danger', 'Failed to delete department. Please try again.');
         }
-
-        header('Location: ' . BASE_URL . '/org/departments');
-        exit;
+        
+        redirect(BASE_URL . '/org/departments');
     }
 
-    // Removed public function store_delete_code() 
-
+    
     public function roles() { 
         $roles = $this->OrgModel->getRoles(); 
         $this->call->view('org/roles', compact('roles')); 

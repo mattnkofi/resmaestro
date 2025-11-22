@@ -776,7 +776,10 @@ class Database {
                 foreach ($params as $key => $value) {
                     if (! empty($value)) {
                         $_where .= $type . $value . (isset($op[$key]) ? ' ? ' : '');
-                        $this->bindValues[] = $op[$key];
+                        // FIX: Only assign the bound value if the key exists in the parameters array ($op)
+                        if (isset($op[$key])) {
+                            $this->bindValues[] = $op[$key];
+                        }
                     }
                 }
                 $where = $_where;

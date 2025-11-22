@@ -41,6 +41,9 @@
     x-data="{ 
         modalOpen: false, 
         currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
+        
+        archiveModalOpen: false,
+        docToArchive: { id: 0, title: '' },
 
         getFileExtension(fileName) {
             return fileName ? fileName.split('.').pop().toLowerCase() : '';
@@ -58,21 +61,34 @@
         },
         getDocViewerURL(fileName) {
             if (!fileName) return '';
+            // Construct the full, absolute public URL required by Google Viewer
             const publicUrl = '<?= BASE_URL ?>/public/uploads/documents/' + fileName;
             const absoluteUrl = window.location.origin + publicUrl;
 
             if (this.isPDF(fileName)) {
+                // PDF can be viewed natively in iframe
                 return publicUrl;
             }
+            if (this.isImage(fileName)) {
+                // Images are handled by <img> tag
+                return publicUrl;
+            }
+            
+            // Use Google Docs Viewer for other documents (DOCX, XLSX, etc.)
             return 'https://docs.google.com/gview?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
         },
         
         setDoc(doc) { 
             this.currentDoc = doc; 
             this.modalOpen = true; 
+        },
+        setArchiveDoc(doc) {
+            this.docToArchive = { id: doc.id, title: doc.title };
+            this.modalOpen = false;
+            this.archiveModalOpen = true;
         }
     }" 
-    @keydown.escape="modalOpen = false">
+    @keydown.escape="modalOpen = false; archiveModalOpen = false;">
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
@@ -84,19 +100,17 @@
     
     $q = $q ?? '';
     $type = $type ?? '';
+    $status = $status ?? '';
 
     $docs = $docs ?? []; 
 
     if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+
     if (!function_exists('html_escape')) {
-        function html_escape($str) {
-            return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
-        }
+        function html_escape($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
     }
     if (!function_exists('csrf_field')) {
-        function csrf_field() {
-            echo '<input type="hidden" name="csrf_token" value="MOCK_CSRF_TOKEN">';
-        }
+        function csrf_field() { echo '<input type="hidden" name="csrf_token" value="MOCK_CSRF_TOKEN">'; }
     }
     ?>
 
@@ -295,7 +309,6 @@
         $days_class = $days_pending > 7 ? 'text-red-400 font-bold' : 'text-yellow-400';
         $display_date = date('M d, Y', $submit_time);
 
-        // Prepare document data for Alpine.js model, ensuring all required fields are passed
         $js_doc = json_encode([
             'id' => $doc_id, 
             'title' => html_escape($doc_title), 
@@ -400,49 +413,93 @@
     </div>
 
     <h5 class="text-md font-bold text-green-300">Update Status:</h5>
-    <div class="space-y-4">
-        
-        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-            <?php csrf_field(); ?>
-            <input type="hidden" name="document_id" :value="currentDoc.id">
-            <input type="hidden" name="new_status" value="Approved">
-            <input type="hidden" name="document_title" :value="currentDoc.title">
+                    <div class="space-y-4">
+                        
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <?php csrf_field(); ?>
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Approved">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
 
-            <button type="submit" class="w-full bg-green-700 hover:bg-green-600 px-5 py-2 rounded-lg font-medium transition"
-                :disabled="currentDoc.status === 'Approved' || currentDoc.status === 'Archived'"
-                :class="currentDoc.status === 'Approved' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
-                <i class="fa-solid fa-thumbs-up mr-2"></i> Approve
-            </button>
-        </form>
+                            <button type="submit" class="w-full bg-green-700 hover:bg-green-600 px-5 py-2 rounded-lg font-medium transition"
+                                :disabled="currentDoc.status === 'Approved' || currentDoc.status === 'Archived'"
+                                :class="currentDoc.status === 'Approved' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                                <i class="fa-solid fa-thumbs-up mr-2"></i> Approve
+                            </button>
+                        </form>
 
-        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-            <?php csrf_field(); ?>
-            <input type="hidden" name="document_id" :value="currentDoc.id">
-            <input type="hidden" name="new_status" value="Rejected">
-            <input type="hidden" name="document_title" :value="currentDoc.title">
-            
-            <button type="submit" class="w-full bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition"
-                :disabled="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived'"
-                :class="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
-                <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
-            </button>
-        </form>
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                            <?php csrf_field(); ?>
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="new_status" value="Rejected">
+                            <input type="hidden" name="document_title" :value="currentDoc.title">
+                            
+                            <button type="submit" class="w-full bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition"
+                                :disabled="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived'"
+                                :class="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                                <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
+                            </button>
+                        </form>
 
-        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-            <?php csrf_field(); ?>
-            <input type="hidden" name="document_id" :value="currentDoc.id">
-            <input type="hidden" name="new_status" value="Archived">
-            <input type="hidden" name="document_title" :value="currentDoc.title">
+                        <button type="button" 
+                            @click="setArchiveDoc(currentDoc)" 
+                            class="w-full bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg font-medium transition"
+                            :disabled="currentDoc.status === 'Archived'"
+                            :class="currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                            <i class="fa-solid fa-box-archive mr-2"></i> Archive
+                        </button>
+                        
+                    </div>
+                    
+                    <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
 
-            <button type="submit" onclick="return confirm('Confirm archive?')"
-                class="w-full bg-gray-700 hover:bg-gray-600 px-5 py-2 rounded-lg font-medium transition"
-                :disabled="currentDoc.status === 'Archived'"
-                :class="currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
-                <i class="fa-solid fa-box-archive mr-2"></i> Archive
-            </button>
-        </form>
+                </div>
+            </div>
+
+        </div>
     </div>
-    
-    <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
+    <div x-show="archiveModalOpen" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-[60] overflow-y-auto bg-maestro-bg bg-opacity-90 flex items-center justify-center" 
+        style="display: none;">
 
-</div>
+        <div @click.outside="archiveModalOpen = false" class="w-full max-w-md mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-red-800">
+            
+            <header class="p-4 border-b border-red-800 flex justify-between items-center bg-sidebar-dark">
+                <h3 class="text-xl font-bold text-red-400">Confirm Archive</h3>
+                <button @click="archiveModalOpen = false" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </header>
+
+            <div class="p-6 space-y-4">
+                <p class="text-gray-300">
+                    Are you sure you want to <b>Archive</b> the document: 
+                    <span class="font-semibold text-yellow-300" x-text="docToArchive.title"></span>?
+                </p>
+                <p class="text-sm text-gray-500">
+                    Archiving will remove this document from all active lists. It can be viewed and unarchived later from the "Archived" section.
+                </p>
+
+                <div class="flex justify-end gap-3 pt-4">
+                    <button @click="archiveModalOpen = false" class="px-5 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-medium transition">
+                        Cancel
+                    </button>
+
+                    <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                        <?php csrf_field(); ?>
+                        <input type="hidden" name="document_id" :value="docToArchive.id">
+                        <input type="hidden" name="new_status" value="Archived">
+                        <input type="hidden" name="document_title" :value="docToArchive.title">
+
+                        <button type="submit" class="bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition shadow-lg shadow-red-900/40">
+                            <i class="fa-solid fa-box-archive mr-2"></i> Confirm Archive
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    </body>
+</html>

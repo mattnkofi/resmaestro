@@ -72,11 +72,9 @@
         modalOpen: false, 
         currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
         
-        // >> NEW: Archive Modal State <<
         archiveModalOpen: false,
         docToArchive: { id: 0, title: '' },
 
-        // START NEW FUNCTIONS FOR VIEWING ALL FILE TYPES
         getFileExtension(fileName) {
             return fileName ? fileName.split('.').pop().toLowerCase() : '';
         },
@@ -109,27 +107,22 @@
             // Use Google Docs Viewer for other documents (DOCX, XLSX, etc.)
             return 'https://docs.google.com/gview?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
         },
-        // END NEW FUNCTIONS
         
         setDoc(doc) { 
             this.currentDoc = doc; 
             this.modalOpen = true; 
         },
-        // >> NEW: Function to open Archive Modal <<
         setArchiveDoc(doc) {
             this.docToArchive = { id: doc.id, title: doc.title };
-            this.modalOpen = false; // Close the main modal
-            this.archiveModalOpen = true; // Open the archive confirmation modal
+            this.modalOpen = false;
+            this.archiveModalOpen = true;
         }
     }" 
     @keydown.escape="modalOpen = false; archiveModalOpen = false;">
 
     <?php 
-    // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    // For "All Documents" page:
     $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/all'; 
 
-    // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
     $is_documents_open = str_contains($current_uri, '/org/documents/');
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
@@ -138,10 +131,8 @@
     $q = $q ?? '';
     $status = $status ?? '';
     
-    // Base URL definition
     if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
 
-    // Mock/Helper functions if not defined by the framework
     if (!function_exists('html_escape')) {
         function html_escape($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
     }
@@ -324,7 +315,6 @@
                 <tbody class="bg-[#0f1511] text-gray-300">
 
                 <?php 
-                // Using $docs array passed from controller
                 $docs = $docs ?? [];
                 if (!empty($docs)):
                 foreach($docs as $doc): 
@@ -349,7 +339,6 @@
                         }
                     }
 
-                    // Determine status color/class dynamically
                     $status_class = match ($doc_status) {
                         'Approved' => 'text-green-400',
                         'Pending Review' => 'text-yellow-400',
@@ -364,14 +353,12 @@
                         'status' => $doc_status, 
                         'submitter' => $submitter,
                         'type' => $doc_type,
-                        'created_at' => $doc_created_at_display // Use the corrected date for JS binding
+                        'created_at' => $doc_created_at_display
                     ]);
                     
-                    // Ensure data passed to JS is correctly escaped/quoted
                     $doc_created_at_display = 'N/A';
                     if (!empty($doc_created_at)) {
                         try {
-                            // ** IMPORTANT: REPLACE 'Asia/Manila' with your local timezone (e.g., 'America/New_York') **
                             $date_obj = new DateTime($doc_created_at);
                             $date_obj->setTimezone(new DateTimeZone('Asia/Manila')); 
                             $doc_created_at_display = $date_obj->format('M d, Y');

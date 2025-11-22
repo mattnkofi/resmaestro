@@ -67,22 +67,7 @@ $total_members = array_sum(array_column($depts, 'members_count'));
     </style>
 </head>
 <body class="bg-maestro-bg text-white font-poppins" 
-    x-data="{
-        BASE_URL: '<?= $BASE_URL ?>',
-        editModalOpen: false,
-        deleteModalOpen: false,
-        currentDept: { id: 0, name: '', members_count: 0 },
-
-        openEditModal(dept) {
-            this.currentDept = { ...dept };
-            this.editModalOpen = true;
-        },
-
-        openDeleteModal(dept) {
-            this.currentDept = { ...dept };
-            this.deleteModalOpen = true;
-        }
-    }">
+    x-data="{ BASE_URL: '<?= $BASE_URL ?>', isModalOpen: false, modalDept: {}, actionType: '' }">
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
@@ -232,22 +217,22 @@ $total_members = array_sum(array_column($depts, 'members_count'));
                                 members: <?= $js_assigned_members ?>, 
                                 loading: false, 
                                 deptId: <?= $dept_id ?>,
+                                deptName: '<?= html_escape($dept['name']) ?>',
                                 membersCount: <?= $members_count ?>,
-                                currentDept: { id: <?= $dept_id ?>, name: '<?= $js_dept_name ?>', members_count: <?= $members_count ?> },
-
-                                openEditModal(dept) {
-                                    this.currentDept = { ...dept };
-                                    this.editModalOpen = true;
-                                },
-                                
-                                openDeleteModal(dept) {
-                                    this.currentDept = { ...dept };
-                                    this.deleteModalOpen = true;
-                                },
                                 
                                 toggleMembers() {
                                     this.membersOpen = !this.membersOpen;
                                 },
+                                openEditModal() {
+                                    modalDept = { id: this.deptId, name: this.deptName, membersCount: this.membersCount };
+                                    actionType = 'edit';
+                                    isModalOpen = true;
+                                },
+                                openDeleteModal() {
+                                    modalDept = { id: this.deptId, name: this.deptName, membersCount: this.membersCount };
+                                    actionType = 'delete';
+                                    isModalOpen = true;
+                                }
                             }" 
                         class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col shadow-lg hover:bg-green-900/40 transition">
                         
@@ -257,30 +242,29 @@ $total_members = array_sum(array_column($depts, 'members_count'));
                                 
                                 <div class="text-sm text-gray-500 mt-1 space-y-1">
                                     <span title="Number of members in this department" class="inline-flex items-center gap-1 text-gray-300">
-                                        <i class="fa-solid fa-users text-xs text-green-500"></i> <?= $members_count ?> Members
+                                        <i class="fa-solid fa-users text-xs text-green-500"></i> <span x-text="membersCount"><?= $members_count ?></span> Members
                                     </span>
                                 </div>
                             </div>
                             
-                            <div class="flex flex-col items-start sm:items-end space-y-2">
-                                <div class="flex items-center space-x-2">
-                                    <button @click="toggleMembers()"
-                                            :disabled="membersCount === 0"
-                                            class="bg-green-700 hover:bg-green-600 px-3 py-1.5 rounded-lg text-xs font-medium transition"
-                                            :class="membersCount === 0 ? 'opacity-50 cursor-not-allowed' : ''">
-                                        <span x-text="membersOpen ? 'Hide Members' : 'View Members'">View Members</span>
-                                    </button>
-                                    
-                                    <button @click="openEditModal({ id: deptId, name: '<?= $js_dept_name ?>', members_count: <?= $members_count ?> })"
-                                            class="text-blue-400 hover:text-blue-300 transition text-xs">
-                                        <i class="fa-solid fa-pen-to-square mr-1"></i> Edit
-                                    </button>
-                                    
-                                    <button @click="openDeleteModal({ id: deptId, name: '<?= $js_dept_name ?>', members_count: <?= $members_count ?> })"
-                                            class="text-red-400 hover:text-red-300 transition text-xs">
-                                        <i class="fa-solid fa-trash-alt mr-1"></i> Delete
-                                    </button>
-                                </div>
+                            <div class="flex items-center space-x-2">
+                                <button @click="toggleMembers()"
+                                        :disabled="membersCount === 0"
+                                        class="bg-green-700 hover:bg-green-600 px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                                        :class="membersCount === 0 ? 'opacity-50 cursor-not-allowed' : ''">
+                                    <span x-text="membersOpen ? 'Hide Members' : 'View Members'">View Members</span>
+                                </button>
+
+                                 <button @click="openEditModal()"
+                                        class="bg-yellow-700 hover:bg-yellow-600 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1">
+                                    <i class="fa-solid fa-pen-to-square"></i> Edit
+                                </button>
+                                
+                                <button @click="openDeleteModal()"
+                                        class="bg-red-700 hover:bg-red-600 px-3 py-1.5 rounded-lg text-xs font-medium transition flex items-center gap-1">
+                                    <i class="fa-solid fa-trash"></i> Delete
+                                </button>
+
                             </div>
                         </div>
                         
@@ -347,115 +331,83 @@ $total_members = array_sum(array_column($depts, 'members_count'));
                         </button>
                     </form>
                 </div>
-
-                <div class="bg-green-950/50 p-6 rounded-xl border border-green-800 shadow-2xl h-full">
-                    <h2 class="text-xl font-bold text-green-300 mb-4 flex items-center gap-2 border-b border-green-800/50 pb-2">
-                        <i class="fa-solid fa-chart-pie text-lg text-green-500"></i> Performance Insights
-                    </h2>
-                    
-                    <div class="space-y-4 text-center text-gray-500 py-6">
-                        <i class="fa-solid fa-magnifying-glass-chart text-4xl mb-2"></i>
-                        <p class="text-sm">
-                            Departmental analytics are only available once members and documents have been assigned to departments in the database.
-                        </p>
-                        <a href="<?= $BASE_URL ?>/org/reports/documents" class="mt-2 block text-xs text-green-400 hover:text-green-300">View document analytics &rarr;</a>
-                    </div>
-                </div>
             </div>
-
         </div> 
     </div> 
 
-    <div x-show="editModalOpen" 
-        x-transition:enter="ease-out duration-300"
-        x-transition:leave="ease-in duration-200"
-        class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
-        style="display: none;">
-
-        <div @click.outside="editModalOpen = false" class="w-full max-w-lg mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-green-800">
+    <div x-show="isModalOpen" x-cloak x-transition.opacity class="fixed inset-0 bg-black bg-opacity-75 z-50 flex justify-center items-center p-4">
+        <div x-show="isModalOpen" x-transition.scale.duration.300ms @click.outside="isModalOpen = false" class="bg-green-950/95 border border-green-700 rounded-xl p-8 w-full max-w-lg shadow-2xl">
             
-            <header class="p-4 border-b border-green-800 flex justify-between items-center bg-sidebar-dark rounded-t-xl">
-                <h3 class="text-xl font-bold text-green-300">
-                    <i class="fa-solid fa-pen-to-square mr-2"></i> Edit Department
+            <div x-show="actionType === 'edit'">
+                <h3 class="text-2xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square"></i> Edit Department
                 </h3>
-                <button @click="editModalOpen = false" class="text-gray-400 hover:text-white transition">
-                    <i class="fa-solid fa-xmark text-2xl"></i>
-                </button>
-            </header>
-
-            <form method="POST" action="<?= $BASE_URL ?>/org/departments/update" class="p-6 space-y-5">
-                <?php csrf_field(); ?>
-                <input type="hidden" name="dept_id" :value="currentDept.id">
-
-                <div>
-                    <label for="edit_name" class="block text-sm font-medium mb-2 text-gray-300">Department Name <span class="text-red-500">*</span></label>
-                    <input type="text" id="edit_name" name="name" :value="currentDept.name" required
-                        class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-green-500 focus:border-green-500 text-green-100">
-                </div>
-                
-                <p class="text-sm text-gray-500">
-                    Warning: Changing the department name will affect all associated members and documents.
-                </p>
-
-                <div class="flex justify-end gap-3 pt-4">
-                    <button type="button" @click="editModalOpen = false" class="px-5 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-medium transition">
-                        Cancel
-                    </button>
-                    <button type="submit" class="bg-blue-700 hover:bg-blue-600 px-5 py-2 rounded-lg font-medium transition shadow-lg">
-                        <i class="fa-solid fa-save mr-2"></i> Save Changes
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div x-show="deleteModalOpen" 
-        x-transition:enter="ease-out duration-300"
-        x-transition:leave="ease-in duration-200"
-        class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
-        style="display: none;">
-
-        <div @click.outside="deleteModalOpen = false" class="w-full max-w-md mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-red-800">
-            
-            <header class="p-4 border-b border-red-800 flex justify-between items-center bg-sidebar-dark rounded-t-xl">
-                <h3 class="text-xl font-bold text-red-400">
-                    <i class="fa-solid fa-triangle-exclamation mr-2"></i> Confirm Deletion
-                </h3>
-                <button @click="deleteModalOpen = false" class="text-gray-400 hover:text-white transition">
-                    <i class="fa-solid fa-xmark text-2xl"></i>
-                </button>
-            </header>
-
-            <form method="POST" action="<?= $BASE_URL ?>/org/departments/delete" class="p-6 space-y-5">
-                <?php csrf_field(); ?>
-                <input type="hidden" name="dept_id" :value="currentDept.id">
-                <input type="hidden" name="dept_name" :value="currentDept.name">
-                
-                <p class="text-gray-300">
-                    Are you sure you want to delete the department: 
-                    <span class="font-semibold text-red-300" x-text="currentDept.name"></span>?
-                </p>
-                <p class="text-sm text-yellow-500">
-                    This action is permanent and will **unassign <span x-text="currentDept.members_count"></span> members**.
-                </p>
-                
-                <div class="pt-2 pb-2">
-                    <div class="g-recaptcha" 
-                         data-sitekey="6Lea6BQsAAAAAMTRESFdJPnJOXJp-xundMb3Bxef"
-                         data-theme="dark">
+                <form method="POST" :action="BASE_URL + '/org/departments/update'" class="space-y-4">
+                    <?php csrf_field(); ?>
+                    <input type="hidden" name="dept_id" :value="modalDept.id">
+                    
+                    <div>
+                        <label for="edit_name" class="block text-sm font-medium text-gray-400 mb-1">Department Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="edit_name" name="name" :value="modalDept.name" required
+                            class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 text-white">
                     </div>
-                </div>
-                <div class="flex justify-end gap-3 pt-4">
-                    <button type="button" @click="deleteModalOpen = false" class="px-5 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-medium transition">
-                        Cancel
-                    </button>
-                    <button type="submit" 
-                        class="bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition shadow-lg">
-                        <i class="fa-solid fa-trash mr-2"></i> Delete Permanently
-                    </button>
-                </div>
-            </form>
+                    
+                    <p class="text-sm text-gray-500 border-t border-green-800 pt-2">
+                        To add/remove members, go to the <a :href="BASE_URL + '/org/members/list'" class="text-blue-400 hover:text-blue-300 underline">Members List</a> page.
+                    </p>
+
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" @click="isModalOpen = false" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg text-white font-semibold transition">Cancel</button>
+                        <button type="submit" class="bg-yellow-700 hover:bg-yellow-600 px-4 py-2 rounded-lg text-white font-semibold transition">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+
+            <div x-show="actionType === 'delete'">
+                <h3 class="text-2xl font-bold text-red-400 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> Confirm Deletion
+                </h3>
+                <form method="POST" :action="BASE_URL + '/org/departments/delete'">
+                    <?php csrf_field(); ?>
+                    <input type="hidden" name="dept_id" :value="modalDept.id">
+                    
+                    <p class="text-white mb-4">
+                        Are you sure you want to delete the department 
+                        <strong class="text-red-300" x-text="modalDept.name"></strong>?
+                    </p>
+                    
+                    <p class="text-sm text-orange-400 font-semibold" x-show="modalDept.membersCount > 0">
+                        <i class="fa-solid fa-users-slash"></i> NOTE: This department has 
+                        <span x-text="modalDept.membersCount"></span> members. 
+                        Deleting it will set their department to <b>Unassigned</b>.
+                    </p>
+                    <p x-show="modalDept.membersCount === 0" class="text-sm text-green-400 mb-4">
+                        This department has no members. Safe to delete.
+                    </p>
+                    
+                    <div class="bg-gray-800 p-4 rounded-lg border border-red-700/50 mb-6">
+                        <label for="verification_code" class="block text-sm font-bold text-red-400 mb-2">
+                            Type the verification code to confirm:
+                        </label>
+                        <div class="flex items-center gap-4">
+                            <div class="text-2xl font-mono px-4 py-2 bg-red-900 rounded-lg select-none">
+                                <span class="text-red-100">
+                                    <?= $_SESSION['dept_delete_code'] ?? 'N/A' ?>
+                                </span>
+                            </div>
+                            <input type="text" id="verification_code" name="verification_code" 
+                                class="w-full p-3 bg-red-900/50 border border-red-700 rounded-lg focus:ring-red-500 focus:border-red-500 text-white placeholder-gray-500 text-lg font-mono tracking-widest" 
+                                placeholder="Enter code" required autocomplete="off">
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">The code changes every time you try to delete.</p>
+                    </div>
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button type="button" @click="isModalOpen = false" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-lg text-white font-semibold transition">Cancel</button>
+                        <button type="submit" class="bg-red-700 px-4 py-2 rounded-lg hover:bg-red-600 font-bold text-white transition">Delete Department</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
-</body>
+    </body>
 </html>

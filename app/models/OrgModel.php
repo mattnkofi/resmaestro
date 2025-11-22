@@ -16,16 +16,16 @@ class OrgModel extends Model
         $stats = [];
         $seven_days_ago = date('Y-m-d H:i:s', strtotime('-7 days'));
                 
-        $stats['total_documents']    = $this->db->table('documents')->count();
+        $stats['total_documents']      = $this->db->table('documents')->count();
         
         $pending_query = "SELECT COUNT(*) AS count FROM documents WHERE status = ?";
-        $stats['pending_reviews']    = $this->db->raw($pending_query, ['Pending Review'])->fetch()['count'];
+        $stats['pending_reviews']      = $this->db->raw($pending_query, ['Pending Review'])->fetch()['count'];
         
         $approved_query = "SELECT COUNT(*) AS count FROM documents WHERE status = ?";
         $stats['approved_documents'] = $this->db->raw($approved_query, ['Approved'])->fetch()['count'];
         
         $new_members_query = "SELECT COUNT(*) AS count FROM users WHERE created_at >= ?";
-        $stats['new_members']        = $this->db->raw($new_members_query, [$seven_days_ago])->fetch()['count'];
+        $stats['new_members']          = $this->db->raw($new_members_query, [$seven_days_ago])->fetch()['count'];
         
         return $stats;
     }
@@ -155,12 +155,12 @@ class OrgModel extends Model
     
     public function updateDocument(int $doc_id, array $data) {
         return $this->db->table('documents')
-                         ->where('id', $doc_id)
-                         ->update($data);
+                           ->where('id', $doc_id)
+                           ->update($data);
     }
     
     // ----------------------------------------------------------------------
-    // 	MEMBER UPDATE METHODS
+    //  MEMBER UPDATE METHODS
     // ----------------------------------------------------------------------
 
     /**
@@ -168,8 +168,8 @@ class OrgModel extends Model
      */
     public function updateMember(int $member_id, array $data) {
         return $this->db->table('users')
-                         ->where('id', $member_id)
-                         ->update($data);
+                           ->where('id', $member_id)
+                           ->update($data);
     }
 
     /**
@@ -177,9 +177,9 @@ class OrgModel extends Model
      */
     public function getRoleIdByName(string $role_name) {
         return $this->db->table('roles')
-                         ->select('id')
-                         ->where('name', $role_name)
-                         ->get(); 
+                           ->select('id')
+                           ->where('name', $role_name)
+                           ->get(); 
     }
 
     /**
@@ -187,9 +187,9 @@ class OrgModel extends Model
      */
     public function getDepartmentIdByName(string $dept_name) {
         return $this->db->table('departments')
-                         ->select('id')
-                         ->where('name', $dept_name)
-                         ->get(); 
+                           ->select('id')
+                           ->where('name', $dept_name)
+                           ->get(); 
     }
     
     /**
@@ -197,8 +197,8 @@ class OrgModel extends Model
      */
     public function getMemberByEmail(string $email) {
         return $this->db->table('users')
-                        ->where('email', $email)
-                        ->get(); 
+                         ->where('email', $email)
+                         ->get(); 
     }
 
     public function getRecentUserUploads(int $user_id, int $limit = 10) {
@@ -212,7 +212,7 @@ class OrgModel extends Model
     }
     
     // ----------------------------------------------------------------------
-    // 	ORGANIZATION IMPLEMENTATION
+    //  ORGANIZATION IMPLEMENTATION
     // ----------------------------------------------------------------------
 
     public function getMembers($q = null, $role_slug = null) {
@@ -243,9 +243,19 @@ class OrgModel extends Model
         }
         
         return $this->db->table('users')
-                         ->where_in('id', $member_ids)
-                         ->update(['dept_id' => $dept_id]);
+                           ->where_in('id', $member_ids)
+                           ->update(['dept_id' => $dept_id]);
     }
+    
+    /**
+     * Unassigns all members from a specific department (sets dept_id to NULL).
+     */
+    public function unassignMembersFromDepartment(int $dept_id) {
+        return $this->db->table('users')
+                         ->where('dept_id', $dept_id)
+                         ->update(['dept_id' => NULL]);
+    }
+
 
     /**
      * Fetches department statistics (Member count is fixed via robust JOIN).
@@ -299,9 +309,31 @@ class OrgModel extends Model
         }
     }
 
+    public function getMemberById(int $id) {
+        return $this->db->table('users')
+                         ->where('id', $id)
+                         ->get(); // Using get() for a single result
+    }
+
+    public function getDepartmentById(int $dept_id) {
+        return $this->db->table('departments')
+                        ->where('id', $dept_id)
+                        ->get(); 
+    }
 
     public function getDepartments() { 
     return $this->getDepartmentOptions();
+}
+
+    public function isDepartmentNameDuplicate(string $name, int $current_id) {
+    
+    $query = "SELECT COUNT(*) AS count 
+              FROM departments 
+              WHERE name = ? AND id != ?";
+
+    $result = $this->db->raw($query, [$name, $current_id])->fetch();
+                      
+    return ($result['count'] ?? 0) > 0;
 }
 
     public function getDepartmentOptions() { 
@@ -315,17 +347,23 @@ class OrgModel extends Model
     }
 }
 
-    /**
-     * Inserts a new department into the database.
-     */
     public function insertDepartment(array $data) {
         $this->db->table('departments')->insert($data);
         return $this->db->last_id();
     }
 
-    /**
-     * Fetches all roles for dropdowns.
-     */
+    public function updateDepartment(int $dept_id, array $data) {
+        return $this->db->table('departments')
+                        ->where('id', $dept_id)
+                        ->update($data);
+    }
+    
+    public function deleteDepartment(int $dept_id) {
+        return $this->db->table('departments')
+                        ->where('id', $dept_id)
+                        ->delete();
+    }
+    
     public function getRoles() { 
         try {
             return $this->db->table('roles')
@@ -391,9 +429,7 @@ class OrgModel extends Model
         ->get_all();
     }
 
-    /**
-     * CRITICAL METHOD: Fetches documents that are Approved, Rejected, OR have entries in the 'comments' table.
-     */
+
     public function getDocumentsWithComments($query = '', $status = '') {
         $search_term = "%{$query}%";
         
@@ -402,7 +438,6 @@ class OrgModel extends Model
             ->table('documents d')
             ->left_join('users u', 'd.reviewer_id = u.id');
             
-        // --- START CONDITIONAL FILTERING ---
         if (!empty($status) && in_array($status, ['Approved', 'Rejected', 'Pending Review'])) {
             $where = "d.status = ?";
             $params = [$status];
@@ -415,9 +450,7 @@ class OrgModel extends Model
             $where = "(d.status = 'Approved' OR d.status = 'Rejected' OR EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id))";
             $this->db->where($where, null, false);
         }
-        // --- END CONDITIONAL FILTERING ---
-        
-        // Apply search query filter (Title or Reviewer Name)
+
         if (!empty($query)) {
             $where_search = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
             $this->db->where($where_search, [$search_term, $search_term, $search_term], false);
