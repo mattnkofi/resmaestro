@@ -16,18 +16,14 @@ class OrgModel extends Model
         $stats = [];
         $seven_days_ago = date('Y-m-d H:i:s', strtotime('-7 days'));
                 
-        // 1. Total Documents (No WHERE clause, standard count is stable)
         $stats['total_documents']    = $this->db->table('documents')->count();
         
-        // 2. Pending Reviews (Use raw SQL to control binding)
         $pending_query = "SELECT COUNT(*) AS count FROM documents WHERE status = ?";
         $stats['pending_reviews']    = $this->db->raw($pending_query, ['Pending Review'])->fetch()['count'];
         
-        // 3. Approved Documents (Use raw SQL to control binding)
         $approved_query = "SELECT COUNT(*) AS count FROM documents WHERE status = ?";
         $stats['approved_documents'] = $this->db->raw($approved_query, ['Approved'])->fetch()['count'];
         
-        // 4. New Members (Using raw SQL is safest for date comparisons)
         $new_members_query = "SELECT COUNT(*) AS count FROM users WHERE created_at >= ?";
         $stats['new_members']        = $this->db->raw($new_members_query, [$seven_days_ago])->fetch()['count'];
         
@@ -41,10 +37,8 @@ class OrgModel extends Model
                  ->table('documents d');
     
         if (!empty($query)) {
-            $this->db->grouped(function($q) use ($search_term) {
-                $q->like('d.title', $search_term)
-                  ->or_like('d.description', $search_term); 
-            });
+            $where = "(d.title LIKE ? OR d.description LIKE ?)";
+            $this->db->where($where, [$search_term, $search_term], false); 
         }
     
         if (!empty($status)) {
@@ -63,11 +57,8 @@ class OrgModel extends Model
             ->where('d.status', 'Pending Review');
     
         if (!empty($query)) {
-            $this->db->grouped(function($q) use ($search_term) {
-                $q->like('d.title', $search_term)
-                  ->or_like('u.fname', $search_term)
-                  ->or_like('u.lname', $search_term);
-            });
+            $where = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
+            $this->db->where($where, [$search_term, $search_term, $search_term], false);
         }
     
         if (!empty($type)) {
@@ -77,7 +68,7 @@ class OrgModel extends Model
     }
 
     public function getApprovedDocuments($query = '', $type = '') {
-    $search_term = "%{$query}%"; // Prepare the search term
+    $search_term = "%{$query}%"; 
     
     $this->db
         ->select('d.id, d.title, d.file_name, d.status, d.created_at, d.type, u.fname AS approver_fname, u.lname AS approver_lname')
@@ -85,16 +76,11 @@ class OrgModel extends Model
         ->left_join('users u', 'd.reviewer_id = u.id') 
         ->where('d.status', 'Approved');
 
-    // 1. Search Query Filter (Title or Approver Name)
     if (!empty($query)) {
-        $this->db->grouped(function($q) use ($search_term) {
-            $q->like('d.title', $search_term) // Search by title
-              ->or_like('u.fname', $search_term) // Search by approver first name
-              ->or_like('u.lname', $search_term); // Search by approver last name
-        });
+        $where = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
+        $this->db->where($where, [$search_term, $search_term, $search_term], false);
     }
 
-    // 2. Type Filter
     if (!empty($type)) {
         $this->db->where('d.type', $type);
     }
@@ -122,10 +108,8 @@ class OrgModel extends Model
             ->where('d.status', 'Archived');
     
         if (!empty($query)) {
-            $this->db->grouped(function($q) use ($query) {
-                $q->like('d.title', "%{$query}%")
-                  ->or_like('d.description', "%{$query}%"); 
-            });
+            $where = "(d.title LIKE ? OR d.description LIKE ?)";
+            $this->db->where($where, [$search_term, $search_term], false); 
         }
         return $this->db->order_by('d.deleted_at', 'DESC')->get_all();
     }
@@ -151,17 +135,17 @@ class OrgModel extends Model
      */
     public function getPotentialDepartmentMembers() {
         return $this->db->table('users')
-                        ->select('id, fname, lname')
-                        ->where('dept_id', NULL)
-                        ->order_by('lname', 'ASC')
-                        ->get_all();
+                            ->select('id, fname, lname')
+                            ->where('dept_id', NULL)
+                            ->order_by('lname', 'ASC')
+                            ->get_all();
     }
 
     public function getPotentialReviewers() {
         return $this->db->table('users')
-                        ->select('id, fname, lname, email') 
-                        ->order_by('lname', 'ASC')
-                        ->get_all();
+                            ->select('id, fname, lname, email') 
+                            ->order_by('lname', 'ASC')
+                            ->get_all();
     }
     
     public function insertDocument(array $data) {
@@ -171,8 +155,50 @@ class OrgModel extends Model
     
     public function updateDocument(int $doc_id, array $data) {
         return $this->db->table('documents')
-                        ->where('id', $doc_id)
-                        ->update($data);
+                         ->where('id', $doc_id)
+                         ->update($data);
+    }
+    
+    // ----------------------------------------------------------------------
+    // 	MEMBER UPDATE METHODS
+    // ----------------------------------------------------------------------
+
+    /**
+     * Updates a user record in the database.
+     */
+    public function updateMember(int $member_id, array $data) {
+        return $this->db->table('users')
+                         ->where('id', $member_id)
+                         ->update($data);
+    }
+
+    /**
+     * Fetches the Role ID by Role Name.
+     */
+    public function getRoleIdByName(string $role_name) {
+        return $this->db->table('roles')
+                         ->select('id')
+                         ->where('name', $role_name)
+                         ->get(); 
+    }
+
+    /**
+     * Fetches the Department ID by Department Name.
+     */
+    public function getDepartmentIdByName(string $dept_name) {
+        return $this->db->table('departments')
+                         ->select('id')
+                         ->where('name', $dept_name)
+                         ->get(); 
+    }
+    
+    /**
+     * Fetches a member record by their email address.
+     */
+    public function getMemberByEmail(string $email) {
+        return $this->db->table('users')
+                        ->where('email', $email)
+                        ->get(); 
     }
 
     public function getRecentUserUploads(int $user_id, int $limit = 10) {
@@ -186,67 +212,62 @@ class OrgModel extends Model
     }
     
     // ----------------------------------------------------------------------
-    //  ORGANIZATION IMPLEMENTATION (FIXED FOR MISSING COLUMNS/TABLES)
+    // 	ORGANIZATION IMPLEMENTATION
     // ----------------------------------------------------------------------
 
-    /**
-     * Fetches all members.
-     * @param string $query Search term for name or email.
-     * @return array
-     */
-    public function getMembers($query = '') {
-    $search_term = "%{$query}%";
+    public function getMembers($q = null, $role_slug = null) {
+        $query = $this->db->table('users')
+            ->select('users.id, users.fname, users.lname, users.email, users.dept_id, users.role_id, departments.name as dept_name, roles.name as role_name')
+            ->left_join('departments', 'users.dept_id = departments.id')
+            ->left_join('roles', 'users.role_id = roles.id');
+        
+        if (!empty($q)) {
+            $search_term = "%{$q}%";
+            $where_clause = "(users.fname LIKE ? OR users.lname LIKE ? OR users.email LIKE ?)";
+            $query->where($where_clause, [$search_term, $search_term, $search_term], false); 
+        }
 
-    $this->db
-        ->select('u.id, u.fname, u.lname, u.email, d.name AS dept_name, r.name AS role_name, u.created_at')
-        ->table('users u')
-        ->left_join('departments d', 'u.dept_id = d.id')
-        ->left_join('roles r', 'u.role_id = r.id');
-    
-    if (!empty($query)) {
-        $this->db->grouped(function($q) use ($search_term) {
-            $q->like('u.fname', $search_term)
-              ->or_like('u.lname', $search_term)
-              ->or_like('u.email', $search_term);
-        });
+        if (!empty($role_slug)) {
+            $role_name_from_slug = ucwords(str_replace('_', ' ', $role_slug));
+            $query->where('roles.name', $role_name_from_slug);
+        }
+        
+        return $query->order_by('users.fname', 'ASC')
+            ->get_all();
     }
-    
-    return $this->db->order_by('u.lname', 'ASC')->get_all();
-}
 
-    /**
-     * Assigns a list of members to a newly created department.
-     * @param int $dept_id The ID of the department to assign to.
-     * @param array $member_ids Array of user IDs to assign.
-     * @return bool
-     */
+
     public function assignMembersToDepartment(int $dept_id, array $member_ids) {
         if (empty($member_ids)) {
             return true; // Nothing to do
         }
         
         return $this->db->table('users')
-                        ->where_in('id', $member_ids)
-                        ->update(['dept_id' => $dept_id]);
+                         ->where_in('id', $member_ids)
+                         ->update(['dept_id' => $dept_id]);
     }
 
+    /**
+     * Fetches department statistics (Member count is fixed via robust JOIN).
+     */
     public function getDepartmentsWithStats() {
     $query = "
         SELECT
             d.id,
             d.name,
-            (SELECT COUNT(id) FROM users WHERE users.dept_id = d.id) AS members_count,
-            (SELECT COUNT(id) FROM documents WHERE documents.dept_id = d.id) AS documents_count,
-            (SELECT COUNT(id) FROM documents WHERE documents.dept_id = d.id AND documents.status = 'Pending Review') AS pending_count
+            COUNT(u.id) AS members_count,
+            0 AS documents_count,  
+            0 AS pending_count     
         FROM departments d
+        LEFT JOIN users u ON u.dept_id = d.id
+        GROUP BY d.id, d.name
         ORDER BY d.name ASC
     ";
     
     try {
-        return $this->db->raw($query)->get_all();
+        $stmt = $this->db->raw($query);
+        return $stmt->fetchAll(2);
     } catch (\Exception $e) {
-        // CRITICAL FIX: If the complex stats query fails (e.g., missing columns), 
-        // fall back to fetching the simple department list and manually set stats to 0.
         $simple_depts = $this->getDepartmentOptions();
         return array_map(function($d) {
             return [
@@ -260,17 +281,35 @@ class OrgModel extends Model
     }
 }
 
+
+    public function getMembersByDepartment(int $dept_id) {
+        $query = "
+            SELECT id, fname, lname, email
+            FROM users
+            WHERE dept_id = ?
+            ORDER BY lname ASC
+        ";
+
+        try {
+            $stmt = $this->db->raw($query, [(int)$dept_id]);
+            return $stmt->fetchAll(2); 
+        } catch (\Exception $e) {
+            error_log("Database error in getMembersByDepartment: " . $e->getMessage());
+            return [];
+        }
+    }
+
+
     public function getDepartments() { 
-    // FIX: Only return the result of getDepartmentOptions() to prevent unreachable code
     return $this->getDepartmentOptions();
 }
 
     public function getDepartmentOptions() { 
     try {
         return $this->db->table('departments')
-                        ->select('id, name')
-                        ->order_by('name', 'ASC')
-                        ->get_all();
+                            ->select('id, name')
+                            ->order_by('name', 'ASC')
+                            ->get_all();
     } catch (\Exception $e) {
         return [];
     }
@@ -278,7 +317,6 @@ class OrgModel extends Model
 
     /**
      * Inserts a new department into the database.
-     * @return int|bool The new department ID or false on failure.
      */
     public function insertDepartment(array $data) {
         $this->db->table('departments')->insert($data);
@@ -287,14 +325,13 @@ class OrgModel extends Model
 
     /**
      * Fetches all roles for dropdowns.
-     * @return array
      */
     public function getRoles() { 
         try {
             return $this->db->table('roles')
-                            ->select('id, name')
-                            ->order_by('name', 'ASC')
-                            ->get_all();
+                             ->select('id, name')
+                             ->order_by('name', 'ASC')
+                             ->get_all();
         } catch (\Exception $e) {
             return [];
         }
@@ -304,10 +341,13 @@ class OrgModel extends Model
         $this->db->table('users')->insert($data);
         return $this->db->last_id();
     }
-    // ----------------------------------------------------------------------
-    //  REVIEW & WORKFLOW IMPLEMENTATION
-    // ----------------------------------------------------------------------
 
+    public function deleteMember($id) {
+    return $this->db->table('users')
+        ->where('id', (int)$id)
+        ->delete();
+}
+    
     public function getPendingReviews($query = '', $sort = 'oldest') {
         $search_term = "%{$query}%";
         $this->db
@@ -315,7 +355,12 @@ class OrgModel extends Model
             ->table('documents d')
             ->left_join('users u', 'd.user_id = u.id')
             ->where('d.status', 'Pending Review'); 
-        // ... (rest of logic omitted for brevity, but remains implemented as before)
+            
+        if (!empty($query)) {
+            $where = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
+            $this->db->where($where, [$search_term, $search_term, $search_term], false);
+        }
+        
         $order_by = ($sort === 'oldest') ? 'd.created_at ASC' : 'd.created_at DESC';
         return $this->db->order_by($order_by)->get_all();
     }
@@ -330,10 +375,8 @@ class OrgModel extends Model
         if (!empty($status) && in_array($status, ['Approved', 'Rejected'])) {
             $this->db->where('d.status', $status);
         } else {
-            $this->db->grouped(function($q) {
-                $q->where('d.status', 'Approved')
-                  ->or_where('d.status', 'Rejected');
-            });
+            $where = "(d.status = 'Approved' OR d.status = 'Rejected')";
+            $this->db->where($where, null, false);
         }
         return $this->db->order_by('d.approved_at DESC, d.rejected_at DESC, d.created_at DESC')->get_all();
     }
@@ -361,32 +404,23 @@ class OrgModel extends Model
             
         // --- START CONDITIONAL FILTERING ---
         if (!empty($status) && in_array($status, ['Approved', 'Rejected', 'Pending Review'])) {
-            // Apply status filter based on selection
-            $this->db->grouped(function($q) use ($status) {
-                $q->where('d.status', $status);
-                // CRITICAL FIX: If Pending Review is filtered, it MUST have a comment.
-                if ($status === 'Pending Review') {
-                    $q->where('EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id)', null, false);
-                }
-            });
+            $where = "d.status = ?";
+            $params = [$status];
+
+            if ($status === 'Pending Review') {
+                $where .= " AND EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id)";
+            }
+            $this->db->where($where, $params, false);
         } else {
-            // DEFAULT: Show all Approved, Rejected, and any document with comments.
-            $this->db->grouped(function($q) {
-                $q->where('d.status', 'Approved')
-                  ->or_where('d.status', 'Rejected')
-                  // I-OR sa mga documents na may comments (Using OR EXISTS)
-                  ->or_where('EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id)', null, false);
-            });
+            $where = "(d.status = 'Approved' OR d.status = 'Rejected' OR EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id))";
+            $this->db->where($where, null, false);
         }
         // --- END CONDITIONAL FILTERING ---
         
         // Apply search query filter (Title or Reviewer Name)
         if (!empty($query)) {
-            $this->db->grouped(function($q) use ($search_term) {
-                $q->like('d.title', $search_term) 
-                  ->or_like('u.fname', $search_term)
-                  ->or_like('u.lname', $search_term);
-            });
+            $where_search = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
+            $this->db->where($where_search, [$search_term, $search_term, $search_term], false);
         }
 
         return $this->db->order_by('d.approved_at DESC, d.rejected_at DESC, d.created_at DESC')->get_all();

@@ -23,6 +23,8 @@ $router->get('/logout', 'Auth::logout');
 $router->get('/org/dashboard', 'OrgController::dashboard');
 $router->get('/org/sidebar', 'OrgController::sidebar');
 
+
+
 // Documents
 $router->get('/org/documents/all', 'OrgController::documents_all');
 // Upload
@@ -42,30 +44,40 @@ $router->post('/org/documents/resubmit', 'OrgController::documents_resubmit');
 
 $router->get('/org/documents/archived', 'OrgController::documents_archived');
 
+
+
+
 /// Review
 $router->get('/org/review/queue', 'OrgController::review_queue');
 $router->get('/org/review/history', 'OrgController::review_history');
-
-// CRITICAL FIX: Para sa redirect na may ID (e.g., /org/review/comments/1)
 $router->get('/org/review/comments/(:num)', 'OrgController::review_comments/$1'); 
-
-// Para sa list view (ang base page)
 $router->get('/org/review/comments', 'OrgController::review_comments');
 $router->get('/org/review/fetch_comments/(:num)', 'OrgController::fetch_comments_json/$1');
-
-// POST Route (Para sa pag-submit ng comment)
 $router->post('/org/review/add_comment', 'OrgController::review_add_comment');
+
+
+
 
 // Members
 $router->get('/org/members/list', 'OrgController::members_list');
 $router->get('/org/members/add', 'OrgController::members_add');
-// NEW POST ROUTE for adding a member
 $router->post('/org/members/store', 'OrgController::members_store');
+
+$router->post('/org/members/update', 'OrgController@members_update');
+$router->post('/org/members/delete', 'OrgController@members_delete');
 
 // Departments & Roles
 $router->get('/org/departments', 'OrgController::departments');
 $router->post('/org/departments/store', 'OrgController::departments_store'); // <-- NEW ROUTE
 $router->get('/org/roles', 'OrgController::roles');
+
+// --- Department CRUD Endpoints ---
+$router->get('/org/departments/members/(:num)', 'OrgController::fetch_dept_members/$1');
+$router->post('/org/departments/update', 'OrgController::departments_update');
+$router->post('/org/departments/delete', 'OrgController::departments_delete');
+$router->post('/api/store_delete_code', 'OrgController::store_delete_code');
+// --- End Department CRUD Endpoints ---
+
 
 // Reports
 $router->get('/org/reports/overview', 'OrgController::reports_overview');

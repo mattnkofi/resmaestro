@@ -90,7 +90,7 @@
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
                         <i class="fa-solid fa-clipboard-check w-5 text-center"></i>
-                        <span>Review & Workflow</span>
+                        <span>Reviews</span>
                     </span>
                     <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
                 </button>
