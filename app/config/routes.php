@@ -42,10 +42,19 @@ $router->post('/org/documents/resubmit', 'OrgController::documents_resubmit');
 
 $router->get('/org/documents/archived', 'OrgController::documents_archived');
 
-// Review
+/// Review
 $router->get('/org/review/queue', 'OrgController::review_queue');
 $router->get('/org/review/history', 'OrgController::review_history');
+
+// CRITICAL FIX: Para sa redirect na may ID (e.g., /org/review/comments/1)
+$router->get('/org/review/comments/(:num)', 'OrgController::review_comments/$1'); 
+
+// Para sa list view (ang base page)
 $router->get('/org/review/comments', 'OrgController::review_comments');
+$router->get('/org/review/fetch_comments/(:num)', 'OrgController::fetch_comments_json/$1');
+
+// POST Route (Para sa pag-submit ng comment)
+$router->post('/org/review/add_comment', 'OrgController::review_add_comment');
 
 // Members
 $router->get('/org/members/list', 'OrgController::members_list');

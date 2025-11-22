@@ -598,20 +598,28 @@ class OrgController extends Controller
     public function departments() { 
     // CHANGE: Call the new method to get aggregated stats
     $depts = $this->OrgModel->getDepartmentsWithStats(); 
-    $this->call->view('org/departments', compact('depts')); 
+    // NEW: Fetch members without department for the creation form
+    $potential_members = $this->OrgModel->getPotentialDepartmentMembers();
+    $this->call->view('org/departments', compact('depts', 'potential_members')); 
 }
 
 public function departments_store() {
     $this->call->library('Form_validation');
     
     // 1. Set Validation Rules: Name is required, max length 100, and must be unique.
-    $this->form_validation->name('name|Department Name')->required()->max_length(100)->is_unique('departments.name'); 
+    // (Previous fix for ArgumentCountError)
+    $this->form_validation->name('name|Department Name')->required()->max_length(100)->is_unique('departments', 'name', $this->io->post('name')); 
     
     if (!$this->form_validation->run()) {
         set_flash_alert('danger', $this->form_validation->errors());
         redirect(BASE_URL . '/org/departments');
         return;
     }
+    
+    // FIX APPLIED HERE: Safely retrieve member IDs to prevent Undefined array key warning
+    $member_ids = isset($_POST['member_ids']) ? $this->io->post('member_ids') : [];
+    $member_ids = is_array($member_ids) ? $member_ids : [$member_ids];
+    $member_ids = array_filter($member_ids, 'is_numeric'); // Clean up non-numeric IDs
 
     // 2. Prepare Data
     $data = [
@@ -622,7 +630,14 @@ public function departments_store() {
     $new_dept_id = $this->OrgModel->insertDepartment($data);
 
     if ($new_dept_id) {
-        set_flash_alert('success', 'Department "' . htmlspecialchars($data['name']) . '" added successfully.');
+        // 4. Assign members to the new department
+        if (!empty($member_ids)) {
+            $this->OrgModel->assignMembersToDepartment($new_dept_id, $member_ids);
+        }
+        
+        $member_count_message = !empty($member_ids) ? ' and ' . count($member_ids) . ' members assigned.' : '.';
+
+        set_flash_alert('success', 'Department "' . htmlspecialchars($data['name']) . '" added successfully' . $member_count_message);
         redirect(BASE_URL . '/org/departments');
     } else {
         set_flash_alert('danger', 'Failed to add department to the database.');

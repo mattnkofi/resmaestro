@@ -1,3 +1,41 @@
+<?php
+defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
+
+// --- PHP Helper Functions (CRITICAL for form/URL) ---
+if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+if (!function_exists('html_escape')) {
+    function html_escape($str) {
+        return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+    }
+}
+if (!function_exists('csrf_field')) {
+    function csrf_field() {
+        echo '<input type="hidden" name="csrf_token" value="MOCK_CSRF_TOKEN">';
+    }
+}
+// Mock set_value function for retaining form input after validation errors
+if (!function_exists('set_value')) {
+    function set_value($field) {
+        // Retrieves the submitted value from the global POST array
+        return $_POST[$field] ?? null; 
+    }
+}
+// --- End Helper Functions ---
+
+// Data variables passed from OrgController::members_add()
+$departments = $departments ?? [];
+$roles = $roles ?? [];
+
+// MOCKING CURRENT URI FOR SIDEBAR: 
+$BASE_URL = BASE_URL ?? '';
+$current_uri = $_SERVER['REQUEST_URI'] ?? '/org/members/add'; 
+
+// PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
+$is_documents_open = str_contains($current_uri, '/org/documents/');
+$is_review_open = str_contains($current_uri, '/org/review/');
+$is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
+$is_reports_open = str_contains($current_uri, '/org/reports/');
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,20 +72,6 @@
     </style>
 </head>
 <body class="bg-maestro-bg text-white font-poppins" x-data="{}">
-
-    <?php 
-    // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    $BASE_URL = BASE_URL ?? '';
-    $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/members/add'; 
-    $departments = $departments ?? [];
-    $roles = $roles ?? [];
-
-    // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
-    $is_documents_open = str_contains($current_uri, '/org/documents/');
-    $is_review_open = str_contains($current_uri, '/org/review/');
-    $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
-    $is_reports_open = str_contains($current_uri, '/org/reports/');
-    ?>
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
@@ -179,6 +203,7 @@
             
             <div class="lg:col-span-2">
                 <form method="POST" action="<?=$BASE_URL?>/org/members/store" class="bg-green-950/50 p-8 rounded-xl space-y-6 border border-green-800 shadow-2xl shadow-green-900/10">
+                    <?php csrf_field(); ?>
                     
                     <h2 class="text-xl font-semibold text-green-300 mb-4 border-b border-green-800/50 pb-2">Account Details</h2>
 
@@ -188,14 +213,14 @@
                             <label for="fname" class="block text-sm font-medium mb-2 text-gray-300">First Name</label>
                             <input type="text" id="fname" name="fname" 
                                 class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-green-500 focus:border-green-500 text-green-100" 
-                                placeholder="Jane" required>
+                                value="<?= html_escape(set_value('fname') ?? '') ?>" placeholder="Jane" required>
                         </div>
                         
                         <div>
                             <label for="lname" class="block text-sm font-medium mb-2 text-gray-300">Last Name</label>
                             <input type="text" id="lname" name="lname" 
                                 class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-green-500 focus:border-green-500 text-green-100" 
-                                placeholder="Doe" required>
+                                value="<?= html_escape(set_value('lname') ?? '') ?>" placeholder="Doe" required>
                         </div>
                     </div>
 
@@ -203,7 +228,7 @@
                         <label for="email" class="block text-sm font-medium mb-2 text-gray-300">Email Address</label>
                         <input type="email" id="email" name="email" 
                             class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-green-500 focus:border-green-500 text-green-100" 
-                            placeholder="jane.doe@maestro.com" required>
+                            value="<?= html_escape(set_value('email') ?? '') ?>" placeholder="jane.doe@maestro.com" required>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -214,7 +239,9 @@
                                 class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-green-500 focus:border-green-500 text-green-100" required>
                                 <option value="">Select a Role</option>
                                 <?php foreach($roles as $role): ?>
-                                    <option value="<?= $role['id'] ?>"><?= htmlspecialchars($role['name']) ?></option>
+                                    <option value="<?= html_escape($role['id']) ?>" <?= set_value('role_id') == $role['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($role['name']) ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                             <?php if (empty($roles)): ?><p class="mt-1 text-xs text-red-400">Warning: No Roles found in DB.</p><?php endif; ?>
@@ -226,7 +253,9 @@
                                 class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-green-500 focus:border-green-500 text-green-100" required>
                                 <option value="">Select a Department</option>
                                 <?php foreach($departments as $dept): ?>
-                                    <option value="<?= $dept['id'] ?>"><?= htmlspecialchars($dept['name']) ?></option>
+                                    <option value="<?= html_escape($dept['id']) ?>" <?= set_value('dept_id') == $dept['id'] ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($dept['name']) ?>
+                                    </option>
                                 <?php endforeach; ?>
                             </select>
                             <?php if (empty($departments)): ?><p class="mt-1 text-xs text-red-400">Warning: No Departments found in DB.</p><?php endif; ?>
@@ -237,9 +266,9 @@
 
                     <div>
                         <label for="password" class="block text-sm font-medium mb-2 text-gray-300">Temporary Password</label>
-                        <input type="text" id="password" name="password" value="Maestro@123" readonly
+                        <input type="text" id="password" name="password" value="Maestro@123" 
                             class="w-full p-3 bg-green-900 border border-green-800 rounded-lg text-yellow-400 font-mono cursor-default" 
-                            title="Temporary password will be required to be changed upon first login.">
+                            title="Temporary password will be required to be changed upon first login." readonly>
                         <p class="mt-1 text-xs text-gray-500">The member will be prompted to set a new password on first login. (Minimum 8 characters)</p>
                     </div>
 
@@ -259,7 +288,7 @@
                     </h2>
                     <ul class="list-disc list-inside space-y-2 text-gray-300 text-sm">
                         <li>Ensure the email is valid for activation.</li>
-                        <li>Verify the correct **Role** and **Department** are assigned.</li>
+                        <li>Verify the correct <b>Role</b> and <b>Department</b> are assigned.</li>
                         <li>Inform the new member of their temporary password.</li>
                         <li>Grant necessary initial document permissions.</li>
                         <li>Schedule an introductory meeting (optional).</li>

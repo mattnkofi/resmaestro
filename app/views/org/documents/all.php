@@ -526,7 +526,7 @@
 
             <div class="p-6 space-y-4">
                 <p class="text-gray-300">
-                    Are you sure you want to **Archive** the document: 
+                    Are you sure you want to <b>Archive</b> the document: 
                     <span class="font-semibold text-yellow-300" x-text="docToArchive.title"></span>?
                 </p>
                 <p class="text-sm text-gray-500">

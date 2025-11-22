@@ -145,6 +145,18 @@ class OrgModel extends Model
         return $result ?: null; 
     }
 
+    /**
+     * Fetches members who are not currently assigned to a department.
+     * @return array
+     */
+    public function getPotentialDepartmentMembers() {
+        return $this->db->table('users')
+                        ->select('id, fname, lname')
+                        ->where('dept_id', NULL)
+                        ->order_by('lname', 'ASC')
+                        ->get_all();
+    }
+
     public function getPotentialReviewers() {
         return $this->db->table('users')
                         ->select('id, fname, lname, email') 
@@ -179,7 +191,6 @@ class OrgModel extends Model
 
     /**
      * Fetches all members.
-     * FIX: Temporarily avoids JOINs on dept/role and assumes u.dept_id/u.role_id are missing.
      * @param string $query Search term for name or email.
      * @return array
      */
@@ -203,6 +214,22 @@ class OrgModel extends Model
     return $this->db->order_by('u.lname', 'ASC')->get_all();
 }
 
+    /**
+     * Assigns a list of members to a newly created department.
+     * @param int $dept_id The ID of the department to assign to.
+     * @param array $member_ids Array of user IDs to assign.
+     * @return bool
+     */
+    public function assignMembersToDepartment(int $dept_id, array $member_ids) {
+        if (empty($member_ids)) {
+            return true; // Nothing to do
+        }
+        
+        return $this->db->table('users')
+                        ->where_in('id', $member_ids)
+                        ->update(['dept_id' => $dept_id]);
+    }
+
     public function getDepartmentsWithStats() {
     $query = "
         SELECT
@@ -218,15 +245,35 @@ class OrgModel extends Model
     try {
         return $this->db->raw($query)->get_all();
     } catch (\Exception $e) {
-        // This exception handling keeps the app from crashing if tables are missing.
-        return [];
+        // CRITICAL FIX: If the complex stats query fails (e.g., missing columns), 
+        // fall back to fetching the simple department list and manually set stats to 0.
+        $simple_depts = $this->getDepartmentOptions();
+        return array_map(function($d) {
+            return [
+                'id' => $d['id'], 
+                'name' => $d['name'], 
+                'members_count' => 0, 
+                'documents_count' => 0, 
+                'pending_count' => 0
+            ];
+        }, $simple_depts);
     }
 }
 
     public function getDepartments() { 
-    // FIX: Call the robust stats method, then map the data.
-    $stats = $this->getDepartmentsWithStats();
-    return array_map(fn($d) => ['id' => $d['id'], 'name' => $d['name']], $stats);
+    // FIX: Only return the result of getDepartmentOptions() to prevent unreachable code
+    return $this->getDepartmentOptions();
+}
+
+    public function getDepartmentOptions() { 
+    try {
+        return $this->db->table('departments')
+                        ->select('id, name')
+                        ->order_by('name', 'ASC')
+                        ->get_all();
+    } catch (\Exception $e) {
+        return [];
+    }
 }
 
     /**
@@ -240,7 +287,6 @@ class OrgModel extends Model
 
     /**
      * Fetches all roles for dropdowns.
-     * FIX: Uses try-catch to allow the page to load if the 'roles' table is missing.
      * @return array
      */
     public function getRoles() { 
@@ -293,13 +339,57 @@ class OrgModel extends Model
     }
 
     public function getReviewComments(int $doc_id) {
-        return $this->db
-            ->select('c.comment, c.created_at, u.fname, u.lname')
-            ->table('comments c') 
-            ->left_join('users u', 'c.user_id = u.id')
-            ->where('c.document_id', $doc_id)
-            ->order_by('c.created_at', 'ASC')
-            ->get_all();
+    return $this->db
+        ->select('c.id, c.comment, c.created_at, u.fname, u.lname')
+        ->table('comments c') 
+        ->left_join('users u', 'c.user_id = u.id')
+        ->where('c.document_id', $doc_id)
+        ->order_by('c.created_at', 'ASC')
+        ->get_all();
+    }
+
+    /**
+     * CRITICAL METHOD: Fetches documents that are Approved, Rejected, OR have entries in the 'comments' table.
+     */
+    public function getDocumentsWithComments($query = '', $status = '') {
+        $search_term = "%{$query}%";
+        
+        $this->db
+            ->select('d.id, d.title, d.status, d.created_at, d.approved_at, d.rejected_at, d.reviewer_id, u.fname AS reviewer_fname, u.lname AS reviewer_lname')
+            ->table('documents d')
+            ->left_join('users u', 'd.reviewer_id = u.id');
+            
+        // --- START CONDITIONAL FILTERING ---
+        if (!empty($status) && in_array($status, ['Approved', 'Rejected', 'Pending Review'])) {
+            // Apply status filter based on selection
+            $this->db->grouped(function($q) use ($status) {
+                $q->where('d.status', $status);
+                // CRITICAL FIX: If Pending Review is filtered, it MUST have a comment.
+                if ($status === 'Pending Review') {
+                    $q->where('EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id)', null, false);
+                }
+            });
+        } else {
+            // DEFAULT: Show all Approved, Rejected, and any document with comments.
+            $this->db->grouped(function($q) {
+                $q->where('d.status', 'Approved')
+                  ->or_where('d.status', 'Rejected')
+                  // I-OR sa mga documents na may comments (Using OR EXISTS)
+                  ->or_where('EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id)', null, false);
+            });
+        }
+        // --- END CONDITIONAL FILTERING ---
+        
+        // Apply search query filter (Title or Reviewer Name)
+        if (!empty($query)) {
+            $this->db->grouped(function($q) use ($search_term) {
+                $q->like('d.title', $search_term) 
+                  ->or_like('u.fname', $search_term)
+                  ->or_like('u.lname', $search_term);
+            });
+        }
+
+        return $this->db->order_by('d.approved_at DESC, d.rejected_at DESC, d.created_at DESC')->get_all();
     }
 
     public function insertComment(array $data) {

@@ -1,9 +1,67 @@
+<?php
+defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
+
+// --- PHP Helper Functions (CRITICAL for form/URL) ---
+if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+if (!function_exists('html_escape')) {
+    function html_escape($str) {
+        return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+    }
+}
+// --- End PHP Helper Functions ---
+
+// MOCKING CURRENT URI FOR DEMONSTRATION: 
+$BASE_URL = BASE_URL ?? '';
+$current_uri = $_SERVER['REQUEST_URI'] ?? '/org/members/list'; 
+
+// PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
+$is_documents_open = str_contains($current_uri, '/org/documents/');
+$is_review_open = str_contains($current_uri, '/org/review/');
+$is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
+$is_reports_open = str_contains($current_uri, '/org/reports/');
+
+// Dynamic data variables passed from controller
+$members_data = $members ?? []; 
+$q = $q ?? '';
+$selected_role = $_GET['role'] ?? ''; // Capture the currently selected role filter
+
+// Injecting the custom roles list as requested (for the filter dropdown)
+$custom_roles = [
+    'Adviser', 'President', 'Secretary', 'Treasurer', 
+    'Executive Member', 'General Member'
+];
+
+// Stats Calculation (Based on data passed from the controller)
+$total_members = count($members_data);
+$active_reviewers = 0;
+$departments_seen = [];
+$reviewer_roles = ['Administrator', 'Reviewer']; // Define roles considered 'active reviewers'
+ 
+foreach ($members_data as $member) {
+    $role_name = $member['role_name'] ?? '';
+    $dept_name = $member['dept_name'] ?? 'N/A';
+    
+    if (in_array($role_name, $reviewer_roles)) {
+        $active_reviewers++;
+    }
+    if ($dept_name !== 'N/A' && !in_array($dept_name, $departments_seen)) {
+        $departments_seen[] = $dept_name;
+    }
+}
+$total_departments = count($departments_seen);
+
+// Mock Activity Data (Placeholder data for the sidebar panel)
+$member_activity = [
+    ['name' => 'Aron Luigee Jordan', 'action' => 'updated permissions', 'time' => '10 min ago'],
+    ['name' => 'Kimberly Nicole De Leon', 'action' => 'uploaded Marketing Plan', 'time' => '1 hour ago'],
+];
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Members List - Maestro UI</title>
+    <title>Organization Members - Maestro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -34,47 +92,6 @@
     </style>
 </head>
 <body class="bg-maestro-bg text-white font-poppins" x-data="{}">
-
-    <?php 
-    // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    $BASE_URL = BASE_URL ?? '';
-    $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/members/list'; 
-
-    // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
-    $is_documents_open = str_contains($current_uri, '/org/documents/');
-    $is_review_open = str_contains($current_uri, '/org/review/');
-    $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
-    $is_reports_open = str_contains($current_uri, '/org/reports/');
-
-    // Dynamic data variables passed from controller
-    $members_data = $members ?? [];
-    $q = $q ?? '';
-
-    // Stats Calculation
-    $total_members = count($members_data);
-    $active_reviewers = 0;
-    $departments_seen = [];
-    $reviewer_roles = ['Administrator', 'Reviewer']; 
-    
-    foreach ($members_data as $member) {
-        $role_name = $member['role_name'] ?? '';
-        $dept_name = $member['dept_name'] ?? 'N/A';
-        
-        if (in_array($role_name, $reviewer_roles)) {
-            $active_reviewers++;
-        }
-        if ($dept_name !== 'N/A' && !in_array($dept_name, $departments_seen)) {
-            $departments_seen[] = $dept_name;
-        }
-    }
-    $total_departments = count($departments_seen);
-
-    // Mock Activity Data (Kept minimal as placeholder)
-    $member_activity = [
-        ['name' => 'Aron Luigee Jordan', 'action' => 'updated permissions', 'time' => '10 min ago'],
-        ['name' => 'Kimberly Nicole De Leon', 'action' => 'uploaded Marketing Plan', 'time' => '1 hour ago'],
-    ];
-    ?>
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
@@ -236,53 +253,84 @@
                 
                 <form method="GET" action="<?=$BASE_URL?>/org/members/list" class="flex flex-col md:flex-row gap-4">
                     <input type="text" name="q" placeholder="Search by name or email..." 
-                           value="<?= htmlspecialchars($q) ?>"
-                           class="w-full md:w-1/2 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white">
+                            value="<?= htmlspecialchars($q) ?>"
+                            class="w-full md:w-1/2 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white">
+                    
                     <select name="role" class="w-full md:w-1/4 bg-green-900/50 border border-green-800 p-3 rounded-xl text-white">
                         <option value="">Filter by Role</option>
-                        </select>
+                        <?php foreach ($custom_roles as $r): 
+                            $role_value = htmlspecialchars(strtolower(str_replace(' ', '_', $r)));
+                            $selected = ($selected_role === $role_value) ? 'selected' : '';
+                        ?>
+                            <option value="<?= $role_value ?>" <?= $selected ?>>
+                                <?= htmlspecialchars($r) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    
                     <button type="submit" class="bg-green-700 hover:bg-green-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-green-900/40">
                         <i class="fa-solid fa-filter mr-2"></i> Apply Filters
                     </button>
                 </form>
 
                 <div class="space-y-4">
-                    <?php if (!empty($members_data)): ?>
-                    <?php foreach($members_data as $member): 
-                        $full_name = htmlspecialchars(trim($member['fname'] . ' ' . $member['lname']));
-                        // Use N/A if department or role tables are missing in the DB
-                        $role_name = htmlspecialchars($member['role_name'] ?? 'No Role');
-                        $dept_name = htmlspecialchars($member['dept_name'] ?? 'No Department');
-                        $email = htmlspecialchars($member['email']);
-                        
-                        // Set role color based on role name
-                        $role_color = match ($role_name) {
-                            'Administrator' => 'text-red-400',
-                            'Reviewer' => 'text-yellow-400',
-                            default => 'text-gray-400',
-                        };
-                    ?>
-                    <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col sm:flex-row justify-between items-start sm:items-center shadow-lg hover:bg-green-900/40 transition">
-                        <div class="flex flex-col mb-2 sm:mb-0">
-                            <span class="text-lg font-semibold text-green-200"><?= $full_name ?></span>
-                            <span class="text-sm text-gray-500"><?= $dept_name ?> | <?= $email ?></span>
-                        </div>
-                        <div class="flex items-center space-x-4">
-                            <span class="text-sm font-medium <?= $role_color ?>"><?= $role_name ?></span>
-                            <button class="text-green-400 hover:text-green-300 transition text-sm">
-                                <i class="fa-solid fa-pen-to-square mr-1"></i> Edit
-                            </button>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
                     
-                    <?php else: ?>
-                    <div class="p-8 text-center text-gray-500 bg-green-950/20 rounded-xl border border-green-800">
-                        <i class="fa-solid fa-user-group text-4xl mb-3 text-green-500"></i>
-                        <p class="text-lg">No members found in the organization.</p>
-                        <a href="<?=$BASE_URL?>/org/members/add" class="mt-2 text-green-400 hover:text-green-300 inline-block">Click here to add a new member.</a>
+                    <div class="overflow-x-auto rounded-xl border border-green-800 shadow-2xl shadow-green-900/10">
+                        <table class="w-full text-left">
+                            <thead class="bg-yellow-900/40 text-gray-200 uppercase text-sm tracking-wider">
+                                <tr>
+                                    <th class="p-4 border-b border-green-800">Name</th>
+                                    <th class="p-4 border-b border-green-800">Email</th>
+                                    <th class="p-4 border-b border-green-800">Department</th>
+                                    <th class="p-4 border-b border-green-800">Role</th>
+                                    <th class="p-4 border-b border-green-800 text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            
+                            <tbody class="bg-[#0f1511] text-gray-300">
+                                <?php if (!empty($members_data)): ?>
+                                <?php foreach($members_data as $member): 
+                                    $full_name = htmlspecialchars(trim($member['fname'] . ' ' . $member['lname']));
+                                    $role_name = htmlspecialchars($member['role_name'] ?? 'No Role');
+                                    $dept_name = htmlspecialchars($member['dept_name'] ?? 'No Department');
+                                    $email = htmlspecialchars($member['email']);
+                                    
+                                    // Adjusted role color logic based on custom roles and standard roles
+                                    $role_color = match ($role_name) {
+                                        'Administrator', 'Adviser', 'President' => 'text-red-400',
+                                        'Reviewer' => 'text-yellow-400',
+                                        default => 'text-gray-400',
+                                    };
+                                ?>
+                                <tr class="border-b border-green-800 transition hover:bg-green-700/10">
+                                    <td class="p-4 font-medium text-green-200"><?= $full_name ?></td>
+                                    <td class="p-4 text-sm text-gray-500"><?= $email ?></td>
+                                    <td class="p-4 text-gray-300"><?= $dept_name ?></td>
+                                    <td class="p-4 font-medium <?= $role_color ?>"><?= $role_name ?></td>
+                                    <td class="p-4 text-center space-x-2">
+                                        <button class="text-green-400 hover:text-green-300 transition text-sm">
+                                            <i class="fa-solid fa-pen-to-square mr-1"></i> Edit
+                                        </button>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                                
+                                <?php else: ?>
+                                <tr>
+                                    <td colspan="5" class="p-8 text-center text-gray-500">
+                                        <?php if (!empty($q)): ?>
+                                            <i class="fa-solid fa-magnifying-glass-slash text-4xl mb-3 text-red-500"></i>
+                                            <p class="text-lg">No members found matching your search criteria: "<?= htmlspecialchars($q) ?>"</p>
+                                        <?php else: ?>
+                                            <i class="fa-solid fa-users-slash text-4xl mb-3 text-red-500"></i>
+                                            <p class="text-lg">No members found in the organization.</p>
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
                     </div>
-                    <?php endif; ?>
                 </div>
             </div>
 
