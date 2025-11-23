@@ -153,10 +153,11 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                     <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
                 </button>
                 <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=BASE_URL?>/org/documents/all" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/all') ? 'text-green-400 font-semibold' : '' ?>">All Documents</a>
-                    <a href="<?=BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/upload') ? 'text-green-400 font-semibold' : '' ?>">Upload New</a>
-                    <a href="<?=BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/approved') ? 'text-green-400 font-semibold' : '' ?>">Approved / Noted</a>
-                    <a href="<?=BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/rejected') ? 'text-green-400 font-semibold' : '' ?>">Rejected</a>
+                    <a href="<?=BASE_URL?>/org/documents/all" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/all') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">All Documents</a>
+                    <a href="<?=BASE_URL?>/org/documents/department_review" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/department_review') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Dept. Documents</a>
+                    <a href="<?=BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/upload') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Upload New</a>
+                    <a href="<?=BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/approved') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Approved / Noted</a>
+                    <a href="<?=BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/rejected') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Rejected</a>
                 </div>
             </div>
 
@@ -169,10 +170,10 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                     <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
                 </button>
                 <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=BASE_URL?>/org/members/list" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/list') ? 'text-green-400 font-semibold' : '' ?>">Members</a>
-                    <a href="<?=BASE_URL?>/org/members/add" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/add') ? 'text-green-400 font-semibold' : '' ?>">Add Member</a>
-                    <a href="<?=BASE_URL?>/org/departments" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/departments') ? 'text-green-400 font-semibold' : '' ?>">Departments</a>
-                    <a href="<?=BASE_URL?>/org/roles" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/roles') ? 'text-green-400 font-semibold' : '' ?>">Roles & Permissions</a>
+                    <a href="<?=BASE_URL?>/org/members/list" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/list') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Members</a>
+                    <a href="<?=BASE_URL?>/org/members/add" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/add') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Add Member</a>
+                    <a href="<?=BASE_URL?>/org/departments" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/departments') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Departments</a>
+                    <a href="<?=BASE_URL?>/org/roles" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/roles') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Roles & Permissions</a>
                 </div>
             </div>
             
@@ -258,8 +259,17 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
             </div>
         </form>
 
-        <div class="overflow-x-auto document-table-container rounded-xl border border-green-800 shadow-2xl shadow-green-900/10">
+       <div class="overflow-x-auto document-table-container rounded-xl border border-green-800 shadow-2xl shadow-green-900/10">
             <table class="w-full text-left">
+                <thead class="bg-green-900/40 text-gray-200 uppercase text-sm tracking-wider">
+                    <tr>
+                        <th class="p-4 border-b border-green-800">Title</th>
+                        <th class="p-4 border-b border-green-800">Type</th>
+                        <th class="p-4 border-b border-green-800">Submitter</th>
+                        <th class="p-4 border-b border-green-800">Status</th>
+                        <th class="p-4 border-b border-green-800 text-center">Actions</th>
+                    </tr>
+                </thead>
                 <tbody class="bg-[#0f1511] text-gray-300">
 
                 <?php 
@@ -271,8 +281,18 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                     $doc_file_name = $doc['file_name'] ?? $doc->file_name ?? '';
                     $doc_status = $doc['status'] ?? $doc->status ?? '';
                     $doc_type = $doc['type'] ?? $doc->type ?? '';
+                    
+                    // FIX: This line now reliably constructs the submitter's name from the model
                     $submitter = html_escape(($doc['fname'] ?? $doc->fname ?? '') . ' ' . ($doc['lname'] ?? $doc->lname ?? ''));
+                    
+                    // The following variables were used to silence warnings and are kept clean
                     $doc_created_at = $doc['created_at'] ?? $doc->created_at ?? '';
+                    $reviewer_fname = $doc['reviewer_fname'] ?? $doc->reviewer_fname ?? '';
+                    $reviewer_lname = $doc['reviewer_lname'] ?? $doc->reviewer_lname ?? '';
+                    $reviewer_name = html_escape(trim($reviewer_fname . ' ' . $reviewer_lname));
+                    $rejection_date = date('M d, Y', strtotime($doc->created_at ?? $doc['created_at'] ?? 'now'));
+                    $reason = $doc['review_comment'] ?? $doc->review_comment ?? 'No reason provided';
+                    $doc_id = $doc->id ?? $doc['id'] ?? 0;
 
                     $doc_created_at_display = 'N/A';
                     if (!empty($doc_created_at)) {
@@ -308,14 +328,14 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                     <tr class="border-b border-green-800 hover:bg-green-700/10 transition">
                         <td class="p-4 font-medium text-green-200"><?= html_escape($doc_title) ?></td>
                         <td class="p-4"><?= html_escape($doc_type) ?></td>
-                        <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
+                        <td class="p-4 text-gray-400"><?= html_escape($submitter) ?></td> <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
                         <td class="p-4 text-center">
                             <button @click="setDoc(<?= $js_doc ?>)"class="text-yellow-400 hover:text-yellow-200 hover: font-xl mr-4">
                                 <i class="fa-solid fa-eye mr-1"></i> View Details
                             </button>
                         </td>
                     </tr>
-                    <?php endforeach; 
+                <?php endforeach; 
                     else: ?>
                     <tr>
                         <td colspan="4" class="p-8 text-center text-gray-500">
@@ -387,15 +407,26 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                         <p class="text-sm text-gray-400">Submitted By: <span x-text="currentDoc.submitter"></span></p>
                         <p class="text-sm text-gray-400">Submitted On: <span x-text="currentDoc.created_at ? new Date(currentDoc.created_at).toLocaleDateString('en-US') : 'N/A'"></span></p>
                     </div>
+                    
+                    <div class="bg-green-950/50 p-4 rounded-lg border border-green-800">
+                        <p class="text-sm font-semibold text-gray-400 mb-1">Original Description:</p>
+                        <p class="text-sm text-gray-300" x-text="currentDoc.description || 'No original description provided.'"></p>
+                    </div>
 
                     <h5 class="text-md font-bold text-green-300">Update Status:</h5>
-                    <div class="space-y-4">
+                    <div x-data="{ comment: '' }" class="space-y-4">
                         
+                        <label for="review_comment_field" class="block text-sm font-medium text-gray-400 mb-2">Review Comment / Reason (Required for Rejection)</label>
+                        <textarea id="review_comment_field" x-model="comment" 
+                            rows="3" placeholder="Enter your review comment/reason here..."
+                            class="w-full p-2 bg-green-900/70 border border-green-800 rounded-lg text-white placeholder-gray-500"></textarea>
+
                         <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
                             <?php csrf_field(); ?>
                             <input type="hidden" name="document_id" :value="currentDoc.id">
                             <input type="hidden" name="new_status" value="Approved">
                             <input type="hidden" name="document_title" :value="currentDoc.title">
+                            <input type="hidden" name="review_comment" :value="comment">
 
                             <button type="submit" class="w-full bg-green-700 hover:bg-green-600 px-5 py-2 rounded-lg font-medium transition"
                                 :disabled="currentDoc.status === 'Approved' || currentDoc.status === 'Archived'"
@@ -404,11 +435,12 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                             </button>
                         </form>
 
-                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
+                        <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'" @submit.prevent="if (comment.trim() === '') { alert('The reason for rejection is required. Please provide a comment.'); } else { $el.submit(); }">
                             <?php csrf_field(); ?>
                             <input type="hidden" name="document_id" :value="currentDoc.id">
                             <input type="hidden" name="new_status" value="Rejected">
                             <input type="hidden" name="document_title" :value="currentDoc.title">
+                            <input type="hidden" name="review_comment" :value="comment">
                             
                             <button type="submit" class="w-full bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition"
                                 :disabled="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived'"
@@ -416,19 +448,6 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                                 <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
                             </button>
                         </form>
-
-                        <button type="button" 
-                            @click="prepareDelete(currentDoc)" 
-                            class="w-full bg-red-800 hover:bg-red-700 px-5 py-2 rounded-lg font-medium transition">
-                            <i class="fa-solid fa-trash-can mr-2"></i> Delete Permanently
-                        </button>
-                            
-                        <form method="POST" action="<?= BASE_URL ?>/org/documents/delete" id="delete-form-main-modal" class="hidden">
-                            <?php csrf_field(); ?>
-                            <input type="hidden" name="document_id" :value="currentDoc.id">
-                            <input type="hidden" name="document_title" :value="currentDoc.title">
-                        </form>
-                            
                     </div>
                     
                     <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>

@@ -30,8 +30,7 @@ $router->post('/org/documents/update_status', 'OrgController::update_document_st
 
 $router->get('/org/documents/approved', 'OrgController::documents_approved');
 $router->get('/org/documents/rejected', 'OrgController::documents_rejected');
-$router->get('/org/documents/edit/(:num)', 'OrgController::documents_edit/$1');
-$router->post('/org/documents/resubmit', 'OrgController::documents_resubmit');
+$router->get('/org/documents/department_review', 'OrgController::documents_department_review');
 
 // Document Delete (POST handler for permanent deletion)
 $router->post('/org/documents/delete', 'OrgController::documents_delete'); 

@@ -1,4 +1,4 @@
-<?php 
+<<?php 
 // Variables are now expected to be defined by the controller before inclusion.
 // We define safe defaults here for development safety if variables are not passed.
 $stats = $stats ?? [
@@ -10,8 +10,19 @@ $stats = $stats ?? [
 
 $recent_activity = $recent_activity ?? [];
 
+if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+$BASE_URL = BASE_URL ?? '';
+$current_uri = $_SERVER['REQUEST_URI'] ?? '/org/dashboard'; 
+
+$is_documents_open = str_contains($current_uri, '/org/documents/');
+$is_review_open = str_contains($current_uri, '/org/review/');
+$is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
+$is_reports_open = str_contains($current_uri, '/org/reports/');
+// --- END FIX ---
+
 include 'sidebar.php'; // Include the existing sidebar structure 
 ?>
+
 
 <div class="ml-64 p-8 maestro-bg min-h-screen">
     <h1 class="text-3xl font-bold text-green-400 mb-6 tracking-wide">

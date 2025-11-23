@@ -105,11 +105,12 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
                     <span class="flex items-center gap-3"><i class="fa-solid fa-file-lines w-5 text-center"></i><span>Documents</span></span>
                     <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs"></i>
                 </button>
-                <div x-show="open" x-transition class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=$BASE_URL?>/org/documents/all" class="block p-2 rounded hover:bg-green-700/40">All Documents</a>
-                    <a href="<?=$BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40">Upload New</a>
-                    <a href="<?=$BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40">Approved</a>
-                    <a href="<?=$BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40">Rejected</a>
+                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
+                    <a href="<?=BASE_URL?>/org/documents/all" class="block p-2 rounded hover:bg-green-700/40 transition">All Documents</a>
+                    <a href="<?=BASE_URL?>/org/documents/department_review" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/department_review') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Dept. Documents</a>
+                    <a href="<?=BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40 transition">Upload New</a>
+                    <a href="<?=BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40 transition">Approved / Noted</a>
+                    <a href="<?=BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40 transition">Rejected</a>
                 </div>
             </div>
 

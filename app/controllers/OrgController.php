@@ -168,11 +168,10 @@ public function documents_delete() {
 	}
 
 	public function update_document_status() {
-	// 1. Get POST data
 	$doc_id = (int)$this->io->post('document_id');
 	$new_status = $this->io->post('new_status');
 	$doc_title = $this->io->post('document_title') ?? 'Document';
-	
+	$review_comment = $this->io->post('review_comment');
 	$user_id = (int)get_user_id();
 	$reviewer_id_to_send = ($user_id > 0) ? $user_id : NULL;
 
@@ -193,9 +192,10 @@ public function documents_delete() {
 
 	$data_to_update = [
 		'status' => $new_status,
+		'review_comment' => $review_comment, 
 		'approved_at' => NULL,
 		'rejected_at' => NULL,
-		'deleted_at' => NULL, // Ensure soft delete column is null
+		'deleted_at' => NULL,
 		'reviewer_id' => $reviewer_id_to_send, 
 	];
 	
@@ -419,6 +419,37 @@ public function documents_delete() {
             'type' => $type // <--- ADDED
 		]); 
 	}
+
+    public function documents_department_review() {
+        // 1. Get user details to find their department ID
+        $user_id = get_user_id();
+        $user = $this->OrgModel->getMemberById($user_id);
+        $dept_id = $user['dept_id'] ?? 0;
+        
+        // Initialize variables for the view
+        $is_member_assigned = ($dept_id !== 0 && $dept_id !== NULL); // <-- Flag: True if assigned
+        $dept_docs = [];
+        $dept_name = 'Unassigned';
+        $q = $this->io->get('q'); 
+        
+        // 2. Check if user is assigned to a department
+        if ($is_member_assigned) {
+            // 3. Fetch documents for that department
+            $dept_docs = $this->OrgModel->getDocumentsByDepartment((int)$dept_id, $q);
+            
+            // 4. Fetch department name for the view title
+            $department = $this->OrgModel->getDepartmentById((int)$dept_id);
+            $dept_name = $department['name'] ?? 'Your Department';
+        }
+        
+        // 5. Load the new view (no redirect here)
+        $this->call->view('org/documents/department_review', [
+            'docs' => $dept_docs,
+            'dept_name' => $dept_name,
+            'q' => $q,
+            'is_member_assigned' => $is_member_assigned // <-- PASS THE FLAG
+        ]); 
+    }
     
     // ----------------------------------------------------------------------
     // ORGANIZATION: MEMBERS (UPDATED)

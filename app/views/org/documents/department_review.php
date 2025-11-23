@@ -4,41 +4,33 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 // --- PHP Helper Functions ---
 if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
 if (!function_exists('html_escape')) {
-    function html_escape($str) {
-        return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
-    }
+    function html_escape($str) { return htmlspecialchars($str, ENT_QUOTES, 'UTF-8'); }
 }
 if (!function_exists('csrf_field')) {
-    function csrf_field() {
-        echo '<input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? 'MOCK_CSRF_TOKEN') . '">';
-    }
+    function csrf_field() { echo '<input type="hidden" name="csrf_token" value="MOCK_CSRF_TOKEN">'; }
 }
 // --- End Helper Functions ---
 
-// Safely initialize variables passed by the controller
-$docs = $docs ?? [];
-$q = $q ?? ''; // <--- Initialized
-$type = $type ?? ''; // <--- Initialized
-$BASE_URL = BASE_URL ?? '';
-$current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/rejected'; 
-
-// PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
+$q = $q ?? '';
+$dept_name = $dept_name ?? 'Department';
+$current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/department_review'; 
 $is_documents_open = str_contains($current_uri, '/org/documents/');
-$is_review_open = str_contains($current_uri, '/org/review/');
 $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
-$is_reports_open = str_contains($current_uri, '/org/reports/');
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rejected Documents - Maestro</title>
+    <title>Department Review - Maestro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .maestro-bg { background-color: #0b0f0c; } 
+    </style>
     <script>
         tailwind.config = {
             theme: {
@@ -47,7 +39,6 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                         'sidebar-dark': '#0f1511',
                         'maestro-bg': '#0b0f0c',
                     },
-                    // Applying Poppins font family
                     fontFamily: {
                         poppins: ['Poppins', 'sans-serif'],
                         sans: ['Poppins', 'sans-serif'], 
@@ -56,33 +47,9 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
             }
         }
     </script>
-    <style>
-        /* Explicitly apply Poppins via standard CSS */
-        body { font-family: 'Poppins', sans-serif; }
-        
-        /* Sidebar Custom Styles (for consistency) */
-        .maestro-bg { background-color: #0b0f0c; } 
-    </style>
 </head>
-<body class="bg-maestro-bg text-white font-poppins" 
-    x-data="{
-        confirmAction: { type: '', title: '' }, // Type: 'Delete'
-        targetFormId: null,
 
-        prepareDelete(docId, docTitle) {
-            this.confirmAction = { type: 'Delete', title: docTitle };
-            this.targetFormId = 'delete-form-' + docId;
-        },
-        
-        executeAction() {
-            if (this.targetFormId) {
-                document.getElementById(this.targetFormId).submit();
-                this.confirmAction.type = '';
-                this.targetFormId = null;
-            }
-        }
-    }"
-    @keydown.escape="confirmAction.type = ''">
+<body class="bg-maestro-bg text-white font-poppins" x-data="{ modalOpen: false, currentDoc: {} }" @keydown.escape="modalOpen = false">
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
@@ -91,11 +58,9 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
         </div>
 
         <nav class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-
             <div>
                 <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">Main</h2>
-                <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition
-                    <?= $current_uri == BASE_URL.'/org/dashboard' ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">
+                <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition">
                     <i class="fa-solid fa-gauge w-5 text-center"></i>
                     <span>Dashboard</span>
                 </a>
@@ -139,7 +104,7 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
             </div>
             
             <div>
-                <a href="<?=BASE_URL?>/org/settings" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/30 transition <?= str_contains($current_uri, '/org/settings') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">
+                <a href="<?=BASE_URL?>/org/settings" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/30 transition">
                     <i class="fa-solid fa-gear w-5 text-center"></i>
                     <span>Settings</span>
                 </a>
@@ -172,84 +137,113 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
             Maestro Organization © <?=date('Y')?>
         </div>
     </aside>
+
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         
-        <h1 class="text-3xl font-bold text-red-400 mb-6 tracking-wide">
-            Rejected Documents
+        <h1 class="text-3xl font-bold text-green-400 mb-2 tracking-wide">
+            Department Documents: <?= html_escape($dept_name) ?>
         </h1>
+        <p class="text-gray-500 mb-6">Documents uploaded by members in your department, including reviewer feedback.</p>
 
-        <?php if (function_exists('flash_alert')) flash_alert(); // Display flash messages ?>
+        <?php if (function_exists('flash_alert')) flash_alert(); ?>
 
-        <form method="GET" action="<?= BASE_URL ?>/org/documents/rejected">
-            <div class="flex flex-col md:flex-row gap-4 mb-8">
-                <input type="text" name="q" placeholder="Search by title or reviewer..." 
-                       value="<?= html_escape($q) ?>"
-                       class="w-full md:w-1/3 bg-red-900 border border-red-800 p-3 rounded-xl focus:ring-red-500 focus:border-red-500 transition placeholder-gray-500 text-red-100">
-                
-                <select name="type" class="w-full md:w-1/6 bg-red-900 border border-red-800 p-3 rounded-xl text-red-100">
-                    <option value="">Filter by Type</option>
-                    <?php 
-                    $doc_types = ['Report', 'Policy', 'Legal', 'Project Proposal', 'HR Document', 'Marketing'];
-                    foreach ($doc_types as $doc_type): ?>
-                        <option value="<?= html_escape(strtolower($doc_type)) ?>" 
-                            <?= (strtolower($doc_type) === strtolower($type)) ? 'selected' : '' ?>>
-                            <?= $doc_type ?>
-                        </option>
+        <?php 
+        if (!($is_member_assigned ?? true)): 
+        ?>
+            <div class="p-8 text-center text-green-400 bg-green-950/20 rounded-xl border-2 border-green-700 shadow-xl mt-8">
+                <i class="fa-solid fa-users-slash text-5xl mb-4"></i>
+                <p class="text-xl font-bold">You are not a member of any department.</p>
+                <p class="text-gray-400 mt-2">
+                    To access Department Documents, you must be assigned to a department by an Organization Admin.
+                </p>
+                <p class="text-sm text-gray-500 mt-4">
+                    Contact your organization administrator for assistance with membership assignment.
+                </p>
+            </div>
+        <?php else: ?>
+        
+            <form method="GET" action="<?= BASE_URL ?>/org/documents/department_review">
+                <div class="flex flex-col md:flex-row gap-4 mb-8 items-center">
+                    <input type="text" name="q" value="<?= html_escape($q) ?>"
+                            placeholder="Search by title or submitter name..." 
+                            class="w-full md:w-1/3 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white">
+                    
+                    <button type="submit" class="bg-green-700 hover:bg-green-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-green-900/40">
+                        <i class="fa-solid fa-search mr-2"></i> Search
+                    </button>
+                    
+                    <?php if (!empty($q)): ?>
+                        <a href="<?= BASE_URL ?>/org/documents/department_review" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
+                            <i class="fa-solid fa-xmark mr-2"></i> Clear Search
+                        </a>
+                    <?php endif; ?>
+                </div>
+            </form>
+
+            <div class="space-y-4">
+                <?php
+                $docs = $docs ?? [];
+                if (!empty($docs)):
+                    foreach($docs as $doc): 
+
+                        $doc_status = $doc['status'] ?? 'N/A';
+                        $submitter_name = html_escape(($doc['fname'] ?? '') . ' ' . ($doc['lname'] ?? ''));
+
+                        // Determine status properties for styling
+                        $status_class = match ($doc_status) {
+                            'Approved' => 'border-green-500',
+                            'Pending Review' => 'border-yellow-500',
+                            'Rejected' => 'border-red-500',
+                            default => 'border-gray-500',
+                        };
+                        $status_text_class = match ($doc_status) {
+                            'Approved' => 'text-green-300',
+                            'Pending Review' => 'text-yellow-300',
+                            'Rejected' => 'text-red-300',
+                            default => 'text-gray-300',
+                        };
+                        $status_icon = match ($doc_status) {
+                            'Approved' => 'fa-circle-check',
+                            'Pending Review' => 'fa-hourglass-half',
+                            'Rejected' => 'fa-circle-xmark',
+                            default => 'fa-file',
+                        };
+                        
+                        $review_comment = $doc['review_comment'] ?? 'No formal feedback provided yet.';
+                    ?>
+                    <div class="bg-green-950/50 p-5 rounded-xl border-l-4 <?= $status_class ?> flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-green-900/40 transition">
+                        <div class="flex flex-col mb-2 md:mb-0 w-full md:w-3/5">
+                            <span class="text-lg font-bold text-white"><?= html_escape($doc['title']) ?></span>
+                            <div class="flex items-center space-x-4 text-sm text-gray-400 mt-1">
+                                <span><i class="fa-solid fa-user-edit mr-1"></i> Submitted by: <?= $submitter_name ?></span>
+                                <span><i class="fa-solid fa-calendar-alt mr-1"></i> Date: <?= date('M d, Y', strtotime($doc['created_at'])) ?></span>
+                            </div>
+                            
+                            <div class="mt-3 p-3 rounded-lg bg-green-900/70 border border-green-800">
+                                <span class="text-xs font-semibold text-gray-400 block mb-1">Reviewer Feedback:</span>
+                                <p class="text-sm text-white italic"><?= html_escape($review_comment) ?></p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col items-start md:items-end space-y-2 w-full md:w-2/5">
+                            <span class="text-md font-bold <?= $status_text_class ?>">
+                                <i class="fa-solid <?= $status_icon ?> mr-2"></i> <?= html_escape($doc_status) ?>
+                            </span>
+                            
+                            <a href="<?=BASE_URL?>/public/uploads/documents/<?= urlencode($doc['file_name']) ?>" 
+                               target="_blank" 
+                               class="bg-green-700 hover:bg-green-600 px-4 py-2 rounded-lg text-sm font-medium transition">
+                                <i class="fa-solid fa-download mr-1"></i> Download File
+                            </a>
+                        </div>
+                    </div>
                     <?php endforeach; ?>
-                </select>
-
-                <button type="submit" class="bg-red-700 hover:bg-red-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-red-900/40">
-                    <i class="fa-solid fa-filter mr-2"></i> Apply Filters
-                </button>
-                
-                <?php if (!empty($q) || !empty($type)): ?>
-                    <a href="<?= BASE_URL ?>/org/documents/rejected" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
-                        <i class="fa-solid fa-xmark mr-2"></i> Clear
-                    </a>
+                <?php else: ?>
+                <div class="p-8 text-center text-gray-500 bg-green-950/50 rounded-xl border border-green-800">
+                    <i class="fa-solid fa-folder-open text-4xl mb-3 text-yellow-500"></i>
+                    <p class="text-lg">No documents found for your department (<?= html_escape($dept_name) ?>).</p>
+                    <p class="text-sm mt-2">Documents will appear here after a member of your department uploads them.</p>
+                </div>
                 <?php endif; ?>
             </div>
-        </form>
-
-        <div class="space-y-4">
-            <?php
-            
-            // Loop through the real $docs data
-            foreach($docs as $doc): 
-                
-                $reviewer_fname = $doc->reviewer_fname ?? $doc['reviewer_fname'] ?? 'System';
-                $reviewer_lname = $doc->reviewer_lname ?? $doc['reviewer_lname'] ?? '';
-                $reviewer_name = html_escape(trim($reviewer_fname . ' ' . $reviewer_lname));
-
-                $rejection_date = date('M d, Y', strtotime($doc->created_at ?? $doc['created_at'] ?? 'now'));
-                $reason = $doc->description ?? $doc['description'] ?? 'No reason provided';
-                $doc_id = $doc->id ?? $doc['id'] ?? 0;
-                $title = $doc->title ?? $doc['title'] ?? '';
-                $type = $doc->type ?? $doc['type'] ?? '';
-                $reviewer_id = $doc->reviewer_id ?? $doc['reviewer_id'] ?? '';
-            ?>
-            <div class="bg-red-950/20 p-5 rounded-xl border-l-4 border-red-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-red-900/30 transition">
-                <div class="flex flex-col mb-2 md:mb-0">
-                    <span class="text-lg font-semibold text-red-200"><?= html_escape($title) ?></span>
-                    <span class="text-sm text-gray-400">Rejected By: <?= $reviewer_name ?> on <?= $rejection_date ?></span>
-                    <p class="text-xs text-red-400 mt-1 max-w-sm">Reason: <?= html_escape($reason) ?></p>
-                </div>
-                <div class="flex items-center space-x-4">
-                    
-                    <span class="text-sm text-gray-500">Action: Pending Resubmission</span>
-                    
-                </div>
-            </div>
-            <?php endforeach; ?>
-            
-            <?php if (empty($docs)): ?>
-            <div class="p-8 text-center text-gray-500 bg-red-950/20 rounded-xl border border-red-800">
-                <i class="fa-solid fa-thumbs-down text-4xl mb-3 text-red-500"></i>
-                <p class="text-lg">No documents have been rejected!</p>
-            </div>
-            <?php endif; ?>
-        </div>
-
-    </div>
-    
-</body>
-</html>
+        <?php endif;
