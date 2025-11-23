@@ -158,11 +158,11 @@ public function documents_delete() {
 
 		if ($new_doc_id) {
 			set_flash_alert('success', 'Document "' . htmlspecialchars($data['title']) . '" uploaded successfully and submitted for review.');
-			redirect(BASE_URL . '/org/review/queue'); 
+			redirect(BASE_URL . '/org/documents/all'); 
 			return;
 		} else {
 			set_flash_alert('success', 'Document "' . htmlspecialchars($new_data['title']) . '" successfully uploaded and submitted for review.');
-			redirect(BASE_URL . '/org/review/queue');
+			redirect(BASE_URL . '/org/documents/all');
 			return;
 		}
 	}
