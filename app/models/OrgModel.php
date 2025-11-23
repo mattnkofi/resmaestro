@@ -78,13 +78,30 @@ class OrgModel extends Model
     return $this->db->order_by('d.created_at', 'DESC')->get_all();
 }
     
-    public function getRejectedDocuments() {
-        return $this->db
+    public function getRejectedDocuments($query = '', $type = '') { // <--- MODIFIED
+        $search_term = "%{$query}%";
+        
+        $this->db
             ->select('d.id, d.title, d.created_at, d.description, d.file_name, d.type, u.fname AS reviewer_fname, u.lname AS reviewer_lname')
             ->table('documents d')
             ->left_join('users u', 'd.reviewer_id = u.id') 
-            ->where('d.status', 'Rejected')
-            ->order_by('d.created_at', 'DESC')
+            ->where('d.status', 'Rejected');
+
+        // 1. Search Query Filter (Title or Reviewer Name)
+        if (!empty($query)) {
+            $this->db->grouped(function($q) use ($search_term) {
+                $q->like('d.title', $search_term)
+                  ->or_like('u.fname', $search_term)
+                  ->or_like('u.lname', $search_term); 
+            });
+        }
+
+        // 2. Type Filter
+        if (!empty($type)) {
+            $this->db->where('d.type', $type);
+        }
+
+        return $this->db->order_by('d.created_at', 'DESC')
             ->get_all();
     }
     
@@ -134,18 +151,36 @@ class OrgModel extends Model
     public function deleteDocumentPermanently(int $doc_id) {
         $doc = $this->db->table('documents')->select('file_name')->where('id', $doc_id)->get();
         if (!$doc) return false;
-
-        $file_name = $doc['file_name'];
-        $success = $this->db->table('documents')->where('id', $doc_id)->delete();
         
-        if ($success) {
-            // Attempt to delete the file
-            $file_path = ROOT_DIR . 'public/uploads/documents/' . $file_name;
-            if (file_exists($file_path)) {
-                @unlink($file_path); // Use @ to suppress file permission errors
+        try {
+            // Execute all three commands in sequence using raw() for immediate effect on the connection
+            $this->db->raw('SET FOREIGN_KEY_CHECKS = 0');
+            $stmt = $this->db->raw('DELETE FROM documents WHERE id = ?', [(int)$doc_id]);
+            $this->db->raw('SET FOREIGN_KEY_CHECKS = 1'); 
+            
+            $rows_affected = $stmt->rowCount();
+
+            if ($rows_affected > 0) {
+                // Delete the physical file
+                $file_name = $doc['file_name'];
+                $file_path = ROOT_DIR . 'public/uploads/documents/' . $file_name;
+                if (file_exists($file_path)) {
+                    @unlink($file_path);
+                }
+                return true;
             }
+            return false;
+            
+        } catch (\Exception $e) {
+            error_log("Permanent document deletion exception: " . $e->getMessage());
+            // Attempt to re-enable foreign key checks on failure
+            try {
+                $this->db->raw('SET FOREIGN_KEY_CHECKS = 1');
+            } catch (\Exception $e2) {
+                // Ignore nested error
+            }
+            return false;
         }
-        return $success;
     }
 
     // ----------------------------------------------------------------------

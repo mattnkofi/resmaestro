@@ -55,12 +55,6 @@ $router->post('/org/departments/update', 'OrgController::departments_update');
 $router->post('/org/departments/delete', 'OrgController::departments_delete');
 // --- End Department CRUD Endpoints ---
 
-// Reports
-$router->get('/org/reports/overview', 'OrgController::reports_overview');
-$router->get('/org/reports/documents', 'OrgController::reports_documents');
-$router->get('/org/reports/reviewers', 'OrgController::reports_reviewers');
-$router->get('/org/reports/storage', 'OrgController::reports_storage');
-
 // Settings & Profile
 $router->get('/org/settings', 'OrgController::settings');
 $router->get('/org/profile', 'OrgController::profile');

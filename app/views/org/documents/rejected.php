@@ -1,3 +1,34 @@
+<?php
+defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
+
+// --- PHP Helper Functions ---
+if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+if (!function_exists('html_escape')) {
+    function html_escape($str) {
+        return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+    }
+}
+if (!function_exists('csrf_field')) {
+    function csrf_field() {
+        echo '<input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? 'MOCK_CSRF_TOKEN') . '">';
+    }
+}
+// --- End Helper Functions ---
+
+// Safely initialize variables passed by the controller
+$docs = $docs ?? [];
+$q = $q ?? ''; // <--- Initialized
+$type = $type ?? ''; // <--- Initialized
+$BASE_URL = BASE_URL ?? '';
+$current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/rejected'; 
+
+// PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
+$is_documents_open = str_contains($current_uri, '/org/documents/');
+$is_review_open = str_contains($current_uri, '/org/review/');
+$is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
+$is_reports_open = str_contains($current_uri, '/org/reports/');
+
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,42 +65,24 @@
     </style>
 </head>
 <body class="bg-maestro-bg text-white font-poppins" 
-    x-data="{}">
+    x-data="{
+        confirmAction: { type: '', title: '' }, // Type: 'Delete'
+        targetFormId: null,
 
-    <?php 
-    // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    // For "Rejected Documents" page:
-    $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/rejected'; 
-
-    // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
-    $is_documents_open = str_contains($current_uri, '/org/documents/');
-    $is_review_open = str_contains($current_uri, '/org/review/');
-    $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
-    $is_reports_open = str_contains($current_uri, '/org/reports/');
-
-    // Mock BASE_URL and html_escape if not defined (safe guard)
-    if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
-    if (!function_exists('html_escape')) {
-        function html_escape($str) {
-            return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
-        }
-    }
-    
-    // Safely initialize variables passed by the controller
-    $docs = $docs ?? [];
-    $doc_types = $doc_types ?? ['Finance', 'Budget', 'Accomplishment', 'Proposal', 'Legal', 'Other']; // Assume default if not passed
-    
-    // JavaScript helper function to handle deletion confirmation
-    echo '
-    <script>
-        function confirmDelete(docId, docTitle) {
-            if (confirm("WARNING: You are about to permanently delete the document: \\n\\n" + docTitle + "\\n\\nThis action cannot be undone.")) {
-                document.getElementById("delete-form-" + docId).submit();
+        prepareDelete(docId, docTitle) {
+            this.confirmAction = { type: 'Delete', title: docTitle };
+            this.targetFormId = 'delete-form-' + docId;
+        },
+        
+        executeAction() {
+            if (this.targetFormId) {
+                document.getElementById(this.targetFormId).submit();
+                this.confirmAction.type = '';
+                this.targetFormId = null;
             }
         }
-    </script>
-    ';
-    ?>
+    }"
+    @keydown.escape="confirmAction.type = ''">
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
@@ -120,22 +133,6 @@
                 </div>
             </div>
             
-            <div x-data='{ open: <?= $is_reports_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
-                    <span class="flex items-center gap-3">
-                        <i class="fa-solid fa-chart-line w-5 text-center"></i>
-                        <span>Reports & Analytics</span>
-                    </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=BASE_URL?>/org/reports/overview" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/overview') ? 'text-green-400 font-semibold' : '' ?>">Overview</a>
-                    <a href="<?=BASE_URL?>/org/reports/documents" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/documents') ? 'text-green-400 font-semibold' : '' ?>">Document Analytics</a>
-                    <a href="<?=BASE_URL?>/org/reports/reviewers" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/reviewers') ? 'text-green-400 font-semibold' : '' ?>">Reviewer Activity</a>
-                    <a href="<?=BASE_URL?>/org/reports/storage" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/reports/storage') ? 'text-green-400 font-semibold' : '' ?>">Storage Usage</a>
-                </div>
-            </div>
-
             <div class="pt-4">
                 <h2 class="text-xs text-gray-500 uppercase mb-2 ml-2 tracking-wider font-semibold">System</h2>
             </div>
@@ -180,7 +177,37 @@
             Rejected Documents
         </h1>
 
-        <?php if (function_exists('flash_alert')) flash_alert(); ?>
+        <?php if (function_exists('flash_alert')) flash_alert(); // Display flash messages ?>
+
+        <form method="GET" action="<?= BASE_URL ?>/org/documents/rejected">
+            <div class="flex flex-col md:flex-row gap-4 mb-8">
+                <input type="text" name="q" placeholder="Search by title or reviewer..." 
+                       value="<?= html_escape($q) ?>"
+                       class="w-full md:w-1/3 bg-red-900 border border-red-800 p-3 rounded-xl focus:ring-red-500 focus:border-red-500 transition placeholder-gray-500 text-red-100">
+                
+                <select name="type" class="w-full md:w-1/6 bg-red-900 border border-red-800 p-3 rounded-xl text-red-100">
+                    <option value="">Filter by Type</option>
+                    <?php 
+                    $doc_types = ['Report', 'Policy', 'Legal', 'Project Proposal', 'HR Document', 'Marketing'];
+                    foreach ($doc_types as $doc_type): ?>
+                        <option value="<?= html_escape(strtolower($doc_type)) ?>" 
+                            <?= (strtolower($doc_type) === strtolower($type)) ? 'selected' : '' ?>>
+                            <?= $doc_type ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <button type="submit" class="bg-red-700 hover:bg-red-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-red-900/40">
+                    <i class="fa-solid fa-filter mr-2"></i> Apply Filters
+                </button>
+                
+                <?php if (!empty($q) || !empty($type)): ?>
+                    <a href="<?= BASE_URL ?>/org/documents/rejected" class="bg-gray-700 hover:bg-gray-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-gray-900/40">
+                        <i class="fa-solid fa-xmark mr-2"></i> Clear
+                    </a>
+                <?php endif; ?>
+            </div>
+        </form>
 
         <div class="space-y-4">
             <?php
@@ -188,8 +215,6 @@
             // Loop through the real $docs data
             foreach($docs as $doc): 
                 
-                // Safely retrieve reviewer name and rejection date
-                // Uses object access (->) first, then array access ([]) for robustness.
                 $reviewer_fname = $doc->reviewer_fname ?? $doc['reviewer_fname'] ?? 'System';
                 $reviewer_lname = $doc->reviewer_lname ?? $doc['reviewer_lname'] ?? '';
                 $reviewer_name = html_escape(trim($reviewer_fname . ' ' . $reviewer_lname));
@@ -209,16 +234,7 @@
                 </div>
                 <div class="flex items-center space-x-4">
                     
-                    <button 
-                        onclick="confirmDelete(<?= $doc_id ?>, '<?= html_escape($title) ?>')"
-                        class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition shadow-lg shadow-red-900/40 text-white">
-                        <i class="fa-solid fa-trash mr-1"></i> Delete Permanently
-                    </button>
-                    
-                    <form id="delete-form-<?= $doc_id ?>" method="POST" action="<?= BASE_URL ?>/org/documents/delete" style="display: none;">
-                        <input type="hidden" name="document_id" value="<?= $doc_id ?>">
-                        <input type="hidden" name="document_title" value="<?= html_escape($title) ?>">
-                    </form>
+                    <span class="text-sm text-gray-500">Action: Pending Resubmission</span>
                     
                 </div>
             </div>
@@ -233,5 +249,6 @@
         </div>
 
     </div>
+    
 </body>
 </html>

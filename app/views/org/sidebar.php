@@ -87,22 +87,6 @@
                 </div>
             </div>
 
-            <div x-data="{ open: false }" class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
-                    <span class="flex items-center gap-3">
-                        <i class="fa-solid fa-chart-line w-5 text-center"></i>
-                        <span>Analytics</span>
-                    </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
-                    <a href="<?=BASE_URL?>/org/reports/overview" class="block p-2 rounded hover:bg-green-700/40 transition">Overview</a>
-                    <a href="<?=BASE_URL?>/org/reports/documents" class="block p-2 rounded hover:bg-green-700/40 transition">Document Analytics</a>
-                    <a href="<?=BASE_URL?>/org/reports/reviewers" class="block p-2 rounded hover:bg-green-700/40 transition">Reviewer Activity</a>
-                    <a href="<?=BASE_URL?>/org/reports/storage" class="block p-2 rounded hover:bg-green-700/40 transition">Storage Usage</a>
-                </div>
-            </div>
-
             <div class="pt-4">
                 <h2 class="text-xs text-gray-500 uppercase mb-2 ml-2 tracking-wider font-semibold">System</h2>
             </div>
