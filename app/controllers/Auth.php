@@ -16,6 +16,7 @@ class Auth extends Controller
         $this->call->library('lauth');       
         $this->call->helper('email');    
         $this->call->model('AuthModel');        
+        $this->call->model('OrgModel');
     }
     
     // ----------------------------------------------------------------------
@@ -81,14 +82,16 @@ class Auth extends Controller
             $user_id = $this->lauth->register($username, $email, $password, $email_token);
             
             if ($user_id) {
-                // Update user details
+                
+                $default_role = $this->OrgModel->getRoleIdByName('General Member');
+                $role_id = $default_role['id'] ?? NULL;
                 $this->AuthModel->filter(['id' => $user_id])->update([
                     'fname' => $fName,
                     'lname' => $lName,
-                    'email_verification_token' => $email_token 
+                    'email_verification_token' => $email_token,
+                    'role_id' => $role_id // <-- SET: Default role ID
                 ]);
 
-                // Prepare verification email content
                 $verify_link = BASE_URL . '/verify-email?token=' . $email_token;
                 $subject = 'Please verify your email address for Maestro';
                 $message = '
@@ -102,15 +105,12 @@ class Auth extends Controller
                     <p>If you did not sign up, please ignore this email.</p>
                 ';
 
-                // Send email using the PHPMailer helper function directly
                 sendEmail($email, $subject, $message);
                 
-                // ENHANCED SUCCESS MESSAGE 1
                 set_flash_alert('success', 'Registration successful! An email verification link has been sent to ' . htmlspecialchars($email) . '.');
                 redirect('login');
                 return;
             } else {
-                // ENHANCED ERROR MESSAGE 6: General failure
                 set_flash_alert('danger', 'Registration failed due to a server issue. Please try again.');
                 redirect('register');
                 return;
@@ -139,44 +139,45 @@ class Auth extends Controller
 
             $user = $this->AuthModel->get_user_by_username_or_email($identifier);
 
-            // ENHANCED ERROR MESSAGE 7: Invalid credentials (general fail)
-            // If the user does not exist at all, we show a generic failure message
             if (!is_object($user)) {
                 set_flash_alert('danger', 'Authentication failed. Invalid username/email or password.');
                 redirect('login');
                 return;
             }
             
-            // >>> CRITICAL ENFORCEMENT OF EMAIL VERIFICATION - SIMPLIFIED ROBUST CHECK <<<
-            // Block login if 'email_verified' is not set OR if its value is NOT 1 (the verified state).
-            // The value is expected to be 1 (int/string) on success.
-            // Using != 1 covers 0, null, or any non-1 value.
             if (!isset($user->email_verified) || $user->email_verified != 1) {
                 set_flash_alert('danger', 'Your email address has not been verified. Please check your inbox for the verification link.');
                 redirect('login'); 
                 return;
             }
 
-            // ENHANCED ERROR MESSAGE 9: Invalid password
-            // If the password fails, we still show a generic message for security
             if (!password_verify($password, $user->password)) {
                 set_flash_alert('danger', 'Authentication failed. Invalid username/email or password.');
                 redirect('login');
                 return;
             }
 
-            // 4. Successful login - Start session
+            $full_user_details = $this->OrgModel->getMemberById($user->id);
+
             if (!isset($_SESSION)) {
                 session_start(); 
             }
             $_SESSION['user_id'] = $user->id;
             $_SESSION['username'] = $user->username;
-            // Assuming the $user object fetched from the AuthModel contains 'fname', 'lname', and 'role' fields.
-            $_SESSION['user_name'] = $user->fname . ' ' . $user->lname;
-            $_SESSION['user_role'] = $user->role ?? 'General Member'; 
+
+            $role_name = 'General Member'; // Default/Fallback
+            $role_id = $full_user_details['role_id'] ?? NULL;
+            
+            if ($role_id) {
+                $roles = $this->OrgModel->getRoles();
+                $found_role = array_filter($roles, fn($r) => (int)($r['id'] ?? 0) === (int)$role_id);
+                $role_name = reset($found_role)['name'] ?? 'General Member';
+            }
+            
+            $_SESSION['user_name'] = ($full_user_details['fname'] ?? '') . ' ' . ($full_user_details['lname'] ?? '');
+            $_SESSION['user_role'] = $role_name; // Set the actual role name
             $_SESSION['is_logged_in'] = true;
             
-            // --- CRITICAL FIX: Ensures session data is saved before redirect ---
             if (function_exists('session_write_close')) {
                 session_write_close();
             }

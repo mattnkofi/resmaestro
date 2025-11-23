@@ -1,11 +1,7 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 
-/*
-|--------------------------------------------------------------------------
-| Default Routes
-|--------------------------------------------------------------------------
-*/
+/// Removing lines 19-23 (the entire Review section)
 $router->get('/', 'Welcome::index');
 $router->match('/login', 'Auth::login', ['GET', 'POST']);
 $router->match('/register', 'Auth::register', ['GET', 'POST']);
@@ -39,17 +35,6 @@ $router->post('/org/documents/resubmit', 'OrgController::documents_resubmit');
 
 // Document Delete (POST handler for permanent deletion)
 $router->post('/org/documents/delete', 'OrgController::documents_delete'); 
-
-// REMOVED: Conflicting/unused archive API route
-// $router->get('/api/org/documents/archived', 'OrgController::fetch_archived_documents_json');
-
-
-/// Review
-$router->get('/org/review/queue', 'OrgController::review_queue');
-$router->get('/org/review/history', 'OrgController::review_history');
-$router->get('/org/review/comments/(:num)', 'OrgController::review_comments/$1'); 
-$router->get('/org/review/comments', 'OrgController::review_comments');
-$router->post('/org/review/add_comment', 'OrgController::review_add_comment');
 
 // Members
 $router->get('/org/members/list', 'OrgController::members_list');

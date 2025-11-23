@@ -181,6 +181,26 @@ class OrgModel extends Model
                            ->get(); 
     }
     
+    public function isRoleUniqueInDepartment(int $role_id, int $dept_id, int $member_id = 0) {
+        $role_info = $this->db->table('roles')->select('name')->where('id', $role_id)->get();
+        if (empty($role_info)) {
+            return false;
+        }
+        $role_name = $role_info['name'];
+        $unique_roles = ['Adviser', 'President', 'Secretary', 'Treasurer'];
+
+        if (!in_array($role_name, $unique_roles)) {
+            return false;
+        }
+        $query = "
+            SELECT COUNT(*) AS count FROM users
+            WHERE role_id = ? AND dept_id = ? AND id != ?
+        ";
+
+        $result = $this->db->raw($query, [$role_id, $dept_id, $member_id])->fetch();
+
+        return ($result['count'] ?? 0) > 0;
+    }
     /**
      * Fetches a member record by their email address.
      */
@@ -373,83 +393,5 @@ class OrgModel extends Model
     return $this->db->table('users')
         ->where('id', (int)$id)
         ->delete();
-}
-    
-    public function getPendingReviews($query = '', $sort = 'oldest') {
-        $search_term = "%{$query}%";
-        $this->db
-            ->select('d.id, d.title, d.status, d.created_at, d.type, d.file_name, u.fname AS submitter_fname, u.lname AS submitter_lname')
-            ->table('documents d')
-            ->left_join('users u', 'd.user_id = u.id')
-            ->where('d.status', 'Pending Review'); 
-            
-        if (!empty($query)) {
-            $where = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
-            $this->db->where($where, [$search_term, $search_term, $search_term], false);
-        }
-        
-        $order_by = ($sort === 'oldest') ? 'd.created_at ASC' : 'd.created_at DESC';
-        return $this->db->order_by($order_by)->get_all();
-    }
-
-    public function getReviewHistory($query = '', $status = '') {
-        $search_term = "%{$query}%";
-        $this->db
-            ->select('d.id, d.title, d.status, d.created_at, d.approved_at, d.rejected_at, u.fname AS reviewer_fname, u.lname AS reviewer_lname')
-            ->table('documents d')
-            ->left_join('users u', 'd.reviewer_id = u.id'); 
-    
-        if (!empty($status) && in_array($status, ['Approved', 'Rejected'])) {
-            $this->db->where('d.status', $status);
-        } else {
-            $where = "(d.status = 'Approved' OR d.status = 'Rejected')";
-            $this->db->where($where, null, false);
-        }
-        return $this->db->order_by('d.approved_at DESC, d.rejected_at DESC, d.created_at DESC')->get_all();
-    }
-
-    public function getReviewComments(int $doc_id) {
-    return $this->db
-        ->select('c.id, c.comment, c.created_at, u.fname, u.lname')
-        ->table('comments c') 
-        ->left_join('users u', 'c.user_id = u.id')
-        ->where('c.document_id', $doc_id)
-        ->order_by('c.created_at', 'ASC')
-        ->get_all();
-    }
-
-
-    public function getDocumentsWithComments($query = '', $status = '') {
-        $search_term = "%{$query}%";
-        
-        $this->db
-            ->select('d.id, d.title, d.status, d.created_at, d.approved_at, d.rejected_at, d.reviewer_id, u.fname AS reviewer_fname, u.lname AS reviewer_lname')
-            ->table('documents d')
-            ->left_join('users u', 'd.reviewer_id = u.id');
-            
-        if (!empty($status) && in_array($status, ['Approved', 'Rejected', 'Pending Review'])) {
-            $where = "d.status = ?";
-            $params = [$status];
-
-            if ($status === 'Pending Review') {
-                $where .= " AND EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id)";
-            }
-            $this->db->where($where, $params, false);
-        } else {
-            $where = "(d.status = 'Approved' OR d.status = 'Rejected' OR EXISTS (SELECT 1 FROM comments c WHERE c.document_id = d.id))";
-            $this->db->where($where, null, false);
-        }
-
-        if (!empty($query)) {
-            $where_search = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
-            $this->db->where($where_search, [$search_term, $search_term, $search_term], false);
-        }
-
-        return $this->db->order_by('d.approved_at DESC, d.rejected_at DESC, d.created_at DESC')->get_all();
-    }
-
-    public function insertComment(array $data) {
-        $this->db->table('comments')->insert($data);
-        return $this->db->last_id();
     }
 }
