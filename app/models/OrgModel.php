@@ -46,6 +46,7 @@ class OrgModel extends Model
         if (!empty($status)) {
             $this->db->where('d.status', $status);
         } else {
+            // Filter out 'Archived' records permanently
             $this->db->where('d.status', '!=', 'Archived');
         }
         
@@ -87,23 +88,7 @@ class OrgModel extends Model
             ->get_all();
     }
     
-    public function getArchivedDocumentsOnly(string $query = '') {
-        $search_term = "%{$query}%";
-        
-        $this->db
-            ->select('d.id, d.title, d.type, d.status, d.file_name, d.deleted_at, u.fname, u.lname')
-            ->table('documents d')
-            ->left_join('users u', 'd.user_id = u.id')
-            ->where('d.status', 'Archived');
-    
-        if (!empty($query)) {
-            $this->db->grouped(function($q) use ($query) {
-                $q->like('d.title', "%{$query}%")
-                  ->or_like('d.description', "%{$query}%"); 
-            });
-        }
-        return $this->db->order_by('d.deleted_at', 'DESC')->get_all();
-    }
+    // REMOVED: public function getArchivedDocumentsOnly(...) 
 
     public function getDocumentById(int $doc_id) {
         $query = "

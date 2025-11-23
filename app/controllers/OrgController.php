@@ -39,40 +39,31 @@ class OrgController extends Controller
     ]); 
 }
 
-public function fetch_archived_documents_json() {
-        $q = $this->io->get('q'); 
-        
-        // Use the dedicated model method
-        $docs = $this->OrgModel->getArchivedDocumentsOnly($q); 
-        
-        // Ensure response is JSON
-        $this->io->set_status_code(200);
-        $this->io->send_json(['success' => true, 'data' => $docs]);
+// REMOVED: public function fetch_archived_documents_json()
+
+public function documents_delete() {
+    $doc_id = (int)$this->io->post('document_id');
+    $doc_title = $this->io->post('document_title') ?? 'Document';
+
+    $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+
+    if (!$is_authenticated || $doc_id <= 0) {
+        set_flash_alert('danger', 'Invalid request or session expired.');
+        redirect(BASE_URL . '/org/documents/all'); 
+        return;
     }
 
-    public function documents_delete() {
-        $doc_id = (int)$this->io->post('document_id');
-        $doc_title = $this->io->post('document_title') ?? 'Document';
+    $success = $this->OrgModel->deleteDocumentPermanently($doc_id);
 
-        $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
-
-        if (!$is_authenticated || $doc_id <= 0) {
-            set_flash_alert('danger', 'Invalid request or session expired.');
-            redirect(BASE_URL . '/org/documents/all'); 
-            return;
-        }
-
-        $success = $this->OrgModel->deleteDocumentPermanently($doc_id);
-
-        if ($success) {
-            set_flash_alert('success', "Document '{$doc_title}' permanently deleted.");
-        } else {
-            set_flash_alert('danger', "Failed to delete document '{$doc_title}'.");
-        }
-        
-        // Redirect back to the All Documents page
-        redirect(BASE_URL . '/org/documents/all');
+    if ($success) {
+        set_flash_alert('success', "Document '{$doc_title}' permanently deleted.");
+    } else {
+        set_flash_alert('danger', "Failed to delete document '{$doc_title}'.");
     }
+    
+    // Redirect back to the All Documents page
+    redirect(BASE_URL . '/org/documents/all');
+}
 
     public function documents_upload() {
         
@@ -178,15 +169,13 @@ public function fetch_archived_documents_json() {
 
     public function update_document_status() {
     // 1. Get POST data
-    $doc_id = $this->io->post('document_id');
+    $doc_id = (int)$this->io->post('document_id');
     $new_status = $this->io->post('new_status');
     $doc_title = $this->io->post('document_title') ?? 'Document';
     
-    // Safety check for user ID (though not used in the unarchive case, good practice)
     $user_id = (int)get_user_id();
     $reviewer_id_to_send = ($user_id > 0) ? $user_id : NULL;
 
-    // (Authentication checks omitted for brevity)
     $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
 
     if (!$is_authenticated || ((int)$doc_id) <= 0 || empty($new_status)) {
@@ -194,29 +183,30 @@ public function fetch_archived_documents_json() {
         redirect(BASE_URL . '/org/documents/all'); 
         return;
     }
+    
+    // --- IMPORTANT: Only allow Approved and Rejected status updates ---
+    if (!in_array($new_status, ['Approved', 'Rejected'])) {
+        set_flash_alert('danger', "Invalid status: {$new_status}. Only 'Approved' or 'Rejected' are allowed.");
+        redirect(BASE_URL . '/org/documents/all'); 
+        return;
+    }
 
-    // --- CRITICAL FIX START: Build Minimal Payload (Modified to also handle Unarchive) ---
     $data_to_update = [
         'status' => $new_status,
-        
-        // Always clear all timestamps by default when a status update occurs
         'approved_at' => NULL,
         'rejected_at' => NULL,
-        'deleted_at' => NULL,
-        // Set reviewer ID for 'Approved' or 'Pending Review' (unarchive/new submission)
-        'reviewer_id' => ($new_status === 'Approved' || $new_status === 'Pending Review') ? $reviewer_id_to_send : NULL, 
+        'deleted_at' => NULL, // Ensure soft delete column is null
+        'reviewer_id' => $reviewer_id_to_send, 
     ];
     
     $current_datetime = date('Y-m-d H:i:s');
     
-    // Customize the payload based on the requested status
     if ($new_status === 'Approved') {
         $data_to_update['approved_at'] = $current_datetime;
     } elseif ($new_status === 'Rejected') {
         $data_to_update['rejected_at'] = $current_datetime;
-    } elseif ($new_status === 'Archived') {
-        $data_to_update['deleted_at'] = $current_datetime;
     } 
+    
     $success_indicator = $this->OrgModel->updateDocument((int)$doc_id, $data_to_update);
     
     // 3. Handle response and redirect
@@ -225,15 +215,12 @@ public function fetch_archived_documents_json() {
         set_flash_alert('success', $message);
         
         $redirect_segment = strtolower(str_replace(' ', '', $new_status));
-        $redirect_segment = $redirect_segment === 'pendingreview' ? 'all' : $redirect_segment;
-        $redirect_segment = $redirect_segment === 'archived' ? 'archived' : $redirect_segment;
 
         header('Location: ' . BASE_URL . '/org/documents/' . $redirect_segment);
         exit(); 
     } else {
         set_flash_alert('danger', 'Failed to update document status in the database. Please check DB logs.');
-        // Redirect back to the ARCHIVED page on failure for an unarchive attempt.
-        redirect(BASE_URL . '/org/documents/archived'); 
+        redirect(BASE_URL . '/org/documents/all'); 
         return; 
     }
 }
@@ -277,19 +264,19 @@ public function fetch_archived_documents_json() {
      * Handles the POST request to resubmit an edited document.
      */
     public function documents_resubmit() {
-        $original_doc_id = $this->io->post('document_id'); // Kept for redirect on validation failure
+        $original_doc_id = (int)$this->io->post('document_id'); // Ensure it's an integer
         $user_id = get_user_id(); 
         
-        // 1. Initial Checks (Authentication only)
+        // 1. Initial Checks (Authentication and Doc ID)
         $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
 
-        if (!$is_authenticated) {
-            set_flash_alert('danger', 'Please log in to submit a document.');
+        if (!$is_authenticated || $original_doc_id <= 0) {
+            set_flash_alert('danger', 'Invalid document ID or please log in.');
             redirect(BASE_URL . '/login');
             return;
         }
 
-        // 2. Setup and Dependencies (Copied from documents_store)
+        // 2. Setup and Dependencies
         ini_set('upload_max_filesize', '64M');
         ini_set('post_max_size', '64M');
         ini_set('memory_limit', '512M');
@@ -314,6 +301,8 @@ public function fetch_archived_documents_json() {
         $this->form_validation->name('type|Document Type')->required();
         
         // A resubmit must require a new file to be uploaded.
+        // NOTE: The previous view allowed optional upload, but resubmitting a rejected doc without changing the file is odd. 
+        // We'll enforce validation here to catch the error.
         if (empty($uploaded_file) || $uploaded_file['error'] === UPLOAD_ERR_NO_FILE) {
              $this->form_validation->set_error_message('', '%s is required for resubmission.', 'Document File');
         } elseif (isset($uploaded_file['error']) && $uploaded_file['error'] !== UPLOAD_ERR_OK) {
@@ -323,11 +312,13 @@ public function fetch_archived_documents_json() {
         if (!$this->form_validation->run()) {
             $errors = $this->form_validation->errors();
             set_flash_alert('danger', $errors);
-            redirect(BASE_URL . '/org/documents/edit/' . $original_doc_id);
+            // This redirect path assumes documents_edit exists, but for the rejected page flow, 
+            // a general redirect to rejected page or documents/all is usually safer if edit view isn't available.
+            redirect(BASE_URL . '/org/documents/rejected'); 
             return;
         }
 
-        // 4. File Upload Execution (Copied from documents_store)
+        // 4. File Upload Execution
         $allowed_mimes = [
             'application/pdf', 
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -351,37 +342,51 @@ public function fetch_archived_documents_json() {
         if (!$this->upload->do_upload(FALSE)) {
             $errors = implode(' ', $this->upload->get_errors());
             set_flash_alert('danger', 'File upload failed: ' . $errors);
-            redirect(BASE_URL . '/org/documents/edit/' . $original_doc_id);
+            redirect(BASE_URL . '/org/documents/rejected');
             return;
         }
         
         $uploaded_file_name = $this->upload->get_filename();
         $new_doc_title = $this->io->post('title');
 
-        // 5. Database Insertion (New Record)
+        // 5. Database UPDATE (FIXED LOGIC)
+        
+        // Delete the old file before updating the record
+        $old_doc = $this->OrgModel->getDocumentById($original_doc_id);
+        if (!empty($old_doc['file_name'])) {
+            $old_file_path = ROOT_DIR . 'public/uploads/documents/' . $old_doc['file_name'];
+            if (file_exists($old_file_path)) {
+                @unlink($old_file_path);
+            }
+        }
+        
+        // Build the update data
         $new_data = [
             'title'         => $new_doc_title,
             'type'          => ucfirst($this->io->post('type')),
-            'status'        => 'Pending Review', // New document status
+            'status'        => 'Pending Review', // CRITICAL: Set status to PENDING REVIEW
             'description'   => $this->io->post('description'),
-            'tags'          => array_key_exists('tags', $_POST) ? $this->io->post('tags') : '', // Safely retrieve tags
+            'tags'          => array_key_exists('tags', $_POST) ? $this->io->post('tags') : '',
             'reviewer_id'   => $this->io->post('reviewer') ?: NULL, 
-            'file_name'     => $uploaded_file_name, 
-            'user_id'       => $user_id,
+            'file_name'     => $uploaded_file_name, // Update to the new file name
+            'updated_at'    => date('Y-m-d H:i:s'),
+            'rejected_at'   => NULL, // Clear rejection stamp
+            'approved_at'   => NULL,  // Clear approval stamp
+            'deleted_at'    => NULL   // Clear any soft delete stamp
         ];
 
-        $new_doc_id = $this->OrgModel->insertDocument($new_data);
+        $success = $this->OrgModel->updateDocument($original_doc_id, $new_data); // CRITICAL: Update existing ID
 
-        if (!$new_doc_id) {
-            // Upload succeeded, but DB insertion failed.
-            set_flash_alert('danger', 'New document uploaded but failed to save record in database. Please contact IT.');
-            redirect(BASE_URL . '/org/documents/edit/' . $original_doc_id);
+        if (!$success) {
+            set_flash_alert('danger', 'Failed to update document record in database. Please contact IT.');
+            redirect(BASE_URL . '/org/documents/rejected'); 
             return;
         }
 
         // 6. Success
-        set_flash_alert('success', 'Document "' . htmlspecialchars($new_data['title']) . '" successfully uploaded and submitted for review.');
-        redirect(BASE_URL . '/org/documents/all');
+        set_flash_alert('success', 'Document "' . htmlspecialchars($new_data['title']) . '" successfully resubmitted and placed in Pending Review.');
+        // FINAL REDIRECT FIX: Redirect to the main documents all page
+        redirect(BASE_URL . '/org/documents/all'); 
         return;
     }
 
@@ -408,17 +413,6 @@ public function fetch_archived_documents_json() {
             'reviewers' => $reviewers
         ]); 
     }
-
-    public function documents_archived(){ 
-    $q = $this->io->get('q'); 
-    
-    $docs = $this->OrgModel->getArchivedDocuments($q); 
-    
-    $this->call->view('org/documents/archived', [
-        'docs' => $docs,
-        'q' => $q
-    ]);
-}
 
     // Review & Workflow
    public function review_queue() { 

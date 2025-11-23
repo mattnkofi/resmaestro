@@ -29,16 +29,19 @@ $router->get('/org/documents/all', 'OrgController::documents_all');
 $router->get('/org/documents/upload', 'OrgController::documents_upload');
 $router->post('/org/documents/store', 'OrgController::documents_store');
 
-// Document Status Update Route (The POST handler for Approve/Reject/Archive/Unarchive)
+// Document Status Update Route (The POST handler for Approve/Reject)
 $router->post('/org/documents/update_status', 'OrgController::update_document_status');
 
 $router->get('/org/documents/approved', 'OrgController::documents_approved');
 $router->get('/org/documents/rejected', 'OrgController::documents_rejected');
 $router->get('/org/documents/edit/(:num)', 'OrgController::documents_edit/$1');
 $router->post('/org/documents/resubmit', 'OrgController::documents_resubmit');
-$router->get('/org/documents/archived', 'OrgController::documents_archived');
+
+// Document Delete (POST handler for permanent deletion)
 $router->post('/org/documents/delete', 'OrgController::documents_delete'); 
-$router->get('/api/org/documents/archived', 'OrgController::fetch_archived_documents_json');
+
+// REMOVED: Conflicting/unused archive API route
+// $router->get('/api/org/documents/archived', 'OrgController::fetch_archived_documents_json');
 
 
 /// Review
@@ -53,7 +56,6 @@ $router->get('/org/members/list', 'OrgController::members_list');
 $router->get('/org/members/add', 'OrgController::members_add');
 $router->post('/org/members/store', 'OrgController::members_store');
 
-// FIXED: Changed @ to ::
 $router->post('/org/members/update', 'OrgController::members_update');
 $router->post('/org/members/delete', 'OrgController::members_delete');
 
@@ -66,7 +68,6 @@ $router->get('/org/roles', 'OrgController::roles');
 $router->get('/org/departments/members/(:num)', 'OrgController::fetch_dept_members/$1');
 $router->post('/org/departments/update', 'OrgController::departments_update');
 $router->post('/org/departments/delete', 'OrgController::departments_delete');
-// REMOVED: $router->post('/api/store_delete_code', 'OrgController::store_delete_code');
 // --- End Department CRUD Endpoints ---
 
 // Reports
