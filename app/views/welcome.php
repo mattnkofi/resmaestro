@@ -82,9 +82,10 @@
       <a href="<?= BASE_URL ?>/register" class="btn-primary px-6 py-3 rounded-lg font-semibold">
         <span class="font-bold">Sign up for free</span>
       </a>
-      <a href="<?= BASE_URL ?>/contact" class="btn-secondary px-6 py-3 rounded-lg font-semibold">
+      <a href="https://mail.google.com/mail/?view=cm&fs=1&to=maestrositestomper@gmail.com" target="_blank" class="btn-secondary px-6 py-3 rounded-lg font-semibold">
         <span class="font-bold">Get in touch</span>
       </a>
+    </div>
     </div>
 
     <!-- Dynamic Stats -->
@@ -106,16 +107,16 @@
     <!-- Interactive Feature Cards -->
     <div class="grid md:grid-cols-3 gap-6 max-w-6xl w-full">
       <div class="card text-center">
+        <h3 class="text-white text-xl font-semibold mb-2">Document Repository</h3>
+        <p class="text-white italic">Centralized documents repository for approvals and revisions.</p>
+      </div>
+      <div class="card text-center">
         <h3 class="text-white text-xl font-semibold mb-2">Member Control</h3>
-        <p class="text-white italic">Manage officer roles, permissions, and member profiles with automated activity tracking.</p>
+        <p class="text-white italic">Organization registrations and member managements.</p>
       </div>
       <div class="card text-center">
-        <h3 class="text-white text-xl font-semibold mb-2">Event Scheduler</h3>
-        <p class="text-white italic">Plan, track, and get automated attendance reports and reminders for every event.</p>
-      </div>
-      <div class="card text-center">
-        <h3 class="text-white text-xl font-semibold mb-2">Finance Tracker</h3>
-        <p class="text-white italic">Monitor funds, manage payments, and generate summaries—all in seconds.</p>
+        <h3 class="text-white text-xl font-semibold mb-2">Monitor Organization</h3>
+        <p class="text-white italic">Monitor documents, manage members, and generate summaries—all in seconds.</p>
       </div>
     </div>
   </section>
@@ -128,7 +129,7 @@
     </p>
     <div class="flex justify-center gap-4">
       <a href="<?= BASE_URL ?>/register" class="btn-primary px-6 py-3 rounded-lg font-semibold">Sign up now</a>
-      <a href="<?= BASE_URL ?>/contact" class="btn-secondary px-6 py-3 rounded-lg font-semibold">Contact us</a>
+      <a href="https://mail.google.com/mail/?view=cm&fs=1&to=maestrositestomper@gmail.com" target="_blank" class="btn-secondary px-6 py-3 rounded-lg font-semibold">Contact us</a>
     </div>
   </section>
 

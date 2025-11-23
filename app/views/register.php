@@ -1,171 +1,161 @@
+<?php
+defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maestro | Register</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-  <style>
-    /* Background gradient animation */
-    body {
-      background: linear-gradient(135deg, #000, #005e19ff, #004314ff);
-      background-size: 200% 200%;
-      font-family: 'Poppins', sans-serif;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maestro | Register</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'maestro-green': '#00350cff',
+                        'maestro-dark': '#0b0f0c',
+                        'brand-glow': '#10b981', /* green-500 */
+                    },
+                    fontFamily: {
+                        poppins: ['Poppins', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            /* Animated Gradient Background */
+            background: linear-gradient(135deg, #000, #005e19ff, #004314ff);
+            background-size: 400% 400%;
+            animation: gradient-animation 15s ease infinite;
+            font-family: 'Poppins', sans-serif;
+        }
 
-    .auth-btn {
-      background-color: #005e19ff;
-      transition: all 0.3s ease;
-    }
+        @keyframes gradient-animation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
 
-    .auth-btn:hover {
-      background-color: #00a72cff;
-      box-shadow: 0 0 15px #000000ff;
-      transform: scale(1.02);
-    }
+        .register-card {
+            /* Frosted glass/dark card effect */
+            background: rgba(11, 15, 12, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+        
+        .auth-btn {
+            background-color: #005e19ff;
+            transition: all 0.3s ease;
+        }
 
-    .glow-text {
-      text-shadow: 0 0 10px #000000ff, 0 0 20px #000000ff;
-    }
+        .auth-btn:hover {
+            background-color: #00a72cff;
+        }
 
-    .input-style {
-      transition: all 0.3s ease;
-    }
+        /* Enhanced logo glow effect */
+        .logo-glow {
+            filter: invert(1);
+            text-shadow: 0 0 10px var(--tw-colors-brand-glow), 0 0 20px var(--tw-colors-brand-glow);
+            transition: transform 0.3s ease;
+        }
 
-    .input-style:focus {
-      background-color: rgba(16, 185, 129, 0.2);
-      box-shadow: 0 0 10px #10b981;
-    }
-
-    .card {
-      transition: all 0.3s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
-    }
-    
-    /* --- NEW CSS FOR HIGHLY VISIBLE CREDENTIAL ERROR NOTIFICATION UI (Used for all DANGER alerts here) --- */
-    .credential-error-notification {
-      /* Positioning relative to the card */
-      position: relative; 
-      
-      /* High visibility styling */
-      padding: 1rem 1.5rem; 
-      margin-bottom: 1.5rem; 
-      border-radius: 0.75rem; 
-      
-      /* Background & Border - High Contrast Red */
-      background-color: rgba(185, 28, 28, 0.95); /* Tailwind: bg-red-700, slightly transparent */
-      color: #fee2e2; /* Tailwind: text-red-100 */
-      
-      /* Elevation/Glow for prominence */
-      box-shadow: 0 5px 25px rgba(0, 0, 0, 0.6); 
-      
-      font-weight: 300; /* Tailwind: font-bold */
-      text-align: center;
-      display: flex; 
-      align-items: center;
-      justify-content: center;
-      gap: 0.75rem; 
-      
-      /* Subtle animation to draw attention */
-    }
-
-    .credential-error-icon {
-      color: #fee2e2; 
-      width: 1.5rem;
-      height: 1.5rem;
-      flex-shrink: 0;
-    }
-
-    @keyframes pulse-border {
-      from {
-        box-shadow: 0 5px 25px rgba(239, 68, 68, 0.4);
-      }
-      to {
-        box-shadow: 0 5px 30px rgba(239, 68, 68, 0.8);
-      }
-    }
-
-    /* Fallback/Standard Alert Styling for Success Messages */
-    .alert-success {
-      background-color: rgba(16, 185, 129, 0.95); /* Darker Green */
-      color: #e6ffed; /* Light Green Text */
-      border: 1px solid #10b981;
-      padding: 1rem 1.5rem; 
-      border-radius: 0.75rem;
-      margin-bottom: 1.5rem;
-      font-weight: 600;
-      text-align: center;
-    }
-
-  </style>
+        /* Keyframe for element entrance */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in {
+            animation: fadeInDown 0.6s ease-out forwards;
+        }
+    </style>
 </head>
-<body class="min-h-screen flex items-center justify-center text-gray-100 p-4">
+<body class="min-h-screen flex items-center justify-center text-white p-4">
 
-  <div class="card bg-black/40 backdrop-blur-lg border border-green-800/40 rounded-2xl shadow-2xl w-full max-w-md p-8">
-    <div class="flex flex-col items-center mb-6">
-      <div class="relative">
-        <img src="maestrologo.png" alt="Maestro Logo" class="w-16 h-16 mb-2 drop-shadow-lg hover:scale-110 transition-transform duration-300">
-      </div>
-      <span class="text-3xl font-bold tracking-widest text-green-400 glow-text">MAESTRO</span>
+    <div class="grid grid-cols-1 lg:grid-cols-2 max-w-5xl w-full min-h-[650px] rounded-3xl overflow-hidden register-card">
+        
+        <div class="hidden lg:flex flex-col items-center justify-center p-8 bg-maestro-green/90 relative">
+            <div class="absolute inset-0 bg-cover bg-center opacity-10" style="background-image: url('maestrologo.png');"></div>
+            
+            <div class="z-10 text-center">
+                <img src="maestrologo.png" alt="Maestro Logo" class="w-36 h-36 mb-4 drop-shadow-lg logo-glow mx-auto" style="animation-delay: 0.1s;">
+                <h1 class="text-5xl font-bold tracking-widest text-black mb-2 logo-glow" style="animation-delay: 0.2s;">MAESTRO</h1>
+            </div>
+        </div>
+
+        <div class="p-8 md:p-10 flex flex-col justify-center">
+            
+            <div class="text-center mb-6">
+                <h2 class="text-3xl font-bold text-green-400 animate-in" style="animation-delay: 0.1s;">Create Account</h2>
+                <p class="text-gray-400 mt-1 animate-in" style="animation-delay: 0.2s;">Secure your space with your details.</p>
+            </div>
+
+            <?php if (function_exists('flash_alert')) flash_alert(); ?>
+
+            <form action="<?=BASE_URL?>/register" method="post" class="space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="animate-in" style="animation-delay: 0.3s;">
+                        <input type="text" name="fName" placeholder="First name"
+                            class="w-full py-3 px-4 rounded-lg bg-white/5 border border-green-800 text-white placeholder-gray-500 transition" required>
+                    </div>
+                    <div class="animate-in" style="animation-delay: 0.4s;">
+                        <input type="text" name="lName" placeholder="Last name"
+                            class="w-full py-3 px-4 rounded-lg bg-white/5 border border-green-800 text-white placeholder-gray-500 transition" required>
+                    </div>
+                </div>
+
+                <div class="animate-in" style="animation-delay: 0.5s;">
+                    <input type="email" name="email" placeholder="Email address"
+                        class="w-full py-3 px-4 rounded-lg bg-white/5 border border-green-800 text-white placeholder-gray-500 transition" required>
+                </div>
+
+                <div class="animate-in" style="animation-delay: 0.6s;">
+                    <input type="text" name="username" placeholder="Choose a username"
+                        class="w-full py-3 px-4 rounded-lg bg-white/5 border border-green-800 text-white placeholder-gray-500 transition" required>
+                </div>
+
+                <div x-data="{ passwordShown1: false }" class="relative animate-in" style="animation-delay: 0.7s;">
+                    <input 
+                        :type="passwordShown1 ? 'text' : 'password'" 
+                        name="password" 
+                        placeholder="Create a password"
+                        class="w-full py-3 pl-4 pr-12 rounded-lg bg-white/5 border border-green-800 text-white placeholder-gray-500 transition" required>
+                    <button type="button" @click="passwordShown1 = !passwordShown1" 
+                        class="absolute inset-y-0 right-0 pr-4 flex items-center text-white hover:text-white/80 transition">
+                        <i class="fa-solid" :class="passwordShown1 ? 'fa-eye-slash' : 'fa-eye'"></i>
+                    </button>
+                </div>
+
+                <div x-data="{ passwordShown2: false }" class="relative animate-in" style="animation-delay: 0.8s;">
+                    <input 
+                        :type="passwordShown2 ? 'text' : 'password'" 
+                        name="password_confirmation" 
+                        placeholder="Confirm password"
+                        class="w-full py-3 pl-4 pr-12 rounded-lg bg-white/5 border border-green-800 text-white placeholder-gray-500 transition" required>
+                    <button type="button" @click="passwordShown2 = !passwordShown2" 
+                        class="absolute inset-y-0 right-0 pr-4 flex items-center text-white hover:text-white/80 transition">
+                        <i class="fa-solid" :class="passwordShown2 ? 'fa-eye-slash' : 'fa-eye'"></i>
+                    </button>
+                </div>
+
+                <button type="submit"
+                    class="auth-btn w-full py-3 mt-6 rounded-lg font-bold text-lg text-white shadow-lg shadow-maestro-green/50 hover:bg-green-700/80 transition-all duration-300 animate-in" style="animation-delay: 0.9s;">
+                    <i class="fa-solid fa-user-plus mr-2"></i> Register
+                </button>
+
+                <p class="text-center text-sm text-gray-500 pt-2 animate-in" style="animation-delay: 1.0s;">
+                    Already have an account?
+                    <a href="<?=BASE_URL?>/login" class="text-green-400 hover:text-green-300 font-semibold transition-colors duration-200">Log In</a>
+                </p>
+            </form>
+        </div>
     </div>
-
-    <!-- Display Flash Alert Messages Here -->
-    <?php if (function_exists('flash_alert')) flash_alert(); ?>
-
-    <form action="<?=BASE_URL?>/register" method="post" class="space-y-4">
-      <div>
-        <!--<label class="block text-sm font-medium text-green-300 mb-1">First Name</label>-->
-        <input type="text" name="fName" placeholder="First name"
-          class="input-style w-full px-4 py-2 rounded-lg bg-white/10 text-white italic placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-
-      <div>
-        <!--<label class="block text-sm font-medium text-green-300 mb-1">Last Name</label>-->
-        <input type="text" name="lName" placeholder="Last name"
-          class="input-style w-full px-4 py-2 rounded-lg bg-white/10 text-white italic placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-
-      <div>
-        <!--<label class="block text-sm font-medium text-green-300 mb-1">Email</label>-->
-        <input type="email" name="email" placeholder="Email address"
-          class="input-style w-full px-4 py-2 rounded-lg bg-white/10 text-white italic placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-
-      <div>
-        <!--<label class="block text-sm font-medium text-green-300 mb-1">Username</label>-->
-        <input type="text" name="username" placeholder="Choose a username"
-          class="input-style w-full px-4 py-2 rounded-lg bg-white/10 text-white italic placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-
-      <div>
-        <!--<label class="block text-sm font-medium text-green-300 mb-1">Password</label>-->
-        <input type="password" name="password" placeholder="Create a password"
-          class="input-style w-full px-4 py-2 rounded-lg bg-white/10 text-white italic placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-
-      <div>
-        <!--<label class="block text-sm font-medium text-green-300 mb-1">Confirm Password</label>-->
-        <input type="password" name="password_confirmation" placeholder="Confirm password"
-          class="input-style w-full px-4 py-2 rounded-lg bg-white/10 text-white italic placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-400" required>
-      </div>
-
-      <button type="submit"
-        class="auth-btn w-full py-2 mt-4 rounded-lg font-bold text-white transition-all duration-300 hover:shadow-[0_0_15px_#10b981]">
-        Register
-      </button>
-
-      <p class="text-center text-sm text-gray-400 mt-4">
-        Already have an account?
-        <a href="<?=BASE_URL?>/login" class="text-white hover:text-green-600 font-bold transition-colors duration-200">Login</a>
-      </p>
-    </form>
-  </div>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/js/all.min.js"></script>
 </body>
 </html>

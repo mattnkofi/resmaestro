@@ -108,7 +108,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
                 <div x-show="open" x-transition class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
                     <a href="<?=$BASE_URL?>/org/documents/all" class="block p-2 rounded hover:bg-green-700/40">All Documents</a>
                     <a href="<?=$BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40">Upload New</a>
-                    <a href="<?=$BASE_URL?>/org/documents/pending" class="block p-2 rounded hover:bg-green-700/40">Pending Review</a>
                     <a href="<?=$BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40">Approved</a>
                     <a href="<?=$BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40">Rejected</a>
                     <a href="<?=$BASE_URL?>/org/documents/archived" class="block p-2 rounded hover:bg-green-700/40">Archived</a>

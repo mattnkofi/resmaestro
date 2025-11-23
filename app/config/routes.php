@@ -23,28 +23,23 @@ $router->get('/logout', 'Auth::logout');
 $router->get('/org/dashboard', 'OrgController::dashboard');
 $router->get('/org/sidebar', 'OrgController::sidebar');
 
-
-
 // Documents
 $router->get('/org/documents/all', 'OrgController::documents_all');
 // Upload
 $router->get('/org/documents/upload', 'OrgController::documents_upload');
 $router->post('/org/documents/store', 'OrgController::documents_store');
 
-// Document Status Update Route (The POST handler for Approve/Reject/Archive)
+// Document Status Update Route (The POST handler for Approve/Reject/Archive/Unarchive)
 $router->post('/org/documents/update_status', 'OrgController::update_document_status');
 
-$router->get('/org/documents/pending', 'OrgController::documents_pending');
-
 $router->get('/org/documents/approved', 'OrgController::documents_approved');
-
 $router->get('/org/documents/rejected', 'OrgController::documents_rejected');
 $router->get('/org/documents/edit/(:num)', 'OrgController::documents_edit/$1');
 $router->post('/org/documents/resubmit', 'OrgController::documents_resubmit');
-
 $router->get('/org/documents/archived', 'OrgController::documents_archived');
 
-
+// FIXED: Route for permanent deletion of archived documents (using the existing controller method)
+$router->post('/org/documents/delete', 'OrgController::documents_delete'); 
 
 
 /// Review
@@ -52,32 +47,29 @@ $router->get('/org/review/queue', 'OrgController::review_queue');
 $router->get('/org/review/history', 'OrgController::review_history');
 $router->get('/org/review/comments/(:num)', 'OrgController::review_comments/$1'); 
 $router->get('/org/review/comments', 'OrgController::review_comments');
-$router->get('/org/review/fetch_comments/(:num)', 'OrgController::fetch_comments_json/$1');
+// Removed: $router->get('/org/review/fetch_comments/(:num)', 'OrgController::fetch_comments_json/$1'); - Assuming this method is not defined
 $router->post('/org/review/add_comment', 'OrgController::review_add_comment');
-
-
-
 
 // Members
 $router->get('/org/members/list', 'OrgController::members_list');
 $router->get('/org/members/add', 'OrgController::members_add');
 $router->post('/org/members/store', 'OrgController::members_store');
 
-$router->post('/org/members/update', 'OrgController@members_update');
-$router->post('/org/members/delete', 'OrgController@members_delete');
+// FIXED: Changed @ to ::
+$router->post('/org/members/update', 'OrgController::members_update');
+$router->post('/org/members/delete', 'OrgController::members_delete');
 
 // Departments & Roles
 $router->get('/org/departments', 'OrgController::departments');
-$router->post('/org/departments/store', 'OrgController::departments_store'); // <-- NEW ROUTE
+$router->post('/org/departments/store', 'OrgController::departments_store'); 
 $router->get('/org/roles', 'OrgController::roles');
 
 // --- Department CRUD Endpoints ---
 $router->get('/org/departments/members/(:num)', 'OrgController::fetch_dept_members/$1');
 $router->post('/org/departments/update', 'OrgController::departments_update');
 $router->post('/org/departments/delete', 'OrgController::departments_delete');
-$router->post('/api/store_delete_code', 'OrgController::store_delete_code');
+// REMOVED: $router->post('/api/store_delete_code', 'OrgController::store_delete_code');
 // --- End Department CRUD Endpoints ---
-
 
 // Reports
 $router->get('/org/reports/overview', 'OrgController::reports_overview');

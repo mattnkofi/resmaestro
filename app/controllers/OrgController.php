@@ -132,7 +132,7 @@ class OrgController extends Controller
 
         if ($new_doc_id) {
             set_flash_alert('success', 'Document "' . htmlspecialchars($data['title']) . '" uploaded successfully and submitted for review.');
-            redirect(BASE_URL . '/org/documents/pending');
+            redirect(BASE_URL . '/org/documents/all');
             return;
         } else {
             set_flash_alert('danger', 'Document uploaded but failed to save record in database. Please contact IT.');
@@ -329,21 +329,8 @@ class OrgController extends Controller
         }
 
         set_flash_alert('success', 'Document "' . htmlspecialchars($new_data['title']) . '" successfully uploaded and submitted for review.');
-        redirect(BASE_URL . '/org/documents/pending');
+        redirect(BASE_URL . '/org/documents/all');
         return;
-    }
-
-    public function documents_pending() { 
-        $q = $this->io->get('q'); 
-        $type = $this->io->get('type'); 
-        
-        $docs = $this->OrgModel->getPendingDocuments($q, $type); 
-        
-        $this->call->view('org/documents/pending', [
-            'docs' => $docs,
-            'q' => $q, 
-            'type' => $type
-        ]); 
     }
 
     public function documents_approved() { 
