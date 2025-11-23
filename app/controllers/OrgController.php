@@ -842,15 +842,6 @@ public function members_delete() {
         $this->call->view('org/roles', compact('roles')); 
     }
 
-    // ----------------------------------------------------------------------
-    // REPORTS & SYSTEM (Minimal View Loading)
-    // ----------------------------------------------------------------------
-
-    public function reports_overview() { $this->call->view('org/reports/overview'); }
-    public function reports_documents() { $this->call->view('org/reports/documents'); }
-    public function reports_reviewers() { $this->call->view('org/reports/reviewers'); }
-    public function reports_storage() { $this->call->view('org/reports/storage'); }
-
     public function settings() { $this->call->view('org/settings'); }
     public function profile() { $this->call->view('org/profile'); }
 }
