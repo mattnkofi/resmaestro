@@ -843,5 +843,74 @@ public function members_delete() {
     }
 
     public function settings() { $this->call->view('org/settings'); }
-    public function profile() { $this->call->view('org/profile'); }
+
+    public function profile() { 
+        $user_id = get_user_id();
+        $user = $this->OrgModel->getMemberById($user_id);
+        
+        $this->call->view('org/profile', [
+            'user' => $user
+        ]); 
+    }
+    public function profile_update() {
+        $user_id = get_user_id();
+
+        if ($this->io->method() !== 'post' || $user_id <= 0) {
+            set_flash_alert('danger', 'Invalid request or session expired.');
+            redirect(BASE_URL . '/org/profile');
+            return;
+        }
+
+        $this->call->library('Form_validation');
+        $this->call->helper('common'); 
+
+        $this->form_validation->name('fname|First Name')->required()->max_length(50);
+        $this->form_validation->name('lname|Last Name')->required()->max_length(50);
+
+        $new_password = $this->io->post('new_password');
+        $confirm_password = $this->io->post('confirm_password');
+
+        if (!empty($new_password)) {
+            if (strlen($new_password) < 8) {
+                set_flash_alert('danger', 'New password must be at least 8 characters long.');
+                redirect(BASE_URL . '/org/profile');
+                return;
+            }
+            if ($new_password !== $confirm_password) {
+                set_flash_alert('danger', 'New password and confirmation do not match.');
+                redirect(BASE_URL . '/org/profile');
+                return;
+            }
+        }
+
+        if (!$this->form_validation->run()) {
+            set_flash_alert('danger', $this->form_validation->errors());
+            redirect(BASE_URL . '/org/profile');
+            return;
+        }
+        
+        $data = [
+            'fname'     => $this->io->post('fname'),
+            'lname'     => $this->io->post('lname'),
+            'updated_at' => date('Y-m-d H:i:s')
+        ];
+
+        if (!empty($new_password)) {
+            $data['password'] = password_hash($new_password, PASSWORD_DEFAULT);
+        }
+        
+        $success = $this->OrgModel->updateMember($user_id, $data);
+        
+        if ($success !== FALSE) {
+            // Update session user name to reflect changes immediately
+            if (!isset($_SESSION)) { session_start(); }
+            $_SESSION['user_name'] = ($data['fname'] ?? '') . ' ' . ($data['lname'] ?? '');
+
+            set_flash_alert('success', 'Profile updated successfully.');
+        } else {
+            set_flash_alert('danger', 'Failed to update profile. A database error occurred.');
+        }
+
+        redirect(BASE_URL . '/org/profile');
+    }
 }
