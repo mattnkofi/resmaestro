@@ -37,9 +37,8 @@ $router->get('/org/documents/rejected', 'OrgController::documents_rejected');
 $router->get('/org/documents/edit/(:num)', 'OrgController::documents_edit/$1');
 $router->post('/org/documents/resubmit', 'OrgController::documents_resubmit');
 $router->get('/org/documents/archived', 'OrgController::documents_archived');
-
-// FIXED: Route for permanent deletion of archived documents (using the existing controller method)
 $router->post('/org/documents/delete', 'OrgController::documents_delete'); 
+$router->get('/api/org/documents/archived', 'OrgController::fetch_archived_documents_json');
 
 
 /// Review
@@ -47,7 +46,6 @@ $router->get('/org/review/queue', 'OrgController::review_queue');
 $router->get('/org/review/history', 'OrgController::review_history');
 $router->get('/org/review/comments/(:num)', 'OrgController::review_comments/$1'); 
 $router->get('/org/review/comments', 'OrgController::review_comments');
-// Removed: $router->get('/org/review/fetch_comments/(:num)', 'OrgController::fetch_comments_json/$1'); - Assuming this method is not defined
 $router->post('/org/review/add_comment', 'OrgController::review_add_comment');
 
 // Members

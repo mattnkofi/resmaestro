@@ -110,7 +110,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
                     <a href="<?=$BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40">Upload New</a>
                     <a href="<?=$BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40">Approved</a>
                     <a href="<?=$BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40">Rejected</a>
-                    <a href="<?=$BASE_URL?>/org/documents/archived" class="block p-2 rounded hover:bg-green-700/40">Archived</a>
                 </div>
             </div>
             <div x-data='{ open: <?= $is_review_open ? 'true' : 'false' ?> }' class="space-y-1">

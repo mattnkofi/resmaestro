@@ -45,6 +45,8 @@ class OrgModel extends Model
     
         if (!empty($status)) {
             $this->db->where('d.status', $status);
+        } else {
+            $this->db->where('d.status', '!=', 'Archived');
         }
         
         return $this->db->order_by('d.created_at', 'DESC')->get_all();
@@ -85,7 +87,7 @@ class OrgModel extends Model
             ->get_all();
     }
     
-    public function getArchivedDocuments($query = '') {
+    public function getArchivedDocumentsOnly(string $query = '') {
         $search_term = "%{$query}%";
         
         $this->db
@@ -118,6 +120,14 @@ class OrgModel extends Model
         return $result ?: null; 
     }
 
+    public function getPotentialDepartmentMembers() {
+        return $this->db->table('users')
+                            ->select('id, fname, lname')
+                            ->where('dept_id', NULL)
+                            ->order_by('lname', 'ASC')
+                            ->get_all();
+    }
+
     public function getPotentialReviewers() {
         return $this->db->table('users')
                         ->select('id, fname, lname, email') 
@@ -134,6 +144,23 @@ class OrgModel extends Model
         return $this->db->table('documents')
                         ->where('id', $doc_id)
                         ->update($data);
+    }
+
+    public function deleteDocumentPermanently(int $doc_id) {
+        $doc = $this->db->table('documents')->select('file_name')->where('id', $doc_id)->get();
+        if (!$doc) return false;
+
+        $file_name = $doc['file_name'];
+        $success = $this->db->table('documents')->where('id', $doc_id)->delete();
+        
+        if ($success) {
+            // Attempt to delete the file
+            $file_path = ROOT_DIR . 'public/uploads/documents/' . $file_name;
+            if (file_exists($file_path)) {
+                @unlink($file_path); // Use @ to suppress file permission errors
+            }
+        }
+        return $success;
     }
 
     // ----------------------------------------------------------------------

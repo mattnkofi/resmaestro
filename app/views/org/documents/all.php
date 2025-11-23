@@ -67,14 +67,19 @@
     </script>
 </head>
 
-<body class="bg-maestro-bg text-white font-poppins" 
+<<body class="bg-maestro-bg text-white font-poppins" 
     x-data="{ 
         modalOpen: false, 
         currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
         
-        // >> NEW: Archive Modal State <<
+        // >> NEW: Archive Modal State & Data <<
         archiveModalOpen: false,
-        docToArchive: { id: 0, title: '' },
+        archivedDocs: [],
+        archiveLoading: false,
+        archiveQuery: '',
+        docToRestore: { id: 0, title: '', file_name: '' },
+        docToDelete: { id: 0, title: '' },
+        confirmAction: { type: '', title: '' },
 
         // START NEW FUNCTIONS FOR VIEWING ALL FILE TYPES
         getFileExtension(fileName) {
@@ -115,16 +120,60 @@
             this.currentDoc = doc; 
             this.modalOpen = true; 
         },
-        // >> NEW: Function to open Archive Modal <<
+        openArchiveModal() {
+            this.archiveModalOpen = true;
+            this.fetchArchivedDocuments();
+        },
+
+        async fetchArchivedDocuments() {
+            this.archiveLoading = true;
+            try {
+                const url = `<?= BASE_URL ?>/api/org/documents/archived?q=${encodeURIComponent(this.archiveQuery)}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.success) {
+                    this.archivedDocs = data.data;
+                }
+            } catch (e) {
+                console.error('Error fetching archived documents:', e);
+                this.archivedDocs = [];
+            } finally {
+                this.archiveLoading = false;
+            }
+        },
+        
+        // NEW: Prepare modal for restore
+        prepareRestore(doc) {
+            this.docToRestore = doc;
+            this.confirmAction = { type: 'Restore', title: doc.title };
+            // Auto submit is handled by the confirmation modal now
+        },
+
+        // NEW: Prepare modal for permanent delete
+        prepareDelete(doc) {
+            this.docToDelete = doc;
+            this.confirmAction = { type: 'Delete', title: doc.title };
+        },
+
+        executeAction() {
+            if (this.confirmAction.type === 'Restore') {
+                this.$refs.restoreForm.submit();
+            } else if (this.confirmAction.type === 'Delete') {
+                this.$refs.deleteForm.submit();
+            }
+        },
+
+        // NEW: Function to open Archive Modal after clicking Archive button in detail modal
         setArchiveDoc(doc) {
             this.docToArchive = { id: doc.id, title: doc.title };
             this.modalOpen = false; // Close the main modal
             this.archiveModalOpen = true; // Open the archive confirmation modal
+            // Automatically select the 'View Archive' tab/content if needed, but here we open the dedicated modal
         }
     }" 
     @keydown.escape="modalOpen = false; archiveModalOpen = false;">
 
-    <?php 
+    <?php
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
     // For "All Documents" page:
     $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/all'; 
@@ -180,7 +229,6 @@
                     <a href="<?=BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/upload') ? 'text-green-400 font-semibold' : '' ?>">Upload New</a>
                     <a href="<?=BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/approved') ? 'text-green-400 font-semibold' : '' ?>">Approved / Noted</a>
                     <a href="<?=BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/rejected') ? 'text-green-400 font-semibold' : '' ?>">Rejected</a>
-                    <a href="<?=BASE_URL?>/org/documents/archived" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/archived') ? 'text-green-400 font-semibold' : '' ?>">Archived</a>
                 </div>
             </div>
 
@@ -272,9 +320,14 @@
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
             <h1 class="text-3xl font-bold text-green-400 mb-4 sm:mb-0">All Documents</h1>
-            <a href="<?=BASE_URL?>/org/documents/upload" class="bg-green-700 hover:bg-green-600 px-5 py-2.5 rounded-xl text-lg font-medium transition shadow-lg shadow-green-900/40">
-                <i class="fa-solid fa-plus mr-2"></i> Upload Document
-            </a>
+            <div class="flex items-center space-x-3">
+                <button @click="openArchiveModal()" class="bg-blue-700 hover:bg-blue-600 px-5 py-2.5 rounded-xl text-lg font-medium transition shadow-lg shadow-blue-900/40">
+                    <i class="fa-solid fa-box-archive mr-2"></i> View Archive
+                </button>
+                <a href="<?=BASE_URL?>/org/documents/upload" class="bg-green-700 hover:bg-green-600 px-5 py-2.5 rounded-xl text-lg font-medium transition shadow-lg shadow-green-900/40">
+                    <i class="fa-solid fa-plus mr-2"></i> Upload Document
+                </a>
+            </div>
         </div>
 
         <form method="GET" action="<?= BASE_URL ?>/org/documents/all">
@@ -285,9 +338,10 @@
                         class="w-full md:w-1/3 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white">
                 
                 <select name="status" class="w-full md:w-1/6 bg-green-900/50 border border-green-800 p-3 rounded-xl text-white">
-                    <option value="">Filter by Status</option>
+                    <option value="">Filter by Status (All Active)</option>
                     <?php 
-                    $doc_statuses = ['Pending Review', 'Approved', 'Rejected', 'Archived'];
+                    // REMOVED: 'Archived' from this list
+                    $doc_statuses = ['Pending Review', 'Approved', 'Rejected'];
                     foreach ($doc_statuses as $doc_status_item): 
                         $val = $doc_status_item;
                         $is_selected = ($status === $val);
@@ -312,22 +366,13 @@
 
         <div class="overflow-x-auto document-table-container rounded-xl border border-green-800 shadow-2xl shadow-green-900/10">
             <table class="w-full text-left">
-                <thead class="bg-green-900/40 text-gray-200 uppercase text-sm tracking-wider">
-                    <tr>
-                        <th class="p-4 border-b border-green-800">Title</th>
-                        <th class="p-4 border-b border-green-800">Type</th>
-                        <th class="p-4 border-b border-green-800">Status</th>
-                        <th class="p-4 border-b border-green-800 text-center">Actions</th>
-                    </tr>
-                </thead>
                 <tbody class="bg-[#0f1511] text-gray-300">
 
                 <?php 
-                // Using $docs array passed from controller
+                // ... (lines 204-245 table row population logic unchanged)
                 $docs = $docs ?? [];
                 if (!empty($docs)):
                 foreach($docs as $doc): 
-                    // Safely extract data, assuming objects/arrays
                     $doc_id = $doc['id'] ?? $doc->id ?? 0;
                     $doc_title = $doc['title'] ?? $doc->title ?? '';
                     $doc_file_name = $doc['file_name'] ?? $doc->file_name ?? '';
@@ -363,28 +408,17 @@
                         'status' => $doc_status, 
                         'submitter' => $submitter,
                         'type' => $doc_type,
-                        'created_at' => $doc_created_at_display // Use the corrected date for JS binding
+                        'created_at' => $doc_created_at_display 
                     ]);
                     
-                    // Ensure data passed to JS is correctly escaped/quoted
-                    $doc_created_at_display = 'N/A';
-                    if (!empty($doc_created_at)) {
-                        try {
-                            // ** IMPORTANT: REPLACE 'Asia/Manila' with your local timezone (e.g., 'America/New_York') **
-                            $date_obj = new DateTime($doc_created_at);
-                            $date_obj->setTimezone(new DateTimeZone('Asia/Manila')); 
-                            $doc_created_at_display = $date_obj->format('M d, Y');
-                        } catch (\Exception $e) {
-                            $doc_created_at_display = date('M d, Y', strtotime($doc_created_at)); // Fallback
-                        }
-                    }
+                    $js_doc = html_escape($js_doc);
                 ?>
                     <tr class="border-b border-green-800 hover:bg-green-700/10 transition">
                         <td class="p-4 font-medium text-green-200"><?= html_escape($doc_title) ?></td>
                         <td class="p-4"><?= html_escape($doc_type) ?></td>
                         <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
                         <td class="p-4 text-center">
-                            <button @click="setDoc(<?= html_escape($js_doc) ?>)"class="text-yellow-400 hover:text-yellow-200 hover: font-xl mr-4">
+                            <button @click="setDoc(<?= $js_doc ?>)"class="text-yellow-400 hover:text-yellow-200 hover: font-xl mr-4">
                                 <i class="fa-solid fa-eye mr-1"></i> View Details
                             </button>
                         </td>
@@ -403,7 +437,7 @@
         </div>
     </div>
 
-    <div x-show="modalOpen" 
+    <div x-show="modalOpen"
         x-transition:enter="ease-out duration-300"
         x-transition:leave="ease-in duration-200"
         class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
@@ -498,7 +532,7 @@
                             :class="currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
                             <i class="fa-solid fa-box-archive mr-2"></i> Archive
                         </button>
-                        
+                            
                     </div>
                     
                     <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
@@ -511,43 +545,117 @@
     <div x-show="archiveModalOpen" 
         x-transition:enter="ease-out duration-300"
         x-transition:leave="ease-in duration-200"
-        class="fixed inset-0 z-[60] overflow-y-auto bg-maestro-bg bg-opacity-90 flex items-center justify-center" 
+        class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-start justify-center pt-10" 
         style="display: none;">
 
-        <div @click.outside="archiveModalOpen = false" class="w-full max-w-md mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-red-800">
+        <div @click.outside="archiveModalOpen = false" class="w-full max-w-4xl mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-blue-800">
             
-            <header class="p-4 border-b border-red-800 flex justify-between items-center bg-sidebar-dark">
-                <h3 class="text-xl font-bold text-red-400">Confirm Archive</h3>
+            <header class="p-4 border-b border-blue-800 flex justify-between items-center bg-sidebar-dark rounded-t-xl">
+                <h3 class="text-xl font-bold text-blue-400">
+                    <i class="fa-solid fa-box-archive mr-2"></i> Archived Documents
+                </h3>
                 <button @click="archiveModalOpen = false" class="text-gray-400 hover:text-white transition">
                     <i class="fa-solid fa-xmark text-2xl"></i>
                 </button>
             </header>
 
-            <div class="p-6 space-y-4">
-                <p class="text-gray-300">
-                    Are you sure you want to **Archive** the document: 
-                    <span class="font-semibold text-yellow-300" x-text="docToArchive.title"></span>?
+            <div class="p-6">
+                <p class="text-sm text-gray-400 mb-4">
+                    Documents listed here are permanently removed from circulation. You may restore them or permanently delete them.
                 </p>
-                <p class="text-sm text-gray-500">
-                    Archiving will remove this document from all active lists. It can be viewed and unarchived later from the "Archived" section.
-                </p>
-
-                <div class="flex justify-end gap-3 pt-4">
-                    <button @click="archiveModalOpen = false" class="px-5 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-medium transition">
-                        Cancel
+                <form @submit.prevent="fetchArchivedDocuments" class="flex gap-4 mb-6">
+                    <input type="text" x-model="archiveQuery" placeholder="Search archive by title..." 
+                           class="w-full bg-blue-900/50 border border-blue-800 p-3 rounded-lg placeholder-gray-500 text-white">
+                    <button type="submit" class="bg-blue-700 hover:bg-blue-600 px-5 py-3 rounded-lg font-medium transition">
+                        <i class="fa-solid fa-search"></i>
                     </button>
+                </form>
 
-                    <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
-                        <?php csrf_field(); ?>
-                        <input type="hidden" name="document_id" :value="docToArchive.id">
-                        <input type="hidden" name="new_status" value="Archived">
-                        <input type="hidden" name="document_title" :value="docToArchive.title">
+                <div class="max-h-96 overflow-y-auto space-y-4">
+                    <div x-show="archiveLoading" class="text-center py-10 text-blue-400">
+                        <i class="fa-solid fa-spinner fa-spin-pulse text-3xl"></i>
+                        <p>Loading archived documents...</p>
+                    </div>
+                    
+                    <template x-if="archivedDocs.length > 0 && !archiveLoading">
+                        <template x-for="doc in archivedDocs" :key="doc.id">
+                            <div class="bg-blue-950/20 p-4 rounded-lg border-l-4 border-blue-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-blue-900/30 transition">
+                                <div class="flex flex-col mb-2 md:mb-0">
+                                    <span class="text-lg font-semibold text-blue-200" x-text="doc.title"></span>
+                                    <span class="text-sm text-gray-400">
+                                        Archived by: <span x-text="doc.fname + ' ' + doc.lname"></span> on 
+                                        <span x-text="doc.deleted_at ? new Date(doc.deleted_at).toLocaleDateString() : 'N/A'"></span>
+                                    </span>
+                                </div>
+                                <div class="flex items-center space-x-3">
+                                    <form method="POST" action="<?= BASE_URL ?>/org/documents/update_status" 
+                                          x-ref="restoreForm" @submit.prevent="prepareRestore(doc)">
+                                        <?php csrf_field(); ?>
+                                        <input type="hidden" name="document_id" :value="doc.id">
+                                        <input type="hidden" name="new_status" value="Pending Review">
+                                        <input type="hidden" name="document_title" :value="doc.title">
+                                        <button type="submit" class="bg-green-700 hover:bg-green-600 px-3 py-1.5 rounded-lg text-sm font-medium transition">
+                                            <i class="fa-solid fa-box-open mr-1"></i> Restore
+                                        </button>
+                                    </form>
 
-                        <button type="submit" class="bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition shadow-lg shadow-red-900/40">
-                            <i class="fa-solid fa-box-archive mr-2"></i> Confirm Archive
-                        </button>
-                    </form>
+                                    <form method="POST" action="<?= BASE_URL ?>/org/documents/delete" 
+                                          x-ref="deleteForm" @submit.prevent="prepareDelete(doc)">
+                                        <?php csrf_field(); ?>
+                                        <input type="hidden" name="document_id" :value="doc.id">
+                                        <input type="hidden" name="document_title" :value="doc.title">
+                                        <button type="submit" class="text-red-400 hover:text-red-300 transition text-lg p-1 leading-none">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </template>
+                    </template>
+                    
+                    <template x-if="archivedDocs.length === 0 && !archiveLoading">
+                        <div class="p-8 text-center text-gray-500 bg-blue-950/20 rounded-xl border border-blue-800">
+                            <i class="fa-solid fa-box-archive text-4xl mb-3 text-blue-500"></i>
+                            <p class="text-lg">No documents in the archive.</p>
+                        </div>
+                    </template>
                 </div>
+            </div>
+            
+            <div class="p-4 border-t border-blue-800 flex justify-end bg-sidebar-dark rounded-b-xl">
+                <button @click="archiveModalOpen = false" class="text-gray-400 hover:text-white transition px-4 py-2">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <div x-show="confirmAction.type !== ''" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-[60] overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
+        style="display: none;">
+
+        <div @click.outside="confirmAction.type = ''" class="w-full max-w-md mx-auto bg-[#151a17] rounded-xl shadow-2xl border border-red-800 p-6">
+            
+            <div class="text-center">
+                <i class="fa-solid fa-triangle-exclamation text-4xl text-yellow-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-white mb-2">Confirm <span x-text="confirmAction.type"></span></h3>
+                
+                <p class="text-gray-400 mb-6">
+                    Are you sure you want to <span x-text="confirmAction.type"></span> "<strong x-text="confirmAction.title"></strong>"? 
+                    <span x-show="confirmAction.type === 'Delete'" class="text-red-400 font-semibold">This action is permanent and cannot be undone.</span>
+                    <span x-show="confirmAction.type === 'Restore'" class="text-green-400 font-semibold">It will be restored to 'Pending Review' status.</span>
+                </p>
+            </div>
+
+            <div class="flex justify-center gap-4">
+                <button @click="confirmAction.type = ''" class="bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg transition w-full">
+                    Cancel
+                </button>
+                <button @click="executeAction()" 
+                    :class="confirmAction.type === 'Delete' ? 'bg-red-700 hover:bg-red-600' : 'bg-green-700 hover:bg-green-600'" 
+                    class="text-white font-medium px-4 py-2 rounded-lg transition w-full">
+                    <i :class="confirmAction.type === 'Delete' ? 'fa-solid fa-trash-can' : 'fa-solid fa-box-open'" class="mr-1"></i> Confirm
+                </button>
             </div>
         </div>
     </div>

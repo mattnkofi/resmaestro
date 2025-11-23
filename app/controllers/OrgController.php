@@ -39,6 +39,41 @@ class OrgController extends Controller
     ]); 
 }
 
+public function fetch_archived_documents_json() {
+        $q = $this->io->get('q'); 
+        
+        // Use the dedicated model method
+        $docs = $this->OrgModel->getArchivedDocumentsOnly($q); 
+        
+        // Ensure response is JSON
+        $this->io->set_status_code(200);
+        $this->io->send_json(['success' => true, 'data' => $docs]);
+    }
+
+    public function documents_delete() {
+        $doc_id = (int)$this->io->post('document_id');
+        $doc_title = $this->io->post('document_title') ?? 'Document';
+
+        $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+
+        if (!$is_authenticated || $doc_id <= 0) {
+            set_flash_alert('danger', 'Invalid request or session expired.');
+            redirect(BASE_URL . '/org/documents/all'); 
+            return;
+        }
+
+        $success = $this->OrgModel->deleteDocumentPermanently($doc_id);
+
+        if ($success) {
+            set_flash_alert('success', "Document '{$doc_title}' permanently deleted.");
+        } else {
+            set_flash_alert('danger', "Failed to delete document '{$doc_title}'.");
+        }
+        
+        // Redirect back to the All Documents page
+        redirect(BASE_URL . '/org/documents/all');
+    }
+
     public function documents_upload() {
         
         $reviewers = $this->OrgModel->getPotentialReviewers();
