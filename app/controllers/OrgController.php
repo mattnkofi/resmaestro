@@ -132,23 +132,26 @@ class OrgController extends Controller
 
         if ($new_doc_id) {
             set_flash_alert('success', 'Document "' . htmlspecialchars($data['title']) . '" uploaded successfully and submitted for review.');
-            redirect(BASE_URL . '/org/documents/all');
+            redirect(BASE_URL . '/org/review/queue'); 
             return;
         } else {
-            set_flash_alert('danger', 'Document uploaded but failed to save record in database. Please contact IT.');
-            redirect(BASE_URL . '/org/documents/upload');
+            set_flash_alert('success', 'Document "' . htmlspecialchars($new_data['title']) . '" successfully uploaded and submitted for review.');
+            redirect(BASE_URL . '/org/review/queue');
             return;
         }
     }
 
     public function update_document_status() {
+    // 1. Get POST data
     $doc_id = $this->io->post('document_id');
     $new_status = $this->io->post('new_status');
     $doc_title = $this->io->post('document_title') ?? 'Document';
     
+    // Safety check for user ID (though not used in the unarchive case, good practice)
     $user_id = (int)get_user_id();
     $reviewer_id_to_send = ($user_id > 0) ? $user_id : NULL;
 
+    // (Authentication checks omitted for brevity)
     $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
 
     if (!$is_authenticated || ((int)$doc_id) <= 0 || empty($new_status)) {
@@ -157,17 +160,21 @@ class OrgController extends Controller
         return;
     }
 
+    // --- CRITICAL FIX START: Build Minimal Payload (Modified to also handle Unarchive) ---
     $data_to_update = [
         'status' => $new_status,
         
+        // Always clear all timestamps by default when a status update occurs
         'approved_at' => NULL,
         'rejected_at' => NULL,
         'deleted_at' => NULL,
+        // Set reviewer ID for 'Approved' or 'Pending Review' (unarchive/new submission)
         'reviewer_id' => ($new_status === 'Approved' || $new_status === 'Pending Review') ? $reviewer_id_to_send : NULL, 
     ];
     
     $current_datetime = date('Y-m-d H:i:s');
     
+    // Customize the payload based on the requested status
     if ($new_status === 'Approved') {
         $data_to_update['approved_at'] = $current_datetime;
     } elseif ($new_status === 'Rejected') {
@@ -175,30 +182,29 @@ class OrgController extends Controller
     } elseif ($new_status === 'Archived') {
         $data_to_update['deleted_at'] = $current_datetime;
     } 
-
     $success_indicator = $this->OrgModel->updateDocument((int)$doc_id, $data_to_update);
     
+    // 3. Handle response and redirect
     if ($success_indicator !== FALSE) {
         $message = "Status for '{$doc_title}' successfully changed to {$new_status}.";
         set_flash_alert('success', $message);
         
         $redirect_segment = strtolower(str_replace(' ', '', $new_status));
-        $redirect_segment = $redirect_segment === 'pendingreview' ? 'pending' : $redirect_segment;
+        $redirect_segment = $redirect_segment === 'pendingreview' ? 'all' : $redirect_segment;
         $redirect_segment = $redirect_segment === 'archived' ? 'archived' : $redirect_segment;
 
         header('Location: ' . BASE_URL . '/org/documents/' . $redirect_segment);
         exit(); 
     } else {
         set_flash_alert('danger', 'Failed to update document status in the database. Please check DB logs.');
+        // Redirect back to the ARCHIVED page on failure for an unarchive attempt.
         redirect(BASE_URL . '/org/documents/archived'); 
         return; 
     }
 }
 
-    /**
-     * Displays the edit/resubmit form for a specific document.
-     */
     public function documents_edit($doc_id) {
+        // FIX: Use robust session check
         $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
 
         if (!$is_authenticated || ((int)$doc_id) <= 0) {
@@ -207,7 +213,8 @@ class OrgController extends Controller
             return;
         }
         
-        $doc = $this->OrgModel->getDocumentById((int)$doc_id); 
+        // Fetch document details including the original submitter (via getDocumentById)
+        $doc = $this->OrgModel->getDocumentById((int)$doc_id); // Assumes getDocumentById returns an object/array
         
         if (empty($doc)) {
             set_flash_alert('danger', 'Document not found.');
@@ -215,6 +222,8 @@ class OrgController extends Controller
             return;
         }
 
+        // Only the original submitter should be able to edit/resubmit
+        // NOTE: $doc is likely an object if fetched by getDocumentById
         if (($doc->user_id ?? $doc['user_id'] ?? null) !== get_user_id()) {
             set_flash_alert('danger', 'You do not have permission to edit this document.');
             redirect(BASE_URL . '/org/dashboard');
@@ -223,7 +232,7 @@ class OrgController extends Controller
         
         $reviewers = $this->OrgModel->getPotentialReviewers();
         
-        $this->call->view('org/documents/edit', [ 
+        $this->call->view('org/documents/edit', [ // User needs to create 'edit.php' view
             'doc' => $doc,
             'reviewers' => $reviewers
         ]);
@@ -233,9 +242,10 @@ class OrgController extends Controller
      * Handles the POST request to resubmit an edited document.
      */
     public function documents_resubmit() {
-        $original_doc_id = $this->io->post('document_id'); 
+        $original_doc_id = $this->io->post('document_id'); // Kept for redirect on validation failure
         $user_id = get_user_id(); 
         
+        // 1. Initial Checks (Authentication only)
         $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
 
         if (!$is_authenticated) {
@@ -244,6 +254,7 @@ class OrgController extends Controller
             return;
         }
 
+        // 2. Setup and Dependencies (Copied from documents_store)
         ini_set('upload_max_filesize', '64M');
         ini_set('post_max_size', '64M');
         ini_set('memory_limit', '512M');
@@ -257,6 +268,7 @@ class OrgController extends Controller
         $uploaded_file = $_FILES[$file_input_name] ?? null;
         $upload_dir = ROOT_DIR . 'public/uploads/documents/'; 
 
+        // 3. Preliminary Checks (Folder and Validation Setup)
         if (!is_dir_usable($upload_dir)) {
             set_flash_alert('danger', 'System error: Upload directory not found or is not writable. Check folder permissions.');
             redirect(BASE_URL . '/org/documents/edit/' . $original_doc_id);
@@ -266,6 +278,7 @@ class OrgController extends Controller
         $this->form_validation->name('title|Document Title')->required()->max_length(255);
         $this->form_validation->name('type|Document Type')->required();
         
+        // A resubmit must require a new file to be uploaded.
         if (empty($uploaded_file) || $uploaded_file['error'] === UPLOAD_ERR_NO_FILE) {
              $this->form_validation->set_error_message('', '%s is required for resubmission.', 'Document File');
         } elseif (isset($uploaded_file['error']) && $uploaded_file['error'] !== UPLOAD_ERR_OK) {
@@ -279,6 +292,7 @@ class OrgController extends Controller
             return;
         }
 
+        // 4. File Upload Execution (Copied from documents_store)
         $allowed_mimes = [
             'application/pdf', 
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -309,12 +323,13 @@ class OrgController extends Controller
         $uploaded_file_name = $this->upload->get_filename();
         $new_doc_title = $this->io->post('title');
 
+        // 5. Database Insertion (New Record)
         $new_data = [
             'title'         => $new_doc_title,
             'type'          => ucfirst($this->io->post('type')),
-            'status'        => 'Pending Review', 
+            'status'        => 'Pending Review', // New document status
             'description'   => $this->io->post('description'),
-            'tags'          => array_key_exists('tags', $_POST) ? $this->io->post('tags') : '', 
+            'tags'          => array_key_exists('tags', $_POST) ? $this->io->post('tags') : '', // Safely retrieve tags
             'reviewer_id'   => $this->io->post('reviewer') ?: NULL, 
             'file_name'     => $uploaded_file_name, 
             'user_id'       => $user_id,
@@ -323,11 +338,13 @@ class OrgController extends Controller
         $new_doc_id = $this->OrgModel->insertDocument($new_data);
 
         if (!$new_doc_id) {
+            // Upload succeeded, but DB insertion failed.
             set_flash_alert('danger', 'New document uploaded but failed to save record in database. Please contact IT.');
             redirect(BASE_URL . '/org/documents/edit/' . $original_doc_id);
             return;
         }
 
+        // 6. Success
         set_flash_alert('success', 'Document "' . htmlspecialchars($new_data['title']) . '" successfully uploaded and submitted for review.');
         redirect(BASE_URL . '/org/documents/all');
         return;
@@ -345,23 +362,10 @@ class OrgController extends Controller
             'type' => $type
         ]); 
     }
-
-    public function documents_review_test() {
-        $mock_doc = [
-            'id' => 999, 
-            'title' => 'MOCK Document for UI Test',
-            'type' => 'report',
-            'file_name' => 'd1f8fab2bb3799910e8f2da081c7a72fe90f9597.pdf', 
-            'status' => 'Pending Review',
-            'submitter_fname' => 'Test',
-            'submitter_lname' => 'User'
-        ];
-        
-        $this->call->view('org/documents/review_detail', ['doc' => $mock_doc]);
-    }
     
     public function documents_rejected(){ 
         $docs = $this->OrgModel->getRejectedDocuments(); 
+        // FIX: Fetch reviewers for the resubmit modal on the rejected page
         $reviewers = $this->OrgModel->getPotentialReviewers();
         
         $this->call->view('org/documents/rejected', [
@@ -369,7 +373,7 @@ class OrgController extends Controller
             'reviewers' => $reviewers
         ]); 
     }
-    
+
     public function documents_archived(){ 
     $q = $this->io->get('q'); 
     

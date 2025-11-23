@@ -37,8 +37,10 @@ class OrgModel extends Model
                  ->table('documents d');
     
         if (!empty($query)) {
-            $where = "(d.title LIKE ? OR d.description LIKE ?)";
-            $this->db->where($where, [$search_term, $search_term], false); 
+            $this->db->grouped(function($q) use ($search_term) {
+                $q->like('d.title', $search_term)
+                  ->or_like('d.description', $search_term); 
+            });
         }
     
         if (!empty($status)) {
@@ -47,28 +49,9 @@ class OrgModel extends Model
         
         return $this->db->order_by('d.created_at', 'DESC')->get_all();
     }
-        
-    public function getPendingDocuments($query = '', $type = '') {
-        $search_term = "%{$query}%";
-        $this->db
-            ->select('d.id, d.title, d.status, d.created_at, d.type, d.file_name, u.fname, u.lname')
-            ->table('documents d')
-            ->left_join('users u', 'd.user_id = u.id')
-            ->where('d.status', 'Pending Review');
-    
-        if (!empty($query)) {
-            $where = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
-            $this->db->where($where, [$search_term, $search_term, $search_term], false);
-        }
-    
-        if (!empty($type)) {
-            $this->db->where('d.type', $type);
-        }
-        return $this->db->order_by('d.created_at', 'ASC')->get_all();
-    }
 
     public function getApprovedDocuments($query = '', $type = '') {
-    $search_term = "%{$query}%"; 
+    $search_term = "%{$query}%"; // Prepare the search term
     
     $this->db
         ->select('d.id, d.title, d.file_name, d.status, d.created_at, d.type, u.fname AS approver_fname, u.lname AS approver_lname')
@@ -76,9 +59,13 @@ class OrgModel extends Model
         ->left_join('users u', 'd.reviewer_id = u.id') 
         ->where('d.status', 'Approved');
 
+    // 1. Search Query Filter (Title or Approver Name)
     if (!empty($query)) {
-        $where = "(d.title LIKE ? OR u.fname LIKE ? OR u.lname LIKE ?)";
-        $this->db->where($where, [$search_term, $search_term, $search_term], false);
+        $this->db->grouped(function($q) use ($search_term) {
+            $q->like('d.title', $search_term)
+              ->or_like('u.fname', $search_term)
+              ->or_like('u.lname', $search_term); 
+        });
     }
 
     if (!empty($type)) {
@@ -108,8 +95,10 @@ class OrgModel extends Model
             ->where('d.status', 'Archived');
     
         if (!empty($query)) {
-            $where = "(d.title LIKE ? OR d.description LIKE ?)";
-            $this->db->where($where, [$search_term, $search_term], false); 
+            $this->db->grouped(function($q) use ($query) {
+                $q->like('d.title', "%{$query}%")
+                  ->or_like('d.description', "%{$query}%"); 
+            });
         }
         return $this->db->order_by('d.deleted_at', 'DESC')->get_all();
     }
@@ -129,23 +118,11 @@ class OrgModel extends Model
         return $result ?: null; 
     }
 
-    /**
-     * Fetches members who are not currently assigned to a department.
-     * @return array
-     */
-    public function getPotentialDepartmentMembers() {
-        return $this->db->table('users')
-                            ->select('id, fname, lname')
-                            ->where('dept_id', NULL)
-                            ->order_by('lname', 'ASC')
-                            ->get_all();
-    }
-
     public function getPotentialReviewers() {
         return $this->db->table('users')
-                            ->select('id, fname, lname, email') 
-                            ->order_by('lname', 'ASC')
-                            ->get_all();
+                        ->select('id, fname, lname, email') 
+                        ->order_by('lname', 'ASC')
+                        ->get_all();
     }
     
     public function insertDocument(array $data) {
@@ -155,10 +132,10 @@ class OrgModel extends Model
     
     public function updateDocument(int $doc_id, array $data) {
         return $this->db->table('documents')
-                           ->where('id', $doc_id)
-                           ->update($data);
+                        ->where('id', $doc_id)
+                        ->update($data);
     }
-    
+
     // ----------------------------------------------------------------------
     //  MEMBER UPDATE METHODS
     // ----------------------------------------------------------------------
