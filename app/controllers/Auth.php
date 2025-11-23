@@ -11,12 +11,11 @@ class Auth extends Controller
     public function __construct()
     {
         parent::__construct();
-
-        // Load necessary libraries and models
-        $this->call->library('Mailer');
-        $this->call->library('lauth');          // Authentication library
-        $this->call->helper('email_helper');    // For sending emails
-        $this->call->model('AuthModel');        // Your user model
+        
+        // FIX: Changed 'email_helper' to 'email' so it correctly loads the email_helper.php file.
+        $this->call->library('lauth');       
+        $this->call->helper('email');    
+        $this->call->model('AuthModel');        
     }
     
     // ----------------------------------------------------------------------
@@ -103,17 +102,9 @@ class Auth extends Controller
                     <p>If you did not sign up, please ignore this email.</p>
                 ';
 
-                // Send email
-                if (function_exists('sendEmail')) {
-                    sendEmail($email, $subject, $message);
-                } else {
-                    $this->Mailer
-                        ->to($email)
-                        ->subject($subject)
-                        ->html($message)
-                        ->send();
-                }
-
+                // Send email using the PHPMailer helper function directly
+                sendEmail($email, $subject, $message);
+                
                 // ENHANCED SUCCESS MESSAGE 1
                 set_flash_alert('success', 'Registration successful! An email verification link has been sent to ' . htmlspecialchars($email) . '.');
                 redirect('login');
@@ -149,20 +140,25 @@ class Auth extends Controller
             $user = $this->AuthModel->get_user_by_username_or_email($identifier);
 
             // ENHANCED ERROR MESSAGE 7: Invalid credentials (general fail)
+            // If the user does not exist at all, we show a generic failure message
             if (!is_object($user)) {
                 set_flash_alert('danger', 'Authentication failed. Invalid username/email or password.');
                 redirect('login');
                 return;
             }
-
-            // ENHANCED ERROR MESSAGE 8: Account not verified
-            if (isset($user->email_verified) && $user->email_verified === '0') {
-                set_flash_alert('danger', 'Your email address has not been verified. Please check your inbox.');
-                redirect('verify_email');
+            
+            // >>> CRITICAL ENFORCEMENT OF EMAIL VERIFICATION - SIMPLIFIED ROBUST CHECK <<<
+            // Block login if 'email_verified' is not set OR if its value is NOT 1 (the verified state).
+            // The value is expected to be 1 (int/string) on success.
+            // Using != 1 covers 0, null, or any non-1 value.
+            if (!isset($user->email_verified) || $user->email_verified != 1) {
+                set_flash_alert('danger', 'Your email address has not been verified. Please check your inbox for the verification link.');
+                redirect('login'); 
                 return;
             }
 
             // ENHANCED ERROR MESSAGE 9: Invalid password
+            // If the password fails, we still show a generic message for security
             if (!password_verify($password, $user->password)) {
                 set_flash_alert('danger', 'Authentication failed. Invalid username/email or password.');
                 redirect('login');
@@ -175,11 +171,9 @@ class Auth extends Controller
             }
             $_SESSION['user_id'] = $user->id;
             $_SESSION['username'] = $user->username;
-            // --- MODIFICATION START ---
             // Assuming the $user object fetched from the AuthModel contains 'fname', 'lname', and 'role' fields.
             $_SESSION['user_name'] = $user->fname . ' ' . $user->lname;
-            $_SESSION['user_role'] = $user->role ?? 'Organization Member'; // Default to Member if role field is missing
-            // --- MODIFICATION END ---
+            $_SESSION['user_role'] = $user->role ?? 'General Member'; 
             $_SESSION['is_logged_in'] = true;
             
             // --- CRITICAL FIX: Ensures session data is saved before redirect ---
@@ -238,7 +232,6 @@ class Auth extends Controller
 
     public function logout() {
         // FIX: Since login manually sets $_SESSION keys, logout must manually destroy the session.
-        // This avoids the 'Call to undefined method Lauth::logout()' error.
         if (isset($_SESSION)) {
              session_destroy();
         }
@@ -250,32 +243,27 @@ class Auth extends Controller
     }
 
     
-
     // Utility function to test email configuration
     public function test_email()
     {
-        // Change this to your own address for testing
-        $to = 'test@example.com'; 
-        $subject = 'Maestro Email Test';
+        // Define test parameters
+        $to = 'justinebolanos1018@gmail.com'; 
+        $subject = 'Maestro PHPMailer Test';
         $body = '
-            <h2>Email Test Successful!</h2>
-            <p>This message confirms that your email configuration and library are working.</p>
+            <h2>PHPMailer Test Successful!</h2>
+            <p>This message confirms that your email configuration in <code>app/config/email.php</code> and the PHPMailer helper are working.</p>
             <p><b>Sent at:</b> ' . date('Y-m-d H:i:s') . '</p>
         ';
 
-        // Use your existing Emailer library
-        $result = $this->Mailer
-            ->to($to)
-            ->subject($subject)
-            ->html($body)
-            ->send();
+        // Use the dedicated PHPMailer helper function
+        $result = sendEmail($to, $subject, $body);
 
         // Output simple result in browser
         if ($result === true) {
-            echo '<h3 style="color:green;">✅ Email sent successfully to ' . htmlspecialchars($to) . '!</h3>';
+            echo '<h3 style="color:green;">✅ PHPMailer Test Email sent successfully to ' . htmlspecialchars($to) . '!</h3>';
         } else {
-            echo '<h3 style="color:red;">❌ Failed to send email.</h3>';
-            echo '<pre>' . htmlspecialchars($result) . '</pre>';    
+            echo '<h3 style="color:red;">❌ PHPMailer Test Email failed.</h3>';
+            echo '<p>Check your <code>app/config/email.php</code> settings and PHP logs for details: ' . htmlspecialchars($result) . '</p>';
         }
     }
 }

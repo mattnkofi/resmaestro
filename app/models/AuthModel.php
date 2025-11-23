@@ -1,6 +1,11 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 
+/**
+ * Model: AuthModel
+ * * Handles all database interactions for user authentication.
+ * * Assumes a 'users' table with columns: id, username, email, password, email_verified, email_verification_token.
+ */
 class AuthModel extends Model {
 
     protected $table = 'users'; 
@@ -30,14 +35,11 @@ class AuthModel extends Model {
 
     /**
      * Finds a user by email verification token.
-     * NOTE: Using 'email_verification_token' as per the Controller logic.
-     /**
-     * Finds a user by email verification token.
      * @param string $token
      * @return object|false
      */
-        public function find_by_token($token) {
-            $result = $this->db->table($this->table)
+    public function find_by_token($token) {
+        $result = $this->db->table($this->table)
                             ->where('email_verification_token', $token)
                             ->limit(1)
                             ->get();
@@ -67,19 +69,20 @@ class AuthModel extends Model {
 
     /**
      * Updates the user's status to verified and clears the token.
-     * NOTE: Now accepting $user_id as per Controller refactor.
-     /**
-     * Updates the user's status to verified and clears the token.
      * @param int $user_id
      * @return bool
      */
     public function verify_email($user_id) {
-        return $this->db->table($this->table)
-                        ->where('id', $user_id)
-                        ->update([
+        $result = $this->db->table($this->table)
+                         ->where('id', $user_id)
+                         ->update([
+                            // Ensuring the verified state is set
                             'email_verified' => 1, 
                             'email_verification_token' => NULL
-                        ]);
+                         ]);
+        
+        // FIX: Explicitly cast the result to a boolean to ensure the controller's if ($ok) is reliable.
+        return (bool)$result;
     }
     
     /**
