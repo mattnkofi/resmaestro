@@ -498,12 +498,31 @@ class OrgController extends Controller
 }
     
     public function members_add() { 
-        $departments = $this->OrgModel->getDepartments();
+        $user_id = get_user_id();
+        $user_data = $this->OrgModel->getMemberById($user_id);
+        $user_dept_id = $user_data['dept_id'] ?? null; // Get current user's department ID
+        $user_is_admin = in_array(($_SESSION['user_role'] ?? ''), ['Administrator', 'President', 'Adviser']);
+
+        $all_departments = $this->OrgModel->getDepartments();
         $roles = $this->OrgModel->getRoles();
+        
+        $departments = [];
+        if ($user_is_admin) {
+            $departments = $all_departments;
+        } elseif (!empty($user_dept_id)) {
+            foreach ($all_departments as $dept) {
+                if ((int)($dept['id'] ?? 0) === (int)$user_dept_id) {
+                    $departments[] = $dept;
+                    break;
+                }
+            }
+        }
         
         $this->call->view('org/members/add', [
             'departments' => $departments,
-            'roles' => $roles
+            'roles' => $roles,
+            // Passing for view messages/conditional logic if needed
+            'current_user_dept_id' => $user_dept_id 
         ]); 
     }
 
@@ -531,6 +550,25 @@ class OrgController extends Controller
             redirect(BASE_URL . '/org/members/add');
             return;
         }
+
+        if (!empty($existing_user['dept_id'])) {
+            set_flash_alert('danger', 'Member "' . htmlspecialchars(trim($existing_user['fname'] . ' ' . $existing_user['lname'])) . '" is already assigned to a department and cannot be added here.');
+            redirect(BASE_URL . '/org/members/add');
+            return;
+        }
+
+        $current_user_id = get_user_id();
+        $current_user_data = $this->OrgModel->getMemberById($current_user_id);
+        $current_user_dept_id = $current_user_data['dept_id'] ?? null;
+        $current_user_role = $_SESSION['user_role'] ?? '';
+        $is_admin = in_array($current_user_role, ['Administrator', 'President', 'Adviser']);
+
+        if (!$is_admin && (int)$dept_id !== (int)$current_user_dept_id) {
+            set_flash_alert('danger', 'You are not permitted to assign members to a department other than your own.');
+            redirect(BASE_URL . '/org/members/add');
+            return;
+        }
+
         if ($this->OrgModel->isRoleUniqueInDepartment($role_id, $dept_id, $existing_user['id'])) {
             $roles = $this->OrgModel->getRoles();
             $role_name = array_filter($roles, fn($r) => (int)($r['id'] ?? 0) === $role_id);
@@ -540,7 +578,7 @@ class OrgController extends Controller
             redirect(BASE_URL . '/org/members/add');
             return;
         }
-        
+
         $member_id = (int)$existing_user['id'];
         $full_name = trim($existing_user['fname'] . ' ' . $existing_user['lname']);
 

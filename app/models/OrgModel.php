@@ -31,18 +31,20 @@ class OrgModel extends Model
     }
 
     public function getAllDocuments($query = '', $status = '') {
-        $search_term = "%{$query}%";
-        
-        $this->db->select('d.id, d.title, d.type, d.status, d.file_name')
-                 ->table('documents d');
+    $search_term = "%{$query}%";
     
-        if (!empty($query)) {
-            $this->db->grouped(function($q) use ($search_term) {
-                $q->like('d.title', $search_term)
-                  ->or_like('d.description', $search_term); 
-            });
-        }
+    $this->db->select('d.id, d.title, d.type, d.status, d.file_name, u.fname, u.lname')
+             ->table('documents d')
+             ->join('users u', 'd.user_id = u.id');
     
+    if (!empty($query)) {
+        $this->db->grouped(function($q) use ($search_term) {
+            $q->like('d.title', $search_term)
+              ->or_like('d.description', $search_term) 
+              ->or_like('u.fname', $search_term)
+              ->or_like('u.lname', $search_term);
+        });
+    }
         if (!empty($status)) {
             $this->db->where('d.status', $status);
         } else {
