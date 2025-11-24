@@ -33,12 +33,8 @@ class OrgModel extends Model
     public function getAllDocuments($query = '', $status = '') {
         $search_term = "%{$query}%";
         
-        $this->db
-             // CRITICAL FIX: Select user names for the submitter
-            ->select('d.id, d.title, d.type, d.status, d.file_name, u.fname, u.lname')
-            ->table('documents d')
-            // CRITICAL FIX: Join the users table using the user_id (submitter)
-            ->left_join('users u', 'd.user_id = u.id');
+        $this->db->select('d.id, d.title, d.type, d.status, d.file_name')
+                 ->table('documents d');
     
         if (!empty($query)) {
             $this->db->grouped(function($q) use ($search_term) {
@@ -86,7 +82,7 @@ class OrgModel extends Model
         $search_term = "%{$query}%";
         
         $this->db
-            ->select('d.id, d.title, d.created_at, d.description, d.file_name, d.type, d.review_comment, u.fname AS reviewer_fname, u.lname AS reviewer_lname')
+            ->select('d.id, d.title, d.created_at, d.description, d.file_name, d.type, u.fname AS reviewer_fname, u.lname AS reviewer_lname')
             ->table('documents d')
             ->left_join('users u', 'd.reviewer_id = u.id') 
             ->where('d.status', 'Rejected');
@@ -109,33 +105,12 @@ class OrgModel extends Model
             ->get_all();
     }
     
-    public function getDocumentsByDepartment(int $dept_id, $query = '') {
-        $search_term = "%{$query}%";
-        
-        $this->db->select('d.id, d.title, d.type, d.status, d.file_name, d.review_comment, d.created_at, u.fname, u.lname')
-                 ->table('documents d')
-                 ->join('users u', 'd.user_id = u.id');
-
-        $this->db->where('u.dept_id', $dept_id);
-
-        if (!empty($query)) {
-            $this->db->grouped(function($q) use ($search_term) {
-                $q->like('d.title', $search_term)
-                  ->or_like('d.description', $search_term); 
-            });
-        }
-        
-        // Filter out 'Archived' records permanently, similar to getAllDocuments
-        $this->db->where('d.status', '!=', 'Archived');
-        
-        return $this->db->order_by('d.created_at', 'DESC')->get_all();
-    }
+    // REMOVED: public function getArchivedDocumentsOnly(...) 
 
     public function getDocumentById(int $doc_id) {
         $query = "
             SELECT 
                 d.*, 
-                d.review_comment,
                 u.fname AS submitter_fname, 
                 u.lname AS submitter_lname
             FROM documents d
@@ -453,5 +428,27 @@ class OrgModel extends Model
     return $this->db->table('users')
         ->where('id', (int)$id)
         ->delete();
+    }
+
+    public function getDocumentsByDepartment(int $dept_id, $query = '') {
+        $search_term = "%{$query}%";
+        
+        $this->db->select('d.id, d.title, d.type, d.status, d.file_name, d.review_comment, d.created_at, u.fname, u.lname')
+                 ->table('documents d')
+                 ->join('users u', 'd.user_id = u.id');
+
+        $this->db->where('u.dept_id', $dept_id);
+
+        if (!empty($query)) {
+            $this->db->grouped(function($q) use ($search_term) {
+                $q->like('d.title', $search_term)
+                  ->or_like('d.description', $search_term); 
+            });
+        }
+        
+        // Filter out 'Archived' records permanently, similar to getAllDocuments
+        $this->db->where('d.status', '!=', 'Archived');
+        
+        return $this->db->order_by('d.created_at', 'DESC')->get_all();
     }
 }
