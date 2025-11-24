@@ -91,8 +91,7 @@ class OrgModel extends Model
         if (!empty($query)) {
             $this->db->grouped(function($q) use ($search_term) {
                 $q->like('d.title', $search_term)
-                  ->or_like('u.fname', $search_term)
-                  ->or_like('u.lname', $search_term); 
+                  ->or_like('d.description', $search_term); 
             });
         }
 
@@ -112,7 +111,8 @@ class OrgModel extends Model
             SELECT 
                 d.*, 
                 u.fname AS submitter_fname, 
-                u.lname AS submitter_lname
+                u.lname AS submitter_lname,
+                u.email AS email
             FROM documents d
             LEFT JOIN users u ON d.user_id = u.id
             WHERE d.id = ?
@@ -148,6 +148,9 @@ class OrgModel extends Model
                         ->update($data);
     }
 
+    /**
+     * Deletes a document record and its physical file permanently.
+     */
     public function deleteDocumentPermanently(int $doc_id) {
         $doc = $this->db->table('documents')->select('file_name')->where('id', $doc_id)->get();
         if (!$doc) return false;

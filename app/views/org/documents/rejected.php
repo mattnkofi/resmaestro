@@ -218,13 +218,7 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
             <div class="bg-red-950/20 p-5 rounded-xl border-l-4 border-red-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-red-900/30 transition">
                 <div class="flex flex-col mb-2 md:mb-0">
                     <span class="text-lg font-semibold text-red-200"><?= html_escape($title) ?></span>
-                    <span class="text-sm text-gray-400">Rejected By: <?= $reviewer_name ?> on <?= $rejection_date ?></span>
-                    <p class="text-xs text-red-400 mt-1 max-w-sm">Reason: <?= html_escape($reason) ?></p>
-                </div>
-                <div class="flex items-center space-x-4">
-                    
-                    <span class="text-sm text-gray-500">Action: Pending Resubmission</span>
-                    
+                    <span class="text-sm text-gray-400">Rejected on <?= $rejection_date ?></span>
                 </div>
             </div>
             <?php endforeach; ?>

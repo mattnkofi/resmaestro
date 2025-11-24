@@ -8,13 +8,17 @@ class OrgController extends Controller
 		parent::__construct();
 		$this->call->model('OrgModel');
 		
-		$this->call->helper(['common', 'auth', 'session']); 
+		// Load the email helper here as well
+		$this->call->helper(['common', 'auth', 'session', 'email']); 
 	}
 
 	public function dashboard()
 	{
 		$stats = $this->OrgModel->get_dashboard_stats();
 		$recent_activity = [];
+		
+		// Removed notification logic
+		
 		$this->call->view('org/dashboard', [
 			'stats' => $stats,
 			'recent_activity' => $recent_activity
@@ -27,43 +31,48 @@ class OrgController extends Controller
 
 	// Documents
 	public function documents_all() { 
-	$q = $this->io->get('q');
-	$status = $this->io->get('status');
-	
-	$docs = $this->OrgModel->getAllDocuments($q, $status); 
-	
-	$this->call->view('org/documents/all', [
-		'docs' => $docs,
-		'q' => $q,
-		'status' => $status
-	]); 
-}
+		$q = $this->io->get('q');
+		$status = $this->io->get('status');
+		
+		$docs = $this->OrgModel->getAllDocuments($q, $status); 
+		
+		// Removed notification logic
 
-// REMOVED: public function fetch_archived_documents_json()
-
-public function documents_delete() {
-	$doc_id = (int)$this->io->post('document_id');
-	$doc_title = $this->io->post('document_title') ?? 'Document';
-
-	$is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
-
-	if (!$is_authenticated || $doc_id <= 0) {
-		set_flash_alert('danger', 'Invalid request or session expired.');
-		redirect(BASE_URL . '/org/documents/rejected'); // <-- UPDATED REDIRECT
-		return;
+		$this->call->view('org/documents/all', [
+			'docs' => $docs,
+			'q' => $q,
+			'status' => $status
+		]); 
 	}
 
-	$success = $this->OrgModel->deleteDocumentPermanently($doc_id);
+	// REMOVED: public function fetch_archived_documents_json()
 
-	if ($success) {
-		set_flash_alert('success', "Document '{$doc_title}' permanently deleted.");
-	} else {
-		set_flash_alert('danger', "Failed to delete document '{$doc_title}'.");
+	/**
+	 * Deletes a document permanently (called from rejected documents view).
+	 */
+	public function documents_delete() {
+		$doc_id = (int)$this->io->post('document_id');
+		$doc_title = $this->io->post('document_title') ?? 'Document';
+
+		$is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+
+		if (!$is_authenticated || $doc_id <= 0) {
+			set_flash_alert('danger', 'Invalid request or session expired.');
+			redirect(BASE_URL . '/org/documents/rejected'); 
+			return;
+		}
+
+		$success = $this->OrgModel->deleteDocumentPermanently($doc_id);
+
+		if ($success) {
+			set_flash_alert('success', "Document '{$doc_title}' permanently deleted.");
+		} else {
+			set_flash_alert('danger', "Failed to delete document '{$doc_title}'.");
+		}
+		
+		// Redirect back to the Rejected Documents page
+		redirect(BASE_URL . '/org/documents/rejected'); 
 	}
-	
-	// Redirect back to the Rejected Documents page
-	redirect(BASE_URL . '/org/documents/rejected'); // <-- UPDATED REDIRECT
-}
 
 	public function documents_upload() {
 		
@@ -211,8 +220,54 @@ public function documents_delete() {
 	
 	$success_indicator = $this->OrgModel->updateDocument((int)$doc_id, $data_to_update);
 	
-	// 3. Handle response and redirect
+	// 3. Handle response, notification, and redirect
 	if ($success_indicator !== FALSE) {
+		
+		// FETCH DOCUMENT DETAILS TO GET SUBMITTER ID/EMAIL
+		$doc = $this->OrgModel->getDocumentById($doc_id); 
+		$submitter_id = $doc['user_id'] ?? null;
+		$submitter_email = $doc['email'] ?? null;
+		$submitter_fname = $doc['submitter_fname'] ?? 'User';
+		
+		if ($submitter_id) {
+			
+			// SEND EMAIL NOTIFICATION (New Interactive UI)
+			if ($submitter_email) {
+				
+				$is_approved = ($new_status === 'Approved');
+				$icon_html = $is_approved 
+					? '<div style="color: #10b981; font-size: 48px; line-height: 1; margin-bottom: 15px;">&#10003;</div>' // Green Check
+					: '<div style="color: #ef4444; font-size: 48px; line-height: 1; margin-bottom: 15px;">&#10006;</div>'; // Red X
+				$status_color = $is_approved ? '#10b981' : '#ef4444';
+				
+				$email_subject = "Maestro Update: Your Document '{$doc_title}' is {$new_status}";
+				$email_body = "
+					<div style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;'>
+						<div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 4px 8px rgba(0,0,0,0.05); padding: 30px; text-align: center;'>
+							
+							{$icon_html}
+							
+							<h1 style='color: {$status_color}; font-size: 24px; margin: 0 0 10px 0;'>Document Review Complete</h1>
+							
+							<p style='color: #333; font-size: 16px; margin: 0 0 20px 0;'>
+								Dear ".htmlspecialchars($submitter_fname).", the document <strong>".htmlspecialchars($doc_title)."</strong> has been processed.
+							</p>
+							
+							<div style='background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;'>
+								<p style='font-size: 14px; color: #555; margin: 0 0 5px 0;'><strong>Final Status:</strong> <span style='color: {$status_color};'>".htmlspecialchars($new_status)."</span></p>
+								<p style='font-size: 14px; color: #555; margin: 0;'><strong>Reviewer Comment:</strong> <em>".htmlspecialchars($review_comment)."</em></p>
+							</div>
+							
+							<p style='font-size: 12px; color: #999; margin-top: 30px;'>
+								This is an automated notification.
+							</p>
+						</div>
+					</div>
+				";
+				sendEmail($submitter_email, $email_subject, $email_body); 
+			}
+		}
+		
 		$message = "Status for '{$doc_title}' successfully changed to {$new_status}.";
 		set_flash_alert('success', $message);
 		
@@ -261,9 +316,6 @@ public function documents_delete() {
 			'reviewers' => $reviewers
 		]);
 	}
-
-    
-    
 
 	/**
 	 * Handles the POST request to resubmit an edited document.
@@ -392,7 +444,6 @@ public function documents_delete() {
 		set_flash_alert('success', 'Document "' . htmlspecialchars($new_data['title']) . '" successfully resubmitted and placed in Pending Review.');
 		// FINAL REDIRECT FIX: Redirect to the main documents all page
 		redirect(BASE_URL . '/org/documents/all'); 
-		return;
 	}
 
 	public function documents_approved() { 
@@ -408,11 +459,11 @@ public function documents_delete() {
 		]); 
 	}
 	
-	public function documents_rejected(){ 
-        $q = $this->io->get('q'); // <--- ADDED
-        $type = $this->io->get('type'); // <--- ADDED
+	public function documents_rejected() { 
+        $q = $this->io->get('q');
+        $type = $this->io->get('type');
         
-		$docs = $this->OrgModel->getRejectedDocuments($q, $type); // <--- UPDATED CALL
+		$docs = $this->OrgModel->getRejectedDocuments($q, $type);
 		
 		// FIX: Fetch reviewers for the resubmit modal on the rejected page
 		$reviewers = $this->OrgModel->getPotentialReviewers();
@@ -420,8 +471,8 @@ public function documents_delete() {
 		$this->call->view('org/documents/rejected', [
 			'docs' => $docs, 
 			'reviewers' => $reviewers,
-            'q' => $q, // <--- ADDED
-            'type' => $type // <--- ADDED
+            'q' => $q,
+            'type' => $type
 		]); 
 	}
     
