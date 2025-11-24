@@ -1,7 +1,8 @@
 <?php
 defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
-// Ensure data exists, defaulting to empty array if controller didn't pass it
 $user = $user ?? []; 
+$admin_roles = ['President', 'Adviser'];
+$can_manage_org = function_exists('has_permission') && has_permission($admin_roles);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -86,6 +87,7 @@ $user = $user ?? [];
                 </div>
             </div>
 
+            <?php if ($can_manage_org): ?>
             <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
                 <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
                     <span class="flex items-center gap-3">
@@ -101,6 +103,7 @@ $user = $user ?? [];
                     <a href="<?=BASE_URL?>/org/roles" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/roles') ? 'text-green-400 font-semibold' : '' ?>">Roles & Permissions</a>
                 </div>
             </div>
+            <?php endif; ?>
 
             <div class="pt-4">
                 <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">System</h2>
