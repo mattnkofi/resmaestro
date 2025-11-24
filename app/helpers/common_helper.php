@@ -24,8 +24,13 @@ if (! function_exists('flash_alert')) {
         
         if ($alert_type !== null) {
             $is_success = ($alert_type === 'success');
-            $bg_color = $is_success ? 'bg-green-700' : 'bg-red-700'; // Determine background color
-            $icon = $is_success ? 'fa-check-circle' : 'fa-triangle-exclamation'; // Determine icon
+            // --- NEW STYLING LOGIC ---
+            $icon = $is_success ? 'fa-check-circle' : 'fa-triangle-exclamation';
+            $icon_bg = $is_success ? 'bg-green-600' : 'bg-red-600';
+            $text_color = $is_success ? 'text-green-300' : 'text-red-300';
+            $ring_color = $is_success ? 'ring-green-500' : 'ring-red-500';
+            $border_color = $is_success ? 'border-green-600' : 'border-red-600';
+            // --- END NEW STYLING LOGIC ---
 
             // Toast HTML/Alpine.js Structure
             echo "
@@ -33,20 +38,22 @@ if (! function_exists('flash_alert')) {
                  x-show=\"show\" 
                  x-init=\"setTimeout(() => show = false, 5000)\"
                  x-transition:enter=\"transition ease-out duration-300\"
-                 x-transition:enter-start=\"opacity-0 translate-y-full sm:translate-y-0 sm:translate-x-full\"
-                 x-transition:enter-end=\"opacity-100 translate-y-0 sm:translate-x-0\"
+                 x-transition:enter-start=\"opacity-0 scale-95\"
+                 x-transition:enter-end=\"opacity-100 scale-100\"
                  x-transition:leave=\"transition ease-in duration-200\"
-                 x-transition:leave-start=\"opacity-100 translate-y-0 sm:translate-x-0\"
-                 x-transition:leave-end=\"opacity-0 translate-y-full sm:translate-y-0 sm:translate-x-full\"
-                 class='fixed bottom-0 right-0 p-4 z-50 w-full max-w-sm'>
+                 x-transition:leave-start=\"opacity-100 scale-100\"
+                 x-transition:leave-end=\"opacity-0 scale-95\"
+                 class='fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/3 z-50 w-full max-w-lg'>
                 
-                <div class='{$bg_color} text-white p-4 rounded-lg shadow-2xl flex items-center space-x-3 border border-white/20'>
-                    <i class='fa-solid {$icon} text-lg'></i>
-                    <p class='text-sm font-medium flex-1'>
+                <div class='p-6 rounded-md shadow-2xl flex items-center space-x-5 border-2 {$border_color} ring-opacity-50 {$ring_color} ring-offset-4 ring-offset-gray-900' style='background: rgba(11, 15, 12, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);'>
+                    <div class='flex-shrink-0 w-12 h-12 rounded-md flex items-center justify-center {$icon_bg}'>
+                        <i class='fa-solid {$icon} text-xl text-white'></i>
+                    </div>
+                    <p class='text-lg font-extrabold flex-1 {$text_color}'>
                         " . htmlspecialchars($message) . "
                     </p>
-                    <button @click='show = false' class='flex-shrink-0 text-white opacity-75 hover:opacity-100 transition'>
-                        <i class='fa-solid fa-xmark'></i>
+                    <button @click='show = false' class='flex-shrink-0 text-white/70 hover:text-white transition'>
+                        <i class='fa-solid fa-xmark text-xl'></i>
                     </button>
                 </div>
             </div>";

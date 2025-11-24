@@ -277,22 +277,6 @@ $total_members = array_sum(array_column($depts, 'members_count'));
                                     class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 text-white placeholder-gray-500" 
                                     value="<?= html_escape(set_value('name') ?? '') ?>" placeholder="Department Name (e.g., Marketing)" required>
                             </div>
-                            
-                            <div>
-                                <label for="member_ids" class="block text-sm font-medium text-gray-400 mb-1">Assign Initial Members (Optional)</label>
-                                <select name="member_ids[]" id="member_ids" multiple size="4" 
-                                    class="w-full bg-green-900 border border-green-800 p-3 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 text-white">
-                                    <?php if (empty($potential_members)): ?>
-                                        <option value="" disabled>No unassigned members found.</option>
-                                    <?php else: ?>
-                                        <?php foreach($potential_members as $member): ?>
-                                            <option value="<?= $member['id'] ?>"><?= htmlspecialchars($member['fname'] . ' ' . $member['lname']) ?></option>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </select>
-                                <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple members (only unassigned members appear).</p>
-                            </div>
-                        </div>
                         
                         <button type="submit" class="w-full bg-yellow-700 px-6 py-3 rounded-xl hover:bg-yellow-600 font-bold text-lg transition shadow-lg shadow-yellow-900/40">
                             <i class="fa-solid fa-sitemap mr-2"></i> Create Department & Assign

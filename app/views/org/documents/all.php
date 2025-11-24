@@ -266,85 +266,74 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 					</tr>
 				</thead>
 				<tbody class="bg-[#0f1511] text-gray-300">
+<tbody class="bg-[#0f1511] text-gray-300">
 
-				<?php 
-				$docs = $docs ?? [];
-				if (!empty($docs)):
-				foreach($docs as $doc): 
-					$doc_id = $doc['id'] ?? $doc->id ?? 0;
-					$doc_title = $doc['title'] ?? $doc->title ?? '';
-					$doc_file_name = $doc['file_name'] ?? $doc->file_name ?? '';
-					$doc_status = $doc['status'] ?? $doc->status ?? '';
-					$doc_type = $doc['type'] ?? $doc->type ?? '';
-					
-					// FIX: This line now reliably constructs the submitter's name from the model
-					$submitter = html_escape(($doc['fname'] ?? $doc->fname ?? '') . ' ' . ($doc['lname'] ?? $doc->lname ?? ''));
-					
-					// The following variables were used to silence warnings and are kept clean
-					$doc_created_at = $doc['created_at'] ?? $doc->created_at ?? '';
-					$reviewer_fname = $doc['reviewer_fname'] ?? $doc->reviewer_fname ?? '';
-					$reviewer_lname = $doc['reviewer_lname'] ?? $doc->reviewer_lname ?? '';
-					$reviewer_name = html_escape(trim($reviewer_fname . ' ' . $reviewer_lname));
-					$rejection_date = date('M d, Y', strtotime($doc->created_at ?? $doc['created_at'] ?? 'now'));
-					$reason = $doc['review_comment'] ?? $doc->review_comment ?? 'No reason provided';
-					$doc_id = $doc->id ?? $doc['id'] ?? 0;
+<?php 
+$docs = $docs ?? [];
+if (!empty($docs)):
+foreach($docs as $doc): 
+    $doc_id = $doc['id'] ?? $doc->id ?? 0;
+    $doc_title = $doc['title'] ?? $doc->title ?? '';
+    $doc_file_name = $doc['file_name'] ?? $doc->file_name ?? '';
+    $doc_status = $doc['status'] ?? $doc->status ?? '';
+    $doc_type = $doc['type'] ?? $doc->type ?? '';
+    // --- FIX 1: Safely extract Description and Submitter Names ---
+    $doc_description = $doc['description'] ?? $doc->description ?? '';
+    $submitter_fname = $doc['fname'] ?? $doc->fname ?? '';
+    $submitter_lname = $doc['lname'] ?? $doc->lname ?? '';
+    $submitter = html_escape(trim($submitter_fname . ' ' . $submitter_lname));
+    
+    // Handle Created At display
+    $doc_created_at = $doc['created_at'] ?? $doc->created_at ?? date('Y-m-d H:i:s');
+    $doc_created_at_display = date('M d, Y', strtotime($doc_created_at));
 
-					$doc_created_at_display = 'N/A';
-					if (!empty($doc_created_at)) {
-						try {
-							$date_obj = new DateTime($doc_created_at);
-							$date_obj->setTimezone(new DateTimeZone('Asia/Manila')); 
-							$doc_created_at_display = $date_obj->format('M d, Y');
-						} catch (\Exception $e) {
-							$doc_created_at_display = date('M d, Y', strtotime($doc_created_at)); // Fallback
-						}
-					}
+    // Determine status color/class dynamically
+    $status_class = match ($doc_status) {
+        'Approved' => 'text-green-400',
+        'Pending Review' => 'text-yellow-400',
+        'Rejected' => 'text-red-500',
+        default => 'text-gray-400',
+    };
 
-					// Determine status color/class dynamically
-					$status_class = match ($doc_status) {
-						'Approved' => 'text-green-400',
-						'Pending Review' => 'text-yellow-400',
-						'Rejected' => 'text-red-500',
-						default => 'text-gray-400',
-					};
-
-					$js_doc = json_encode([
-						'id' => $doc_id, 
-						'title' => $doc_title, 
-						'file_name' => $doc_file_name, 
-						'status' => $doc_status, 
-						'submitter' => $submitter,
-						'type' => $doc_type,
-						'created_at' => $doc_created_at_display 
-					]);
-					
-					$js_doc = html_escape($js_doc);
-				?>
-					<tr class="border-b border-green-800 hover:bg-green-700/10 transition">
-						<td class="p-4 font-medium text-green-200"><?= html_escape($doc_title) ?></td>
-						<td class="p-4"><?= html_escape($doc_type) ?></td>
-						<td class="p-4 text-gray-400"><?= html_escape($submitter) ?></td> <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
-						<td class="p-4 text-center">
-							<button @click="setDoc(<?= $js_doc ?>)" class="text-yellow-400 hover:text-yellow-200 font-xl mr-4">
-								<i class="fa-solid fa-eye mr-1"></i> View Details
-							</button>
-                            </td>
-					</tr>					
-					<form id="delete-form-doc-<?= $doc_id ?>" method="POST" action="<?= BASE_URL ?>/org/documents/delete" style="display: none;">
-						<?php csrf_field(); ?>
-						<input type="hidden" name="document_id" value="<?= $doc_id ?>">
-						<input type="hidden" name="document_title" value="<?= html_escape($doc_title) ?>">
-					</form>
-				<?php endforeach; 
-					else: ?>
-					<tr>
-						<td colspan="4" class="p-8 text-center text-gray-500">
-							<i class="fa-solid fa-file-alt text-4xl mb-3 text-green-500"></i>
-							<p class="text-lg">No documents found matching your criteria.</p>
-						</td>
-					</tr>
-					<?php endif; ?>
-				</tbody>
+    // --- FIX 2: Prepare complete data object for the Alpine.js modal (now includes description) ---
+    $js_doc = json_encode([
+        'id' => $doc_id, 
+        'title' => $doc_title, 
+        'file_name' => $doc_file_name, 
+        'status' => $doc_status, 
+        'submitter' => $submitter,
+        'type' => $doc_type,
+        'description' => $doc_description, // CRITICAL: Added missing field
+        'created_at' => $doc_created_at_display 
+    ]);
+    
+    $js_doc = html_escape($js_doc);
+?>
+    <tr class="border-b border-green-800 hover:bg-green-700/10 transition">
+        <td class="p-4 font-medium text-green-200"><?= html_escape($doc_title) ?></td>
+        <td class="p-4"><?= html_escape($doc_type) ?></td>
+        <td class="p-4 text-gray-400"><?= $submitter ?></td> <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
+        <td class="p-4 text-center">
+            <button @click="setDoc(<?= $js_doc ?>)" class="text-yellow-400 hover:text-yellow-200 font-xl mr-4">
+                <i class="fa-solid fa-eye mr-1"></i> View Details
+            </button>
+        </td>
+    </tr>					
+    <form id="delete-form-doc-<?= $doc_id ?>" method="POST" action="<?= BASE_URL ?>/org/documents/delete" style="display: none;">
+        <?php csrf_field(); ?>
+        <input type="hidden" name="document_id" value="<?= $doc_id ?>">
+        <input type="hidden" name="document_title" value="<?= html_escape($doc_title) ?>">
+    </form>
+<?php endforeach; 
+    else: ?>
+    <tr>
+        <td colspan="5" class="p-8 text-center text-gray-500">
+            <i class="fa-solid fa-file-alt text-4xl mb-3 text-green-500"></i>
+            <p class="text-lg">No documents found matching your criteria.</p>
+        </td>
+    </tr>
+<?php endif; ?>
+</tbody>
 			</table>
 		</div>
 	</div>

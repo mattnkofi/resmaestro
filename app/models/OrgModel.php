@@ -31,28 +31,57 @@ class OrgModel extends Model
     }
 
     public function getAllDocuments($query = '', $status = '') {
-    $search_term = "%{$query}%";
-    
-    $this->db->select('d.id, d.title, d.type, d.status, d.file_name, u.fname, u.lname')
-             ->table('documents d')
-             ->join('users u', 'd.user_id = u.id');
-    
-    if (!empty($query)) {
-        $this->db->grouped(function($q) use ($search_term) {
-            $q->like('d.title', $search_term)
-              ->or_like('d.description', $search_term) 
-              ->or_like('u.fname', $search_term)
-              ->or_like('u.lname', $search_term);
-        });
-    }
+        $search_term = "%{$query}%";
+
+        // 1. First Query: Get document data including user_id (NO JOIN)
+        $this->db->select('d.id, d.title, d.type, d.status, d.file_name, d.description, d.created_at, d.user_id')
+                 ->table('documents d');
+
+        if (!empty($query)) {
+            $this->db->grouped(function($q) use ($search_term) {
+                $q->like('d.title', $search_term)
+                  ->or_like('d.description', $search_term);
+            });
+        }
+
         if (!empty($status)) {
             $this->db->where('d.status', $status);
         } else {
-            // Filter out 'Archived' records permanently
             $this->db->where('d.status', '!=', 'Archived');
         }
-        
-        return $this->db->order_by('d.created_at', 'DESC')->get_all();
+
+        $docs = $this->db->order_by('d.created_at', 'DESC')->get_all();
+
+        if (empty($docs)) {
+            return [];
+        }
+
+        // 2. Collect all unique user IDs for batch lookup
+        $user_ids = array_unique(array_column($docs, 'user_id'));
+
+        // 3. Second Query: Fetch all required user names in one batch (NO JOIN)
+        $users_data = $this->db->table('users')
+                               ->select('id, fname, lname')
+                               ->in('id', $user_ids) // FIX: Changed where_in to the correct in() method
+                               ->get_all();
+
+        // 4. Map user data for easy lookup [id => user_data]
+        $users_lookup = [];
+        foreach ($users_data as $user) {
+            $users_lookup[$user['id']] = $user;
+        }
+
+        // 5. Merge user data into document records
+        foreach ($docs as &$doc) {
+            $user_id = $doc['user_id'];
+            $user = $users_lookup[$user_id] ?? ['fname' => 'Unknown', 'lname' => 'User'];
+            $doc['fname'] = $user['fname'];
+            $doc['lname'] = $user['lname'];
+            unset($doc['user_id']); 
+        }
+        unset($doc); 
+
+        return $docs;
     }
 
     public function getApprovedDocuments($query = '', $type = '') {

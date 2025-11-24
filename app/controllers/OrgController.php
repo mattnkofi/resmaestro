@@ -45,6 +45,11 @@ class OrgController extends Controller
 		]); 
 	}
 
+	// REMOVED: public function fetch_archived_documents_json()
+
+	/**
+	 * Deletes a document permanently (called from rejected documents view).
+	 */
 	public function documents_delete() {
 		$doc_id = (int)$this->io->post('document_id');
 		$doc_title = $this->io->post('document_title') ?? 'Document';
@@ -312,6 +317,9 @@ class OrgController extends Controller
 		]);
 	}
 
+	/**
+	 * Handles the POST request to resubmit an edited document.
+	 */
 	public function documents_resubmit() {
 		$original_doc_id = (int)$this->io->post('document_id'); // Ensure it's an integer
 		$user_id = get_user_id(); 
@@ -472,7 +480,7 @@ class OrgController extends Controller
     // ORGANIZATION: MEMBERS (UPDATED)
     // ----------------------------------------------------------------------
 
-    public function members_list() { 
+public function members_list() { 
         $q = $this->io->get('q');
         $selected_role = $this->io->get('role'); 
         
@@ -509,12 +517,10 @@ class OrgController extends Controller
                 }
             }
         }
-        
+
         $this->call->view('org/members/add', [
             'departments' => $departments,
-            'roles' => $roles,
-            // Passing for view messages/conditional logic if needed
-            'current_user_dept_id' => $user_dept_id 
+            'roles' => $roles
         ]); 
     }
 
@@ -527,18 +533,6 @@ class OrgController extends Controller
         
         if (!$this->form_validation->run()) {
             set_flash_alert('danger', $this->form_validation->errors());
-            redirect(BASE_URL . '/org/members/add');
-            return;
-        }
-
-        $email = $this->io->post('email');
-        $dept_id = (int)$this->io->post('dept_id');
-        $role_id = (int)$this->io->post('role_id');
-
-        $existing_user = $this->OrgModel->getMemberByEmail($email);
-        
-        if (empty($existing_user)) {
-             set_flash_alert('danger', 'Member not found. Please ensure the user has signed up before attempting to add them to the organization.');
             redirect(BASE_URL . '/org/members/add');
             return;
         }
@@ -561,6 +555,17 @@ class OrgController extends Controller
             return;
         }
 
+        $email = $this->io->post('email');
+        $dept_id = (int)$this->io->post('dept_id');
+        $role_id = (int)$this->io->post('role_id');
+
+        $existing_user = $this->OrgModel->getMemberByEmail($email);
+        
+        if (empty($existing_user)) {
+             set_flash_alert('danger', 'Member not found. Please ensure the user has signed up before attempting to add them to the organization.');
+            redirect(BASE_URL . '/org/members/add');
+            return;
+        }
         if ($this->OrgModel->isRoleUniqueInDepartment($role_id, $dept_id, $existing_user['id'])) {
             $roles = $this->OrgModel->getRoles();
             $role_name = array_filter($roles, fn($r) => (int)($r['id'] ?? 0) === $role_id);
@@ -570,7 +575,7 @@ class OrgController extends Controller
             redirect(BASE_URL . '/org/members/add');
             return;
         }
-
+        
         $member_id = (int)$existing_user['id'];
         $full_name = trim($existing_user['fname'] . ' ' . $existing_user['lname']);
 
@@ -590,7 +595,7 @@ class OrgController extends Controller
             redirect(BASE_URL . '/org/members/add');
         }
     }
-
+    
     public function members_update() {
     $this->call->library('Form_validation');
     
@@ -887,6 +892,13 @@ public function members_delete() {
             redirect(BASE_URL . '/org/departments');
         }
     }
+
+    protected function _is_admin_or_manager() {
+        $admin_roles = ['Administrator', 'President', 'Adviser'];
+        $current_role = $_SESSION['user_role'] ?? '';
+        return in_array($current_role, $admin_roles);
+    }
+
     public function departments_delete() {
         if (!$this->_is_admin_or_manager()) {
             set_flash_alert('danger', 'Unauthorized: You do not have permission to delete departments.');
@@ -894,7 +906,7 @@ public function members_delete() {
             return;
         }
         $dept_id = (int)$this->io->post('dept_id');
-        $submitted_code = $this->io->post('verification_code');
+        $submitted_code = $this->io->post('verification_code'); 
         $session_code = $_SESSION['dept_delete_code'] ?? null;
         
         $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
@@ -914,7 +926,7 @@ public function members_delete() {
             $dept_name = htmlspecialchars($department['name'] ?? 'Department');
             
             set_flash_alert('warning', 
-                "<b>Verification Required:</b> To confirm deletion of <b>{$dept_name}</b>, please re-submit the form and enter the code <b>{$new_code}</b> in the confirmation box."
+                "Verification Required: To confirm deletion of {$dept_name}, please re-submit the form and enter the code {$new_code} in the confirmation box."
             );
             redirect(BASE_URL . '/org/departments');
             return;
@@ -931,7 +943,7 @@ public function members_delete() {
 
         if ($success) {
             $full_name = htmlspecialchars(trim($dept_name));
-            set_flash_alert('success', "Department <b>{$full_name},/b> deleted successfully and all members unassigned.");
+            set_flash_alert('success', "Department {$full_name}, deleted successfully and all members unassigned.");
         } else {
             set_flash_alert('danger', 'Failed to delete department. Please try again.');
         }
@@ -962,20 +974,121 @@ public function members_delete() {
              redirect(BASE_URL . '/org/dashboard');
              return;
         }
-
         $dept_name = null;
         if (!empty($user_details['dept_id'])) {
             $department = $this->OrgModel->getDepartmentById($user_details['dept_id']);
             $dept_name = $department['name'] ?? null;
         }
 
-        // Combine base details with department name for the view
         $user_details['dept_name'] = $dept_name; 
         // --- END FETCH ---
 
         $this->call->view('org/profile', [
             'user' => $user_details 
         ]); 
+    }
+    
+     public function documents_department_review() {
+        // 1. Get user details to find their department ID
+        $user_id = get_user_id();
+        $user = $this->OrgModel->getMemberById($user_id);
+        $dept_id = $user['dept_id'] ?? 0;
+        
+        // Initialize variables for the view
+        $is_member_assigned = ($dept_id !== 0 && $dept_id !== NULL); // <-- Flag: True if assigned
+        $dept_docs = [];
+        $dept_name = 'Unassigned';
+        $q = $this->io->get('q'); 
+        
+        // 2. Check if user is assigned to a department
+        if ($is_member_assigned) {
+            // 3. Fetch documents for that department
+            $dept_docs = $this->OrgModel->getDocumentsByDepartment((int)$dept_id, $q);
+            
+            // 4. Fetch department name for the view title
+            $department = $this->OrgModel->getDepartmentById((int)$dept_id);
+            $dept_name = $department['name'] ?? 'Your Department';
+        }
+        
+        // 5. Load the new view (no redirect here)
+        $this->call->view('org/documents/department_review', [
+            'docs' => $dept_docs,
+            'dept_name' => $dept_name,
+            'q' => $q,
+            'is_member_assigned' => $is_member_assigned // <-- PASS THE FLAG
+        ]); 
+    }
+
+    public function profile_update() {
+        $user_id = (int)get_user_id();
+        
+        if ($user_id <= 0) {
+            set_flash_alert('danger', 'Session expired. Please log in again.');
+            redirect(BASE_URL . '/login');
+            return;
+        }
+
+        $this->call->library('Form_validation');
+        $this->call->library('lauth'); 
+        
+        $this->form_validation->name('fname|First Name')->required()->max_length(50);
+        $this->form_validation->name('lname|Last Name')->required()->max_length(50);
+        
+        $new_password = $this->io->post('new_password');
+        $confirm_password = $this->io->post('confirm_password');
+        
+        if (!empty($new_password)) {
+            // Re-validate password fields using Form_validation functions if needed, 
+            // but simple checks suffice here.
+            if (strlen($new_password) < 8) {
+                set_flash_alert('danger', 'New password must be at least 8 characters long.');
+                redirect(BASE_URL . '/org/profile');
+                return;
+            }
+            if ($new_password !== $confirm_password) {
+                set_flash_alert('danger', 'New password and confirmation do not match.');
+                redirect(BASE_URL . '/org/profile');
+                return;
+            }
+        }
+        
+        if (!$this->form_validation->run()) {
+            set_flash_alert('danger', $this->form_validation->errors());
+            redirect(BASE_URL . '/org/profile');
+            return;
+        }
+        
+        $data = [
+            'fname'     => $this->io->post('fname'),
+            'lname'     => $this->io->post('lname'),
+            'updated_at' => date('Y-m-d H:i:s')
+        ];
+        
+        if (!empty($new_password)) {
+            // Hash the new password before storage
+            $data['password'] = $this->lauth->passwordhash($new_password);
+        }
+        
+        $success = $this->OrgModel->updateMember($user_id, $data);
+        
+        if ($success !== FALSE) {
+            // Refresh session variables immediately since the name might have changed
+            $full_name = ($data['fname'] ?? '') . ' ' . ($data['lname'] ?? '');
+            
+            $this->session->set_userdata([
+                'user_name' => $full_name,
+            ]);
+
+            $message = ($success > 0) ? 
+                'Profile successfully updated.' :
+                'Profile saved (no changes detected).';
+
+            set_flash_alert('success', $message);
+        } else {
+            set_flash_alert('danger', 'Failed to update profile. A critical database error occurred.');
+        }
+        
+        redirect(BASE_URL . '/org/profile');
     }
 
     public function leave_department() {
@@ -1010,113 +1123,11 @@ public function members_delete() {
                 $_SESSION['user_dept_name'] = 'Unassigned';
             }
 
-            set_flash_alert('success', 'You have successfully left the <b>' . htmlspecialchars($old_dept_name) . '</b> department. You are now unassigned.');
+            set_flash_alert('success', 'You have successfully left the ' . htmlspecialchars($old_dept_name) . ' department. You are now unassigned.');
         } else {
             set_flash_alert('danger', 'Failed to leave department due to a system error.');
         }
         
         redirect(BASE_URL . '/org/profile');
-    }
-
-    
-     public function documents_department_review() {
-        $user_id = get_user_id();
-        $user = $this->OrgModel->getMemberById($user_id);
-        $dept_id = $user['dept_id'] ?? 0;
-        
-        $is_member_assigned = ($dept_id !== 0 && $dept_id !== NULL); // <-- Flag: True if assigned
-        $dept_docs = [];
-        $dept_name = 'Unassigned';
-        $q = $this->io->get('q'); 
-        
-        if ($is_member_assigned) {
-            $dept_docs = $this->OrgModel->getDocumentsByDepartment((int)$dept_id, $q);
-            
-            // 4. Fetch department name for the view title
-            $department = $this->OrgModel->getDepartmentById((int)$dept_id);
-            $dept_name = $department['name'] ?? 'Your Department';
-        }
-        
-        $this->call->view('org/documents/department_review', [
-            'docs' => $dept_docs,
-            'dept_name' => $dept_name,
-            'q' => $q,
-            'is_member_assigned' => $is_member_assigned 
-        ]); 
-    }
-
-    public function profile_update() {
-        $user_id = (int)get_user_id();
-        
-        if ($user_id <= 0) {
-            set_flash_alert('danger', 'Session expired. Please log in again.');
-            redirect(BASE_URL . '/login');
-            return;
-        }
-
-        $this->call->library('Form_validation');
-        $this->call->library('lauth'); 
-        
-        $this->form_validation->name('fname|First Name')->required()->max_length(50);
-        $this->form_validation->name('lname|Last Name')->required()->max_length(50);
-        
-        $new_password = $this->io->post('new_password');
-        $confirm_password = $this->io->post('confirm_password');
-        
-        if (!empty($new_password)) {
-            if (strlen($new_password) < 8) {
-                set_flash_alert('danger', 'New password must be at least 8 characters long.');
-                redirect(BASE_URL . '/org/profile');
-                return;
-            }
-            if ($new_password !== $confirm_password) {
-                set_flash_alert('danger', 'New password and confirmation do not match.');
-                redirect(BASE_URL . '/org/profile');
-                return;
-            }
-        }
-        
-        if (!$this->form_validation->run()) {
-            set_flash_alert('danger', $this->form_validation->errors());
-            redirect(BASE_URL . '/org/profile');
-            return;
-        }
-        
-        $data = [
-            'fname'     => $this->io->post('fname'),
-            'lname'     => $this->io->post('lname'),
-            'updated_at' => date('Y-m-d H:i:s')
-        ];
-        
-        if (!empty($new_password)) {
-            // Hash the new password before storage
-            $data['password'] = $this->lauth->passwordhash($new_password);
-        }
-        
-        $success = $this->OrgModel->updateMember($user_id, $data);
-        
-        if ($success !== FALSE) {
-            $full_name = ($data['fname'] ?? '') . ' ' . ($data['lname'] ?? '');
-            
-            $this->session->set_userdata([
-                'user_name' => $full_name,
-            ]);
-
-            $message = ($success > 0) ? 
-                'Profile successfully updated.' :
-                'Profile saved (no changes detected).';
-
-            set_flash_alert('success', $message);
-        } else {
-            set_flash_alert('danger', 'Failed to update profile. A critical database error occurred.');
-        }
-        
-        redirect(BASE_URL . '/org/profile');
-    }
-
-    protected function _is_admin_or_manager() {
-        $admin_roles = ['Administrator', 'President', 'Adviser'];
-        $current_role = $_SESSION['user_role'] ?? '';
-        return in_array($current_role, $admin_roles);
     }
 }
