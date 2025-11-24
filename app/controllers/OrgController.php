@@ -845,6 +845,11 @@ public function members_delete() {
     }
     
     public function departments_update() {
+        if (!$this->_is_admin_or_manager()) {
+            set_flash_alert('danger', 'Unauthorized: You do not have permission to update departments.');
+            redirect(BASE_URL . '/org/departments');
+            return;
+        }
         $this->call->library('Form_validation');
         
         $dept_id = (int)$this->io->post('dept_id');
@@ -882,10 +887,14 @@ public function members_delete() {
             redirect(BASE_URL . '/org/departments');
         }
     }
-
     public function departments_delete() {
+        if (!$this->_is_admin_or_manager()) {
+            set_flash_alert('danger', 'Unauthorized: You do not have permission to delete departments.');
+            redirect(BASE_URL . '/org/departments');
+            return;
+        }
         $dept_id = (int)$this->io->post('dept_id');
-        $submitted_code = $this->io->post('verification_code'); 
+        $submitted_code = $this->io->post('verification_code');
         $session_code = $_SESSION['dept_delete_code'] ?? null;
         
         $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
@@ -1103,5 +1112,11 @@ public function members_delete() {
         }
         
         redirect(BASE_URL . '/org/profile');
+    }
+
+    protected function _is_admin_or_manager() {
+        $admin_roles = ['Administrator', 'President', 'Adviser'];
+        $current_role = $_SESSION['user_role'] ?? '';
+        return in_array($current_role, $admin_roles);
     }
 }
