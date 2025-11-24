@@ -1,3 +1,22 @@
+<?php
+// Define BASE_URL safely in case the helper wasn't fully loaded yet
+if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+$BASE_URL = BASE_URL ?? '';
+$current_uri = $_SERVER['REQUEST_URI'] ?? '/org/dashboard'; 
+
+// --- FIX: Define Sidebar Link State Variables ---
+$is_documents_open = str_contains($current_uri, '/org/documents/');
+$is_review_open = str_contains($current_uri, '/org/review/');
+$is_organization_open = str_contains($current_uri, '/org/members/') 
+                        || str_contains($current_uri, '/org/departments') 
+                        || str_contains($current_uri, '/org/roles');
+$is_reports_open = str_contains($current_uri, '/org/reports/');
+$is_announcements_open = str_contains($current_uri, '/org/announcements'); // New flag
+// --- END FIX ---
+
+// Define roles here (copied from OrgController for visibility check)
+$CAN_MANAGE_ANNOUNCEMENTS = ['President', 'Adviser', 'Secretary'];
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,7 +68,8 @@
 
             <div>
                 <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">Main</h2>
-                <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg text-green-400 font-semibold bg-green-900/40 hover:bg-green-700/50 transition">
+                <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition
+                    <?= $current_uri == BASE_URL.'/org/dashboard' ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">
                     <i class="fa-solid fa-gauge w-5 text-center"></i>
                     <span>Dashboard</span>
                 </a>
@@ -91,6 +111,15 @@
             <div class="pt-4">
                 <h2 class="text-xs text-gray-500 uppercase mb-2 ml-2 tracking-wider font-semibold">System</h2>
             </div>
+            
+            <?php if (function_exists('has_permission') && has_permission($CAN_MANAGE_ANNOUNCEMENTS)): ?>
+                <a href="<?=BASE_URL?>/org/announcements" class="flex items-center gap-3 p-3 rounded-lg hover:bg-yellow-700/50 transition
+                    <?= $is_announcements_open ? 'text-yellow-400 font-semibold bg-yellow-900/40' : '' ?>">
+                    <i class="fa-solid fa-bullhorn w-5 text-center <?= $is_announcements_open ? 'text-yellow-400' : '' ?>"></i>
+                    <span class="<?= $is_announcements_open ? 'text-yellow-400' : '' ?>">Announcements</span>
+                </a>
+            <?php endif; ?>
+
         </nav>
 
         <div class="border-t border-green-800 px-4 py-4">

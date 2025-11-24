@@ -460,4 +460,59 @@ class OrgModel extends Model
         
         return $this->db->order_by('d.created_at', 'DESC')->get_all();
     }
+    
+    // --- ANNOUNCEMENT MANAGEMENT METHODS (NEW) ---
+
+    /**
+     * Fetches all announcements (active and inactive) for management.
+     * @return array
+     */
+    public function getAllAnnouncements() {
+        return $this->db->table('announcements a')
+                        ->select('a.*, u.fname, u.lname')
+                        ->join('users u', 'a.user_id = u.id')
+                        ->order_by('a.created_at', 'DESC')
+                        ->get_all();
+    }
+
+    /**
+     * Fetches active announcements for the dashboard.
+     * @return array
+     */
+    public function getActiveAnnouncements() {
+        return $this->db->table('announcements a')
+                        ->select('a.id, a.title, a.content, a.created_at, u.fname, u.lname')
+                        ->join('users u', 'a.user_id = u.id')
+                        ->where('a.is_active', 1)
+                        ->where('a.expires_at', '>', date('Y-m-d H:i:s'))
+                        ->or_where('a.expires_at', NULL)
+                        ->order_by('a.created_at', 'DESC')
+                        ->get_all();
+    }
+
+    /**
+     * Inserts a new announcement.
+     */
+    public function insertAnnouncement(array $data) {
+        $this->db->table('announcements')->insert($data);
+        return $this->db->last_id();
+    }
+
+    /**
+     * Updates an existing announcement.
+     */
+    public function updateAnnouncement(int $id, array $data) {
+        return $this->db->table('announcements')
+                        ->where('id', $id)
+                        ->update($data);
+    }
+
+    /**
+     * Deletes an announcement permanently.
+     */
+    public function deleteAnnouncement(int $id) {
+        return $this->db->table('announcements')
+                        ->where('id', $id)
+                        ->delete();
+    }
 }

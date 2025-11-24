@@ -58,3 +58,7 @@ $router->post('/org/departments/delete', 'OrgController::departments_delete');
 $router->get('/org/settings', 'OrgController::settings');
 $router->get('/org/profile', 'OrgController::profile');
 $router->post('/org/profile/update', 'OrgController::profile_update');
+
+$router->get('/org/announcements', 'OrgController::announcements');
+$router->post('/org/announcements/store', 'OrgController::announcements_store');
+$router->post('/org/announcements/delete', 'OrgController::announcements_delete');
