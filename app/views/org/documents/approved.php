@@ -165,20 +165,15 @@
         </form>
         <div class="space-y-4">
     <?php
-    // Use the real data passed from the controller
-    $docs = $approved_docs ?? [];
+
+$docs = $approved_docs ?? [];
     
     foreach($docs as $doc): 
-        // FIX: Safely access approver names using the null coalescing operator (??) 
-        // and default to 'System' if the reviewer data is missing.
         $approver_fname = $doc['approver_fname'] ?? 'System'; //
         $approver_lname = $doc['approver_lname'] ?? ''; //
-        
-        // Use the approver's name from the JOIN
         $approver_name = html_escape(trim($approver_fname . ' ' . $approver_lname)); //
-        
-        // FIX: Use 'created_at' field which is guaranteed to exist.
-        $approved_date = date('M d, Y', strtotime($doc['created_at']));
+        $date_value = $doc['approved_at'] ?? $doc['created_at'] ?? 'now';
+        $approved_date = date('M d, Y', strtotime($date_value));
     ?>
     <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-green-900/40 transition">
         <div class="flex flex-col mb-2 md:mb-0">

@@ -126,7 +126,6 @@ class Auth extends Controller
 
     public function login()
     {
-        // Redirect if already logged in
         if ($this->lauth->is_logged_in()) {
             redirect(BASE_URL . '/org/dashboard'); 
             return;
@@ -165,17 +164,15 @@ class Auth extends Controller
             $_SESSION['user_id'] = $user->id;
             $_SESSION['username'] = $user->username;
 
-            $role_name = 'General Member'; // Default/Fallback
             $role_id = $full_user_details['role_id'] ?? NULL;
+            $role_name = 'General Member'; 
             
             if ($role_id) {
-                $roles = $this->OrgModel->getRoles();
-                $found_role = array_filter($roles, fn($r) => (int)($r['id'] ?? 0) === (int)$role_id);
-                $role_name = reset($found_role)['name'] ?? 'General Member';
+                $role_name = $this->OrgModel->getRoleNameByRoleId($role_id);
             }
             
             $_SESSION['user_name'] = ($full_user_details['fname'] ?? '') . ' ' . ($full_user_details['lname'] ?? '');
-            $_SESSION['user_role'] = $role_name; // Set the actual role name
+            $_SESSION['user_role'] = $role_name; // Set the actual role name (e.g., 'Adviser')
             $_SESSION['is_logged_in'] = true;
             
             if (function_exists('session_write_close')) {

@@ -4,6 +4,8 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 // The class must extend the base Controller class
 class OrgController extends Controller
 {
+    private const ADMIN_ROLES = ['President', 'Adviser']; // Line 14
+
 	public function __construct() {
 		parent::__construct();
 		$this->call->model('OrgModel');
@@ -42,6 +44,11 @@ class OrgController extends Controller
 // REMOVED: public function fetch_archived_documents_json()
 
 public function documents_delete() {
+    if (!has_permission(self::ADMIN_ROLES)) {
+        set_flash_alert('danger', 'Unauthorized: You do not have permission to permanently delete documents.');
+        redirect(BASE_URL . '/org/documents/rejected');
+        return;
+    }
 	$doc_id = (int)$this->io->post('document_id');
 	$doc_title = $this->io->post('document_title') ?? 'Document';
 
@@ -172,7 +179,7 @@ public function documents_delete() {
 	$doc_id = (int)$this->io->post('document_id');
 	$new_status = $this->io->post('new_status');
 	$doc_title = $this->io->post('document_title') ?? 'Document';
-	
+	$review_comment = $this->io->post('review_comment') ?? '';
 	$user_id = (int)get_user_id();
 	$reviewer_id_to_send = ($user_id > 0) ? $user_id : NULL;
 
@@ -195,8 +202,9 @@ public function documents_delete() {
 		'status' => $new_status,
 		'approved_at' => NULL,
 		'rejected_at' => NULL,
-		'deleted_at' => NULL, // Ensure soft delete column is null
+		'deleted_at' => NULL,
 		'reviewer_id' => $reviewer_id_to_send, 
+        'review_comment' => $review_comment,
 	];
 	
 	$current_datetime = date('Y-m-d H:i:s');
@@ -506,11 +514,19 @@ public function documents_delete() {
     }
     
     public function members_update() {
-    $this->call->library('Form_validation');
-    
     $member_id = (int)$this->io->post('member_id');
     
     $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+    $current_user_id = (int)get_user_id();
+    $is_admin = has_permission(self::ADMIN_ROLES);
+    $is_self_update = ($member_id === $current_user_id);
+    
+    // Unauthorized if not admin AND trying to update someone else
+    if (!$is_admin && !$is_self_update) {
+         set_flash_alert('danger', 'Unauthorized: You do not have permission to update other members.');
+         redirect(BASE_URL . '/org/members/list');
+         return;
+    }
     
     if (!$is_authenticated || $member_id <= 0) {
         set_flash_alert('danger', 'Invalid request or session expired.');
@@ -520,6 +536,16 @@ public function documents_delete() {
 
     $dept_id = (int)$this->io->post('dept_id');
     $role_id = (int)$this->io->post('role_id');
+
+    if (!$is_admin && $is_self_update) {
+        $existing_user = $this->OrgModel->getMemberById($member_id);
+        // Prevent self-update of role/dept if the posted value differs from their current one.
+        if ($role_id != ($existing_user['role_id'] ?? 0) || $dept_id != ($existing_user['dept_id'] ?? 0)) {
+            set_flash_alert('danger', 'Unauthorized: You cannot change your own Role or Department. Contact an Admin.');
+            redirect(BASE_URL . '/org/members/list');
+            return;
+        }
+    }
     
     $this->form_validation->name('fname|First Name')->required()->max_length(50);
     $this->form_validation->name('lname|Last Name')->required()->max_length(50);
@@ -622,6 +648,12 @@ public function documents_delete() {
 }
 
 public function members_delete() {
+    if (!has_permission(self::ADMIN_ROLES)) {
+        set_flash_alert('danger', 'Unauthorized: You do not have permission to delete members.');
+        redirect(BASE_URL . '/org/members/list');
+        return;
+    }
+
     $member_id = (int)$this->io->post('member_id');
     
     $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
@@ -684,6 +716,12 @@ public function members_delete() {
     }
 
     public function departments_store() {
+        if (!has_permission(self::ADMIN_ROLES)) {
+            set_flash_alert('danger', 'Unauthorized: You do not have permission to create departments.');
+            redirect(BASE_URL . '/org/departments');
+            return;
+        }
+
         $this->call->library('Form_validation');
         
         $this->form_validation->name('name|Department Name')->required()->max_length(100)->is_unique('departments', 'name', $this->io->post('name')); 
@@ -720,6 +758,12 @@ public function members_delete() {
     }
     
     public function departments_update() {
+        if (!has_permission(self::ADMIN_ROLES)) {
+            set_flash_alert('danger', 'Unauthorized: You do not have permission to update departments.');
+            redirect(BASE_URL . '/org/departments');
+            return;
+        }
+
         $this->call->library('Form_validation');
         
         $dept_id = (int)$this->io->post('dept_id');
@@ -759,6 +803,12 @@ public function members_delete() {
     }
 
     public function departments_delete() {
+        if (!has_permission(self::ADMIN_ROLES)) {
+            set_flash_alert('danger', 'Unauthorized: You do not have permission to delete departments.');
+            redirect(BASE_URL . '/org/departments');
+            return;
+        }
+
         $dept_id = (int)$this->io->post('dept_id');
         $submitted_code = $this->io->post('verification_code'); 
         $session_code = $_SESSION['dept_delete_code'] ?? null;

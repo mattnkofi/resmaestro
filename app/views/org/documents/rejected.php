@@ -227,8 +227,6 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                 </div>
                 <div class="flex items-center space-x-4">
                     
-                    <span class="text-sm text-gray-500">Action: Pending Resubmission</span>
-                    
                 </div>
             </div>
             <?php endforeach; ?>

@@ -206,6 +206,19 @@ class OrgModel extends Model
                            ->get(); 
     }
 
+   public function getRoleNameByRoleId(int $role_id) {
+        $result = $this->db->table('roles')
+                           ->select('name')
+                           ->where('id', $role_id)
+                           ->get(); 
+        // Returns the role name (e.g., 'Adviser') or the default fallback.
+        return $result['name'] ?? 'General Member';
+    }
+
+    public function insertMember(array $data) {
+        $this->db->table('users')->insert($data);
+        return $this->db->last_id();
+    }
     /**
      * Fetches the Department ID by Department Name.
      */
@@ -419,10 +432,6 @@ class OrgModel extends Model
         }
     }
 
-    public function insertMember(array $data) {
-        $this->db->table('users')->insert($data);
-        return $this->db->last_id();
-    }
 
     public function deleteMember($id) {
     return $this->db->table('users')

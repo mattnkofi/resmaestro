@@ -3,6 +3,8 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 
 // --- PHP Helper Functions ---
 if (!defined('BASE_URL')) define('BASE_URL', '/maestro');
+if (!function_exists('get_user_role')) { function get_user_role() { return $_SESSION['user_role'] ?? 'General Member'; } }
+if (!function_exists('has_permission')) { function has_permission($roles) { $current = get_user_role(); $roles = is_array($roles) ? $roles : [$roles]; return in_array($current, $roles); } }
 if (!function_exists('html_escape')) {
     function html_escape($str) {
         return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
@@ -46,6 +48,9 @@ $total_departments = count($departments_seen);
 
 // Custom roles for filter
 $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Member', 'General Member'];
+$ADMIN_ROLES = ['President', 'Adviser'];
+$is_admin = has_permission($ADMIN_ROLES);
+?>
 ?>
 <!DOCTYPE html>
 <html lang="en">
