@@ -39,7 +39,7 @@ $can_manage_org = function_exists('has_permission') && has_permission($admin_rol
         .maestro-bg { background-color: #0b0f0c; } 
     </style>
 </head>
-<body class="bg-maestro-bg text-white font-poppins" x-data="{}">
+<body class="bg-maestro-bg text-white font-poppins" x-data="{ leaveDeptModalOpen: false, currentDept: '<?= html_escape($user['dept_name'] ?? 'N/A') ?>', currentDeptId: '<?= html_escape($user['dept_id'] ?? 0) ?>' }" @keydown.escape="leaveDeptModalOpen = false">
 
     <?php 
     // MOCKING CURRENT URI FOR DEMONSTRATION: 
@@ -194,8 +194,66 @@ $can_manage_org = function_exists('has_permission') && has_permission($admin_rol
                     </button>
                 </div>
             </form>
+            
+            <h3 class="text-xl font-semibold text-red-400 mb-4 border-b border-green-800/50 pb-2 pt-6">
+                <i class="fa-solid fa-right-from-bracket mr-2"></i> Department Management
+            </h3>
+
+            <?php if (!empty($user['dept_id'])): ?>
+                <div class="bg-red-950/30 p-4 rounded-lg border border-red-800 text-red-100 flex items-center justify-between">
+                    <div class="space-y-1">
+                        <p class="font-semibold">Current Department: <span class="text-red-300" x-text="currentDept"></span></p>
+                        <p class="text-sm text-gray-400">If you leave, you will be 'Unassigned' and lose department-specific access.</p>
+                    </div>
+                    <button type="button" @click="leaveDeptModalOpen = true" 
+                        class="bg-red-700 px-4 py-2 rounded-lg hover:bg-red-600 font-semibold transition shadow-md whitespace-nowrap">
+                        <i class="fa-solid fa-door-open mr-2"></i> Leave Department
+                    </button>
+                </div>
+            <?php else: ?>
+                <div class="bg-green-900/30 p-4 rounded-lg border border-green-700 text-green-100">
+                    <p class="font-semibold">You are currently <b>Unassigned</b> to any department.</p>
+                    <p class="text-sm text-gray-400">Contact an Organization Administrator to be assigned to a group.</p>
+                </div>
+            <?php endif; ?>
 
         </div> 
+    </div>
+
+    <div x-show="leaveDeptModalOpen" x-cloak 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-50 overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
+        style="display: none;">
+
+        <div @click.outside="leaveDeptModalOpen = false" class="w-full max-w-md mx-auto bg-[#151a17] rounded-xl shadow-2xl border border-red-800 p-6">
+            
+            <div class="text-center">
+                <i class="fa-solid fa-person-walking-arrow-loop-left text-4xl text-red-500 mb-4"></i>
+                <h3 class="text-xl font-bold text-white mb-2">Confirm Leave Department</h3>
+                
+                <p class="text-gray-400 mb-6">
+                    Are you sure you want to leave <strong class="text-red-400" x-text="currentDept"></strong>?
+                    <span class="block text-sm text-red-400 font-semibold mt-1">This action cannot be undone by you and requires an Admin to re-assign you.</span>
+                </p>
+            </div>
+
+            <form method="POST" action="<?= BASE_URL ?>/org/profile/leave-department" class="space-y-4">
+                <?php csrf_field(); ?>
+                <input type="hidden" name="user_id" value="<?= $user['id'] ?? 0 ?>">
+                <input type="hidden" name="confirm_leave" value="1">
+                
+                <div class="flex justify-center gap-4">
+                    <button type="button" @click="leaveDeptModalOpen = false" class="bg-gray-600 hover:bg-gray-700 text-white font-medium px-4 py-2 rounded-lg transition w-full">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                        class="bg-red-700 hover:bg-red-600 text-white font-medium px-4 py-2 rounded-lg transition w-full">
+                        <i class="fa-solid fa-door-open mr-1"></i> Confirm Leave
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 </body>
 </html>

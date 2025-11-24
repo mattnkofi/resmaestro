@@ -45,11 +45,6 @@ class OrgController extends Controller
 		]); 
 	}
 
-	// REMOVED: public function fetch_archived_documents_json()
-
-	/**
-	 * Deletes a document permanently (called from rejected documents view).
-	 */
 	public function documents_delete() {
 		$doc_id = (int)$this->io->post('document_id');
 		$doc_title = $this->io->post('document_title') ?? 'Document';
@@ -317,9 +312,6 @@ class OrgController extends Controller
 		]);
 	}
 
-	/**
-	 * Handles the POST request to resubmit an edited document.
-	 */
 	public function documents_resubmit() {
 		$original_doc_id = (int)$this->io->post('document_id'); // Ensure it's an integer
 		$user_id = get_user_id(); 
@@ -598,7 +590,7 @@ class OrgController extends Controller
             redirect(BASE_URL . '/org/members/add');
         }
     }
-    
+
     public function members_update() {
     $this->call->library('Form_validation');
     
@@ -913,7 +905,7 @@ public function members_delete() {
             $dept_name = htmlspecialchars($department['name'] ?? 'Department');
             
             set_flash_alert('warning', 
-                "**Verification Required:** To confirm deletion of **{$dept_name}**, please re-submit the form and enter the code **{$new_code}** in the confirmation box."
+                "<b>Verification Required:</b> To confirm deletion of <b>{$dept_name}</b>, please re-submit the form and enter the code <b>{$new_code}</b> in the confirmation box."
             );
             redirect(BASE_URL . '/org/departments');
             return;
@@ -930,7 +922,7 @@ public function members_delete() {
 
         if ($success) {
             $full_name = htmlspecialchars(trim($dept_name));
-            set_flash_alert('success', "Department **{$full_name}** deleted successfully and all members unassigned.");
+            set_flash_alert('success', "Department <b>{$full_name},/b> deleted successfully and all members unassigned.");
         } else {
             set_flash_alert('danger', 'Failed to delete department. Please try again.');
         }
@@ -962,26 +954,73 @@ public function members_delete() {
              return;
         }
 
+        $dept_name = null;
+        if (!empty($user_details['dept_id'])) {
+            $department = $this->OrgModel->getDepartmentById($user_details['dept_id']);
+            $dept_name = $department['name'] ?? null;
+        }
+
+        // Combine base details with department name for the view
+        $user_details['dept_name'] = $dept_name; 
+        // --- END FETCH ---
+
         $this->call->view('org/profile', [
             'user' => $user_details 
         ]); 
     }
+
+    public function leave_department() {
+        $user_id = (int)get_user_id();
+        $is_confirmed = (int)$this->io->post('confirm_leave') === 1;
+        
+        if ($user_id <= 0 || !$is_confirmed) {
+            set_flash_alert('danger', 'Invalid request or session expired.');
+            redirect(BASE_URL . '/org/profile');
+            return;
+        }
+
+        $user_details = $this->OrgModel->getMemberById($user_id);
+        $old_dept_name = $this->OrgModel->getDepartmentById($user_details['dept_id'] ?? 0)['name'] ?? 'a department';
+        
+        if (empty($user_details['dept_id'])) {
+            set_flash_alert('warning', 'You are already unassigned from any department.');
+            redirect(BASE_URL . '/org/profile');
+            return;
+        }
+        $data = [
+            'dept_id'    => NULL,
+            'updated_at' => date('Y-m-d H:i:s')
+        ];
+        
+        $success = $this->OrgModel->updateMember($user_id, $data);
+        
+        if ($success !== FALSE) {
+            // Update session if needed (though the framework relies on fetching fresh data)
+            if (isset($_SESSION)) {
+                $_SESSION['user_dept_id'] = NULL;
+                $_SESSION['user_dept_name'] = 'Unassigned';
+            }
+
+            set_flash_alert('success', 'You have successfully left the <b>' . htmlspecialchars($old_dept_name) . '</b> department. You are now unassigned.');
+        } else {
+            set_flash_alert('danger', 'Failed to leave department due to a system error.');
+        }
+        
+        redirect(BASE_URL . '/org/profile');
+    }
+
     
      public function documents_department_review() {
-        // 1. Get user details to find their department ID
         $user_id = get_user_id();
         $user = $this->OrgModel->getMemberById($user_id);
         $dept_id = $user['dept_id'] ?? 0;
         
-        // Initialize variables for the view
         $is_member_assigned = ($dept_id !== 0 && $dept_id !== NULL); // <-- Flag: True if assigned
         $dept_docs = [];
         $dept_name = 'Unassigned';
         $q = $this->io->get('q'); 
         
-        // 2. Check if user is assigned to a department
         if ($is_member_assigned) {
-            // 3. Fetch documents for that department
             $dept_docs = $this->OrgModel->getDocumentsByDepartment((int)$dept_id, $q);
             
             // 4. Fetch department name for the view title
@@ -989,12 +1028,11 @@ public function members_delete() {
             $dept_name = $department['name'] ?? 'Your Department';
         }
         
-        // 5. Load the new view (no redirect here)
         $this->call->view('org/documents/department_review', [
             'docs' => $dept_docs,
             'dept_name' => $dept_name,
             'q' => $q,
-            'is_member_assigned' => $is_member_assigned // <-- PASS THE FLAG
+            'is_member_assigned' => $is_member_assigned 
         ]); 
     }
 
@@ -1017,8 +1055,6 @@ public function members_delete() {
         $confirm_password = $this->io->post('confirm_password');
         
         if (!empty($new_password)) {
-            // Re-validate password fields using Form_validation functions if needed, 
-            // but simple checks suffice here.
             if (strlen($new_password) < 8) {
                 set_flash_alert('danger', 'New password must be at least 8 characters long.');
                 redirect(BASE_URL . '/org/profile');
@@ -1051,7 +1087,6 @@ public function members_delete() {
         $success = $this->OrgModel->updateMember($user_id, $data);
         
         if ($success !== FALSE) {
-            // Refresh session variables immediately since the name might have changed
             $full_name = ($data['fname'] ?? '') . ' ' . ($data['lname'] ?? '');
             
             $this->session->set_userdata([
