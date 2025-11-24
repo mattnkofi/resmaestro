@@ -4,7 +4,11 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 // The class must extend the base Controller class
 class OrgController extends Controller
 {
-    private const ADMIN_ROLES = ['President', 'Adviser']; // Line 14
+    private const ADMIN_ROLES       = ['President', 'Adviser']; // Full Admin Access
+    private const CAN_MANAGE_MEMBERS= ['President', 'Adviser', 'Secretary']; // Can add/edit/delete members
+    private const CAN_MANAGE_DEPTS  = ['President', 'Adviser']; // Can create/delete departments
+    private const CAN_REVIEW_DOCS   = ['President', 'Adviser', 'Executive Member']; // Can Approve/Reject documents
+    private const CAN_DELETE_DOCS   = ['President', 'Adviser']; // Can permanently delete rejected documents
 
 	public function __construct() {
 		parent::__construct();
@@ -41,10 +45,8 @@ class OrgController extends Controller
 	]); 
 }
 
-// REMOVED: public function fetch_archived_documents_json()
-
 public function documents_delete() {
-    if (!has_permission(self::ADMIN_ROLES)) {
+    if (!has_permission(self::CAN_DELETE_DOCS)) {
         set_flash_alert('danger', 'Unauthorized: You do not have permission to permanently delete documents.');
         redirect(BASE_URL . '/org/documents/rejected');
         return;

@@ -6,10 +6,8 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
  * ------------------------------------------------------------------
  *
  * MIT License
- * 
- * Copyright (c) 2020 Ronald M. Marasigan
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * * Copyright (c) 2020 Ronald M. Marasigan
+ * * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
  * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
@@ -135,15 +133,39 @@ class Lauth {
 	 * @param $this
 	 */
 	public function set_logged_in($user_id) {
-		$session_data = hash('sha256', md5(time().$this->get_user_id()));
+		// Get the current unique session ID
+		$current_session_id = session_id(); 
+		
+		// This unique hash is used as a secondary check token, stored in session data
+		$session_data = hash('sha256', md5(time().$user_id)); 
+		
 		$data = array(
+			'session_id' => $current_session_id, // FIX: Pass the PHP session ID as the Primary Key
 			'user_id' => $user_id,
 			'browser' => $_SERVER['HTTP_USER_AGENT'],
-			'ip' => $_SERVER['REMOTE_ADDR'],
+			'ip_address' => $_SERVER['REMOTE_ADDR'], 
 			'session_data' => $session_data
 		);
-		$res = $this->LAVA->db->table('sessions')
-				->insert($data);
+		
+		// The insert may still fail if the session_id() already exists, which should only 
+		// happen if the session was recently regenerated. We might need logic to handle UPDATE or REPLACE.
+		try {
+			$res = $this->LAVA->db->table('sessions')->insert($data);
+		} catch (\Exception $e) {
+			// If insertion fails (e.g., due to duplicate session_id if the client didn't fully clear state)
+			// Attempt to update the existing session record instead.
+			// This is more robust for session fixation/regeneration scenarios.
+			$res = $this->LAVA->db->table('sessions')
+				->where('session_id', $current_session_id)
+				->update([
+					'user_id' => $user_id,
+					'browser' => $_SERVER['HTTP_USER_AGENT'],
+					'ip_address' => $_SERVER['REMOTE_ADDR'],
+					'session_data' => $session_data
+				]);
+		}
+		
+
 		if($res) $this->LAVA->session->set_userdata(array('session_data' => $session_data, 'user_id' => $user_id, 'logged_in' => 1));
 	}
 
@@ -295,5 +317,3 @@ class Lauth {
 	}
 
 }
-
-?>
