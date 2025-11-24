@@ -13,6 +13,10 @@ if (!function_exists('csrf_field')) {
         echo '<input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? 'MOCK_CSRF_TOKEN') . '">';
     }
 }
+// Assuming get_user_id() is available via common_helper, if not, this mock acts as a placeholder
+if (!function_exists('get_user_id')) {
+    function get_user_id() { return $_SESSION['user_id'] ?? 0; }
+}
 
 // Data variables passed from controller
 $members_data = $members ?? [];
@@ -24,13 +28,20 @@ $selected_role = $_GET['role'] ?? '';
 $BASE_URL = BASE_URL ?? '';
 $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/members/list';
 
-// Sidebar state
+// --- NEW/MODIFIED LOGIC START ---
+$current_user_id = (int)get_user_id();
+$current_user_role = $_SESSION['user_role'] ?? '';
+$admin_roles = ['Administrator', 'President', 'Adviser'];
+$can_manage_org = in_array($current_user_role, $admin_roles);
+
+// Sidebar state (Existing logic)
 $is_documents_open = str_contains($current_uri, '/org/documents/');
 $is_review_open = str_contains($current_uri, '/org/review/');
 $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
 $is_reports_open = str_contains($current_uri, '/org/reports/');
+// --- NEW/MODIFIED LOGIC END ---
 
-// Stats Calculation
+// Stats Calculation (Existing logic)
 $total_members = count($members_data);
 $active_reviewers = 0;
 $departments_seen = [];
@@ -44,7 +55,7 @@ foreach ($members_data as $member) {
 }
 $total_departments = count($departments_seen);
 
-// Custom roles for filter
+// Custom roles for filter (Existing logic)
 $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Member', 'General Member'];
 ?>
 <!DOCTYPE html>
@@ -73,6 +84,8 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
     x-data="{
         editModalOpen: false,
         deleteModalOpen: false,
+        unauthorizedModalOpen: false, // <-- NEW
+        unauthorizedMessage: '',      // <-- NEW
         currentMember: { id: 0, fname: '', lname: '', email: '', dept_id: '', role_id: '' },
         
         openEditModal(member) {
@@ -83,11 +96,16 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
         openDeleteModal(member) {
             this.currentMember = { ...member };
             this.deleteModalOpen = true;
+        },
+        
+        // <-- NEW FUNCTION for unauthorized access to edit
+        openUnauthorizedModal(message) {
+            this.unauthorizedMessage = message;
+            this.unauthorizedModalOpen = true;
         }
     }"
-    @keydown.escape="editModalOpen = false; deleteModalOpen = false">
+    @keydown.escape="editModalOpen = false; deleteModalOpen = false; unauthorizedModalOpen = false">
 
-    <!-- Sidebar -->
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col z-10">
         <div class="flex items-center justify-center py-6 border-b border-green-800">
             <img src="/public/maestrologo.png" alt="Logo" class="h-10 mr-8">
@@ -142,7 +160,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <!-- Placeholder for user image -->
                         <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
@@ -162,7 +179,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
         <div class="border-t border-green-800 p-3 text-xs text-gray-500 text-center">Maestro © <?=date('Y')?></div>
     </aside>
 
-    <!-- Main Content -->
     <div class="ml-64 p-8 bg-maestro-bg min-h-screen text-white">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
             <h1 class="text-3xl font-bold text-green-400 mb-4 sm:mb-0">Organization Members</h1>
@@ -173,7 +189,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
 
         <?php if (function_exists('flash_alert')) flash_alert(); ?>
 
-        <!-- Stats Cards -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="bg-green-950/50 p-5 rounded-xl border border-green-800 shadow-lg flex items-center justify-between">
                 <div><p class="text-sm text-gray-400 uppercase">Total Members</p><p class="text-3xl font-bold text-green-400 mt-1"><?= $total_members ?></p></div>
@@ -189,7 +204,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
             </div>
         </div>
 
-        <!-- Search & Filter -->
         <form method="GET" action="<?=$BASE_URL?>/org/members/list" class="flex flex-col md:flex-row gap-4 mb-6">
             <input type="text" name="q" placeholder="Search by name or email..." value="<?= html_escape($q) ?>"
                 class="w-full md:w-1/2 bg-green-900/50 border border-green-800 p-3 rounded-xl placeholder-gray-500 text-white">
@@ -204,7 +218,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
             </button>
         </form>
 
-        <!-- Members Table -->
         <div class="overflow-x-auto rounded-xl border border-green-800 shadow-2xl">
             <table class="w-full text-left">
                 <thead class="bg-yellow-900/40 text-gray-200 uppercase text-sm tracking-wider">
@@ -219,6 +232,7 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
                 <tbody class="bg-[#0f1511] text-gray-300">
                     <?php if (!empty($members_data)): ?>
                     <?php foreach($members_data as $member):
+                        $member_id_loop = $member['id']; // Get the ID for this member in the loop
                         $full_name = html_escape(trim($member['fname'] . ' ' . $member['lname']));
                         $role_name = html_escape($member['role_name'] ?? 'No Role');
                         $dept_name = html_escape($member['dept_name'] ?? 'No Department');
@@ -246,14 +260,26 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
                         <td class="p-4 text-gray-300"><?= $dept_name ?></td>
                         <td class="p-4 font-medium <?= $role_color ?>"><?= $role_name ?></td>
                         <td class="p-4 text-center space-x-2">
+                            
+                            <?php if ($member_id_loop == $current_user_id || $can_manage_org): ?>
                             <button @click="openEditModal(<?= $js_member ?>)" 
                                 class="text-green-400 hover:text-green-300 transition text-sm">
                                 <i class="fa-solid fa-pen-to-square mr-1"></i> Edit
                             </button>
+                            <?php else: ?>
+                            <button @click="openUnauthorizedModal('You do not have permission to edit other members\' credentials.')"
+                                class="text-gray-500 hover:text-gray-400 transition text-sm cursor-pointer" title="Admin only.">
+                                <i class="fa-solid fa-pen-to-square mr-1"></i> Edit
+                            </button>
+                            <?php endif; ?>
+
+                            <?php if ($can_manage_org && $member_id_loop != $current_user_id): ?>
                             <button @click="openDeleteModal(<?= $js_member ?>)" 
                                 class="text-red-400 hover:text-red-300 transition text-sm">
                                 <i class="fa-solid fa-trash mr-1"></i> Delete
                             </button>
+                            <?php endif; ?>
+
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -270,7 +296,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
         </div>
     </div>
 
-    <!-- EDIT MEMBER MODAL -->
     <div x-show="editModalOpen" 
         x-transition:enter="ease-out duration-300"
         x-transition:leave="ease-in duration-200"
@@ -312,6 +337,7 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <?php if ($can_manage_org): // Only show select fields for Admin ?>
                     <div>
                         <label for="edit_dept_id" class="block text-sm font-medium mb-2 text-gray-300">Department <span class="text-red-500">*</span></label>
                         <select id="edit_dept_id" name="dept_id" x-model="currentMember.dept_id" required
@@ -332,8 +358,16 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <?php else: // Non-admin users see a restricted notice and hidden fields ?>
+                    <div class="md:col-span-2 space-y-2">
+                        <div class="p-3 text-sm bg-yellow-900/40 border border-yellow-700 rounded-lg text-yellow-100">
+                            <i class="fa-solid fa-triangle-exclamation mr-2"></i> You must be an Administrator to modify Department or Role.
+                        </div>
+                         <input type="hidden" name="dept_id" :value="currentMember.dept_id">
+                         <input type="hidden" name="role_id" :value="currentMember.role_id">
+                    </div>
+                    <?php endif; ?>
                 </div>
-
                 <div class="border-t border-green-800 pt-4">
                     <h4 class="text-md font-semibold text-yellow-400 mb-3">
                         <i class="fa-solid fa-key mr-2"></i> Reset Password (Optional)
@@ -367,7 +401,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
         </div>
     </div>
 
-    <!-- DELETE CONFIRMATION MODAL -->
     <div x-show="deleteModalOpen" 
         x-transition:enter="ease-out duration-300"
         x-transition:leave="ease-in duration-200"
@@ -409,6 +442,33 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
             </div>
         </div>
     </div>
+    
+    <div x-show="unauthorizedModalOpen" 
+        x-transition:enter="ease-out duration-300"
+        x-transition:leave="ease-in duration-200"
+        class="fixed inset-0 z-[60] overflow-y-auto bg-maestro-bg bg-opacity-95 flex items-center justify-center" 
+        style="display: none;">
 
-</body>
+        <div @click.outside="unauthorizedModalOpen = false" class="w-full max-w-md mx-auto bg-[#0f1511] rounded-xl shadow-2xl border border-yellow-800">
+            
+            <header class="p-4 border-b border-yellow-800 flex justify-between items-center bg-sidebar-dark rounded-t-xl">
+                <h3 class="text-xl font-bold text-yellow-400">
+                    <i class="fa-solid fa-lock mr-2"></i> Access Denied
+                </h3>
+                <button @click="unauthorizedModalOpen = false" class="text-gray-400 hover:text-white transition">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+            </header>
+
+            <div class="p-6 space-y-4">
+                <p class="text-gray-300" x-text="unauthorizedMessage">You are not authorized to perform this action.</p>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" @click="unauthorizedModalOpen = false" class="px-5 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 font-medium transition">
+                        Understood
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </body>
 </html>

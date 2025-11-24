@@ -565,6 +565,7 @@ class OrgController extends Controller
     $this->call->library('Form_validation');
     
     $member_id = (int)$this->io->post('member_id');
+    $current_user_id = (int)get_user_id();
     
     $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
     
@@ -574,14 +575,33 @@ class OrgController extends Controller
         return;
     }
 
+    // --- NEW LOGIC START: Determine permissions ---
+    $current_user_role = $_SESSION['user_role'] ?? '';
+    $admin_roles = ['Administrator', 'President', 'Adviser'];
+    $can_manage_org = in_array($current_user_role, $admin_roles);
+    $is_self_edit = ($member_id === $current_user_id);
+    
+    // Non-admin trying to edit someone else's credentials via POST is blocked here (already covered by frontend hide/unauthorized modal, but good for security)
+    if (!$is_self_edit && !$can_manage_org) {
+        set_flash_alert('danger', 'You do not have permission to edit this member\'s details.');
+        redirect(BASE_URL . '/org/members/list');
+        return;
+    }
+    // --- NEW LOGIC END ---
+
     $dept_id = (int)$this->io->post('dept_id');
     $role_id = (int)$this->io->post('role_id');
     
+    // 1. VALIDATION
     $this->form_validation->name('fname|First Name')->required()->max_length(50);
     $this->form_validation->name('lname|Last Name')->required()->max_length(50);
     $this->form_validation->name('email|Email Address')->required()->valid_email();
-    $this->form_validation->name('dept_id|Department')->required()->greater_than('0');
-    $this->form_validation->name('role_id|Role')->required()->greater_than('0');
+    
+    // Only validate Group/Dept fields if the current user is an Admin (can_manage_org)
+    if ($can_manage_org) {
+        $this->form_validation->name('dept_id|Department')->required()->greater_than('0');
+        $this->form_validation->name('role_id|Role')->required()->greater_than('0');
+    }
     
     $new_password = $this->io->post('new_password');
     $confirm_password = $this->io->post('confirm_password');
@@ -613,46 +633,65 @@ class OrgController extends Controller
         redirect(BASE_URL . '/org/members/list');
         return;
     }
-
-    if ($this->OrgModel->isRoleUniqueInDepartment($role_id, $dept_id, $member_id)) {
-        $roles = $this->OrgModel->getRoles();
-        $role_name = array_filter($roles, fn($r) => (int)($r['id'] ?? 0) === $role_id);
-        $role_name = reset($role_name)['name'] ?? 'The specified role';
-
-        set_flash_alert('danger', "The role '{$role_name}' is a unique position and is already assigned in this department.");
-        redirect(BASE_URL . '/org/members/list');
-        return;
-    }
     
+    // 2. DATA PREPARATION
     $data = [
         'fname'     => $this->io->post('fname'),
         'lname'     => $this->io->post('lname'),
         'email'     => $email,
-        'dept_id'   => (int)$this->io->post('dept_id'),
-        'role_id'   => (int)$this->io->post('role_id'),
         'updated_at' => date('Y-m-d H:i:s')
     ];
     
+    // --- CRITICAL PERMISSION CHECK FOR GROUP FIELDS ---
+    if ($can_manage_org) {
+        // Admins are allowed to update group fields using POST data
+        $data['dept_id'] = $dept_id;
+        $data['role_id'] = $role_id;
+        
+        // Uniqueness check for unique roles only applies when admin changes groups
+        if ($this->OrgModel->isRoleUniqueInDepartment($role_id, $dept_id, $member_id)) {
+            $roles = $this->OrgModel->getRoles();
+            $role_name = array_filter($roles, fn($r) => (int)($r['id'] ?? 0) === $role_id);
+            $role_name = reset($role_name)['name'] ?? 'The specified role';
+
+            set_flash_alert('danger', "The role '{$role_name}' is a unique position and is already assigned in this department.");
+            redirect(BASE_URL . '/org/members/list');
+            return;
+        }
+    } else {
+        // Non-admins update ONLY their personal fields.
+        // We ensure the previous dept_id and role_id (which were sent via hidden fields in the view)
+        // are copied back into $data to prevent unintended changes to these columns.
+        $member_before_update = $this->OrgModel->getMemberById($member_id);
+        $data['dept_id'] = $member_before_update['dept_id'] ?? null;
+        $data['role_id'] = $member_before_update['role_id'] ?? null;
+    }
+    // --- END CRITICAL PERMISSION CHECK ---
+    
     if (!empty($new_password)) {
-        $data['password'] = password_hash($new_password, PASSWORD_DEFAULT);
+        $this->call->library('lauth');
+        $data['password'] = $this->lauth->passwordhash($new_password);
     }
     
     $success = $this->OrgModel->updateMember($member_id, $data);
     
     if ($success !== FALSE) {
         
-        $current_user_id = (int)get_user_id();
-        $new_role_id = $data['role_id'];
+        $new_role_name = $_SESSION['user_role'] ?? 'General Member'; 
         
-        if ($member_id === $current_user_id) {
+        if ($is_self_edit) {
             
-            $roles = $this->OrgModel->getRoles();
-            $new_role_name = 'General Member'; 
-
-            foreach ($roles as $role) {
-                if ((int)$role['id'] === (int)$new_role_id) {
-                    $new_role_name = $role['name'];
-                    break;
+            // Re-fetch role name if the update was successful (and group was changed by admin) or if name was changed
+            if ($can_manage_org || ($success > 0 && ($data['fname'] ?? null) || ($data['lname'] ?? null))) {
+                $updated_member = $this->OrgModel->getMemberById($member_id);
+                $new_role_id = $updated_member['role_id'] ?? null;
+                $roles_list = $this->OrgModel->getRoles();
+                
+                foreach ($roles_list as $role) {
+                    if ((int)($role['id'] ?? 0) === (int)($new_role_id)) {
+                        $new_role_name = $role['name'];
+                        break;
+                    }
                 }
             }
             
