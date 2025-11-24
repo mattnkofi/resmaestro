@@ -150,7 +150,7 @@ $can_manage_org = function_exists('has_permission') && has_permission($admin_rol
                      class="w-24 h-24 rounded-full border-2 border-green-700 object-cover" 
                      alt="Profile Picture">
                 <div>
-                    <h2 class="text-2xl font-bold text-green-200"><?= html_escape(trim($user['fname'] . ' ' . $user['lname'])); ?></h2>
+                    <h2 class="text-2xl font-bold text-green-200"><?= html_escape(trim(($user['fname'] ?? '') . ' ' . ($user['lname'] ?? ''))); ?></h2>
                     <p class="text-gray-400"><?= html_escape($user['email'] ?? 'N/A') ?></p>
                     <p class="text-sm text-yellow-400 mt-1">Role: <?= html_escape($_SESSION['user_role'] ?? 'N/A') ?></p>
                 </div>

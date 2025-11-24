@@ -175,9 +175,9 @@ class Lauth {
 	 */
 	public function is_logged_in()
 	{
+		// FIX: Removed browser check as it is too volatile.
 		$data = array(
 			'user_id' => $this->LAVA->session->userdata('user_id'),
-			'browser' => $_SERVER['HTTP_USER_AGENT'],
 			'session_data' => $this->LAVA->session->userdata('session_data')
 		);
 		$count = $this->LAVA->db->table('sessions')
@@ -187,9 +187,11 @@ class Lauth {
 		if($this->LAVA->session->userdata('logged_in') == 1 && $count > 0) {
 			return true;
 		} else {
+			// CRITICAL: Force session destruction only if user_id is present but DB check failed.
 			if($this->LAVA->session->has_userdata('user_id')) {
 				$this->set_logged_out();
 			}
+			return false;
 		}
 	}
 
@@ -223,8 +225,7 @@ class Lauth {
 	public function set_logged_out() {
 		$data = array(
 			'user_id' => $this->get_user_id(),
-			'browser' => $_SERVER['HTTP_USER_AGENT'],
-			'session_data' => $this->LAVA->session->userdata('session_data')
+			'session_data' => $this->LAVA->session->userdata('session_data') // FIX: Removed 'browser'
 		);
 		$res = $this->LAVA->db->table('sessions')
 						->where($data)
@@ -234,6 +235,9 @@ class Lauth {
 			$this->LAVA->session->sess_destroy();
 			return true;
 		} else {
+			// If DB deletion fails, still destroy PHP session to log user out.
+			$this->LAVA->session->unset_userdata(array('user_id'));
+			$this->LAVA->session->sess_destroy();
 			return false;
 		}
 		
