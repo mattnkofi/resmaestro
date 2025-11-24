@@ -11,6 +11,7 @@ if (!function_exists('csrf_field')) {
 }
 // --- End Helper Functions ---
 
+// FIX: Initialize variables if they were not passed from the controller
 $q = $q ?? '';
 $status = $status ?? '';
 $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/all'; 
@@ -77,54 +78,58 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 
 <body class="bg-maestro-bg text-white font-poppins" 
 	x-data="{ 
-		modalOpen: false, 
-		currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
-		confirmAction: { type: '', title: '' }, 
-		targetFormId: null,
-		
-		// --- ALPINE.JS FUNCTIONS ---
-		getFileExtension(fileName) {
-			return fileName ? fileName.split('.').pop().toLowerCase() : '';
-		},
-		isImage(fileName) {
-			const ext = this.getFileExtension(fileName);
-			return ['jpg', 'jpeg', 'png'].includes(ext);
-		},
-		isPDF(fileName) {
-			return this.getFileExtension(fileName) === 'pdf';
-		},
-		toSentenceCase(str) {
-			if (!str) return '';
-			return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-		},
-		getDocViewerURL(fileName) {
-			if (!fileName) return '';
-			const publicUrl = '<?= BASE_URL ?>/public/uploads/documents/' + fileName;
-			const absoluteUrl = window.location.origin + publicUrl;
-			if (this.isPDF(fileName)) return publicUrl;
-			if (this.isImage(fileName)) return publicUrl;
-			return 'https://docs.google.com/gview?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
-		},
-		
-		setDoc(doc) { 
-			this.currentDoc = doc; 
-			this.modalOpen = true; 
-		},
+	modalOpen: false, 
+	currentDoc: { id: 0, title: '', file_name: '', status: '', submitter: '', type: '', created_at: '' },
+	confirmAction: { type: '', title: '', docId: 0 }, // <--- MODIFIED: Added docId
+	targetFormId: null,
+	
+	// --- ALPINE.JS FUNCTIONS ---
+	getFileExtension(fileName) {
+		return fileName ? fileName.split('.').pop().toLowerCase() : '';
+	},
+	isImage(fileName) {
+		const ext = this.getFileExtension(fileName);
+		return ['jpg', 'jpeg', 'png'].includes(ext);
+	},
+	isPDF(fileName) {
+		return this.getFileExtension(fileName) === 'pdf';
+	},
+	toSentenceCase(str) {
+		if (!str) return '';
+		return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+	},
+	getDocViewerURL(fileName) {
+		if (!fileName) return '';
+		const publicUrl = '<?= BASE_URL ?>/public/uploads/documents/' + fileName;
+		const absoluteUrl = window.location.origin + publicUrl;
+		if (this.isPDF(fileName)) return publicUrl;
+		if (this.isImage(fileName)) return publicUrl;
+		return 'https://docs.google.com/gview?url=' + encodeURIComponent(absoluteUrl) + '&embedded=true';
+	},
+	
+	setDoc(doc) { // <--- MODIFIED: Ensure doc object is accepted
+		this.currentDoc = doc; 
+		this.modalOpen = true; 
+	},
 
-		prepareDelete(doc) {
-			this.modalOpen = false; 
-			this.confirmAction = { type: 'Delete', title: doc.title };
-			this.targetFormId = 'delete-form-main-modal'; 
-		},
-		
-		executeAction() {
-			if (this.targetFormId) {
-				document.getElementById(this.targetFormId).submit();
-				this.confirmAction.type = ''; 
-				this.targetFormId = null; 
-			}
+	prepareDelete(doc) { // <--- NEW FUNCTION
+		this.modalOpen = false; 
+		this.confirmAction = { 
+			type: 'Delete', 
+			title: doc.title,
+			docId: doc.id
+		};
+		this.targetFormId = 'delete-form-doc-' + doc.id; // Target the hidden form
+	},
+	
+	executeAction() {
+		if (this.targetFormId) {
+			document.getElementById(this.targetFormId).submit();
+			this.confirmAction.type = ''; 
+			this.targetFormId = null; 
 		}
-	}" 
+	}
+}"
 	@keydown.escape="modalOpen = false; confirmAction.type = ''">
 
 	<aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
@@ -175,7 +180,7 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 			</div>
 			
 			<div class="pt-4">
-				<h2 class="text-xs text-gray-500 uppercase mb-2 ml-2 tracking-wider font-semibold">System</h2>
+				<h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider font-semibold">System</h2>
 			</div>
 		</nav>
 
@@ -320,11 +325,16 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 						<td class="p-4"><?= html_escape($doc_type) ?></td>
 						<td class="p-4 text-gray-400"><?= html_escape($submitter) ?></td> <td class="p-4 font-semibold <?= $status_class ?>"><?= html_escape($doc_status) ?></td>
 						<td class="p-4 text-center">
-							<button @click="setDoc(<?= $js_doc ?>)"class="text-yellow-400 hover:text-yellow-200 hover: font-xl mr-4">
+							<button @click="setDoc(<?= $js_doc ?>)" class="text-yellow-400 hover:text-yellow-200 font-xl mr-4">
 								<i class="fa-solid fa-eye mr-1"></i> View Details
 							</button>
-						</td>
-					</tr>
+                            </td>
+					</tr>					
+					<form id="delete-form-doc-<?= $doc_id ?>" method="POST" action="<?= BASE_URL ?>/org/documents/delete" style="display: none;">
+						<?php csrf_field(); ?>
+						<input type="hidden" name="document_id" value="<?= $doc_id ?>">
+						<input type="hidden" name="document_title" value="<?= html_escape($doc_title) ?>">
+					</form>
 				<?php endforeach; 
 					else: ?>
 					<tr>
@@ -404,6 +414,7 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 					</div>
 
 					<h5 class="text-md font-bold text-green-300">Update Status:</h5>
+                    <div x-data="{ comment: '', rejectError: '' }" class="space-y-4">
 					<div x-data="{ comment: '' }" class="space-y-4">
 						
 						<label for="review_comment_field" class="block text-sm font-medium text-gray-400 mb-2">Review Comment / Reason (Required for Rejection)</label>
@@ -425,20 +436,35 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 							</button>
 						</form>
 
-						<form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'" @submit.prevent="if (comment.trim() === '') { alert('The reason for rejection is required. Please provide a comment.'); } else { $el.submit(); }">
+                        <div x-show="rejectError" x-transition class="p-3 bg-red-900/50 border border-red-700 text-red-100 text-sm rounded-lg flex items-center mt-3">
+                            <i class="fa-solid fa-circle-exclamation mr-3"></i>
+                            <span x-text="rejectError"></span>
+                        </div>
+
+                            <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'" 
+                            @submit.prevent="if (comment.trim() === '') { rejectError = 'Rejection requires a comment or reason.'; } else { rejectError = ''; $el.submit(); }">							<?php csrf_field(); ?>
 							<?php csrf_field(); ?>
-							<input type="hidden" name="document_id" :value="currentDoc.id">
+                            <input type="hidden" name="document_id" :value="currentDoc.id">
 							<input type="hidden" name="new_status" value="Rejected">
 							<input type="hidden" name="document_title" :value="currentDoc.title">
 							<input type="hidden" name="review_comment" :value="comment">
 							
 							<button type="submit" class="w-full bg-red-700 hover:bg-red-600 px-5 py-2 rounded-lg font-medium transition"
-								:disabled="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived'"
-								:class="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
-								<i class="fa-solid fa-thumbs-down mr-2"></i> Reject
-							</button>
+                                :disabled="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived'"
+                                :class="currentDoc.status === 'Rejected' || currentDoc.status === 'Archived' ? 'opacity-50 cursor-not-allowed' : ''">
+                                <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
+                            </button>
 						</form>
 					</div>
+                    
+                    <template x-if="currentDoc.status === 'Rejected'">
+                        <div class="border-t border-green-800 pt-4 mt-4">
+                            <button type="button" @click="prepareDelete(currentDoc)" 
+                                class="w-full bg-red-700 px-6 py-3 rounded-xl hover:bg-red-600 font-bold text-lg transition shadow-lg shadow-red-900/40">
+                                <i class="fa-solid fa-trash-alt mr-2"></i> Permanently Delete Document
+                            </button>
+                        </div>
+                    </template>
 					
 					<button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
 
@@ -447,6 +473,12 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 
 		</div>
 	</div>
+	
+	<form method="POST" action="<?= BASE_URL ?>/org/documents/delete" id="delete-form-shared" class="hidden">
+	    <?php csrf_field(); ?>
+	    <input type="hidden" name="document_id" value="">
+	    <input type="hidden" name="document_title" value="">
+	</form>
 	
 	<div x-show="confirmAction.type !== ''" 
 		x-transition:enter="ease-out duration-300"
@@ -461,7 +493,7 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 				<h3 class="text-xl font-bold text-white mb-2">Confirm <span x-text="confirmAction.type"></span></h3>
 				
 				<p class="text-gray-400 mb-6">
-					Are you sure you want to <span x-text="confirmAction.type.toLowerCase()"></span> "<strong x-text="confirmAction.title"></strong>"? 
+					Are you sure you want to <span x-text="confirmAction.type.toLowerCase()"></span> document "<strong x-text="confirmAction.title"></strong>"?
 					<span class="text-red-400 font-semibold">This action is permanent and cannot be undone.</span>
 				</p>
 			</div>
