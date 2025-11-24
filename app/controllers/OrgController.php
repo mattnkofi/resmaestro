@@ -4,16 +4,6 @@ defined('PREVENT_DIRECT_ACCESS') or exit('No direct script access allowed');
 // The class must extend the base Controller class
 class OrgController extends Controller
 {
-    // --- Define Access Role Groups (for feature-based security) ---
-    private const ADMIN_ROLES       = ['President', 'Adviser']; // Full Admin Access
-    private const CAN_MANAGE_MEMBERS= ['President', 'Adviser', 'Secretary']; // Can add/edit/delete members
-    private const CAN_MANAGE_DEPTS  = ['President', 'Adviser']; // Can create/delete departments
-    private const CAN_REVIEW_DOCS   = ['President', 'Adviser', 'Executive Member']; // Can Approve/Reject documents
-    private const CAN_DELETE_DOCS   = ['President', 'Adviser']; // Can permanently delete rejected documents
-    // --- NEW: Roles who can manage announcements ---
-    private const CAN_MANAGE_ANNOUNCEMENTS = ['President', 'Adviser', 'Secretary']; 
-    // --- End Access Role Groups ---
-
 	public function __construct() {
 		parent::__construct();
 		$this->call->model('OrgModel');
@@ -25,15 +15,9 @@ class OrgController extends Controller
 	{
 		$stats = $this->OrgModel->get_dashboard_stats();
 		$recent_activity = [];
-        
-        // --- NEW: Fetch active announcements for the dashboard ---
-        $active_announcements = $this->OrgModel->getActiveAnnouncements();
-        // --- END NEW ---
-        
 		$this->call->view('org/dashboard', [
 			'stats' => $stats,
-			'recent_activity' => $recent_activity,
-            'announcements' => $active_announcements // Pass announcements to the view
+			'recent_activity' => $recent_activity
 		]);
 	}
 
@@ -58,11 +42,6 @@ class OrgController extends Controller
 // REMOVED: public function fetch_archived_documents_json()
 
 public function documents_delete() {
-    if (!has_permission(self::CAN_DELETE_DOCS)) {
-        set_flash_alert('danger', 'Unauthorized: You do not have permission to permanently delete documents.');
-        redirect(BASE_URL . '/org/documents/rejected');
-        return;
-    }
 	$doc_id = (int)$this->io->post('document_id');
 	$doc_title = $this->io->post('document_title') ?? 'Document';
 
@@ -193,17 +172,12 @@ public function documents_delete() {
 	$doc_id = (int)$this->io->post('document_id');
 	$new_status = $this->io->post('new_status');
 	$doc_title = $this->io->post('document_title') ?? 'Document';
-	$review_comment = $this->io->post('review_comment') ?? '';
+    $review_comment = $this->io->post('review_comment');
+	
 	$user_id = (int)get_user_id();
 	$reviewer_id_to_send = ($user_id > 0) ? $user_id : NULL;
 
 	$is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
-
-	if (!has_permission(self::CAN_REVIEW_DOCS)) {
-        set_flash_alert('danger', 'Unauthorized: You do not have permission to approve or reject documents.');
-        redirect(BASE_URL . '/org/documents/all');
-        return;
-    }
 
 	if (!$is_authenticated || ((int)$doc_id) <= 0 || empty($new_status)) {
 		set_flash_alert('danger', 'Invalid session or missing data.');
@@ -220,11 +194,11 @@ public function documents_delete() {
 
 	$data_to_update = [
 		'status' => $new_status,
+        'review_comment' => $review_comment, 
 		'approved_at' => NULL,
 		'rejected_at' => NULL,
-		'deleted_at' => NULL,
+		'deleted_at' => NULL, // Ensure soft delete column is null
 		'reviewer_id' => $reviewer_id_to_send, 
-        'review_comment' => $review_comment,
 	];
 	
 	$current_datetime = date('Y-m-d H:i:s');
@@ -287,6 +261,9 @@ public function documents_delete() {
 			'reviewers' => $reviewers
 		]);
 	}
+
+    
+    
 
 	/**
 	 * Handles the POST request to resubmit an edited document.
@@ -480,12 +457,6 @@ public function documents_delete() {
     }
 
     public function members_store() {
-        if (!has_permission(self::CAN_MANAGE_MEMBERS)) {
-            set_flash_alert('danger', 'Unauthorized: You do not have permission to add members.');
-            redirect(BASE_URL . '/org/members/add');
-            return;
-        }
-
         $this->call->library('Form_validation');
         
         $this->form_validation->name('email|Email Address')->required()->valid_email();
@@ -540,19 +511,11 @@ public function documents_delete() {
     }
     
     public function members_update() {
+    $this->call->library('Form_validation');
+    
     $member_id = (int)$this->io->post('member_id');
     
     $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
-    $current_user_id = (int)get_user_id();
-    $is_admin = has_permission(self::ADMIN_ROLES);
-    $is_self_update = ($member_id === $current_user_id);
-    
-    // Unauthorized if not admin AND trying to update someone else
-    if (!$is_admin && !$is_self_update) {
-         set_flash_alert('danger', 'Unauthorized: You do not have permission to update other members.');
-         redirect(BASE_URL . '/org/members/list');
-         return;
-    }
     
     if (!$is_authenticated || $member_id <= 0) {
         set_flash_alert('danger', 'Invalid request or session expired.');
@@ -562,27 +525,12 @@ public function documents_delete() {
 
     $dept_id = (int)$this->io->post('dept_id');
     $role_id = (int)$this->io->post('role_id');
-
-    if (!$is_admin && $is_self_update) {
-        $existing_user = $this->OrgModel->getMemberById($member_id);
-        // Prevent self-update of role/dept if the posted value differs from their current one.
-        if ($role_id != ($existing_user['role_id'] ?? 0) || $dept_id != ($existing_user['dept_id'] ?? 0)) {
-            set_flash_alert('danger', 'Unauthorized: You cannot change your own Role or Department. Contact an Admin.');
-            redirect(BASE_URL . '/org/members/list');
-            return;
-        }
-    }
     
-    $this->call->library('Form_validation');
     $this->form_validation->name('fname|First Name')->required()->max_length(50);
     $this->form_validation->name('lname|Last Name')->required()->max_length(50);
     $this->form_validation->name('email|Email Address')->required()->valid_email();
-    
-    // Only admins can change Dept/Role through this form
-    if (has_permission(self::CAN_MANAGE_MEMBERS)) {
-        $this->form_validation->name('dept_id|Department')->required()->greater_than('0');
-        $this->form_validation->name('role_id|Role')->required()->greater_than('0');
-    }
+    $this->form_validation->name('dept_id|Department')->required()->greater_than('0');
+    $this->form_validation->name('role_id|Role')->required()->greater_than('0');
     
     $new_password = $this->io->post('new_password');
     $confirm_password = $this->io->post('confirm_password');
@@ -615,7 +563,7 @@ public function documents_delete() {
         return;
     }
 
-    if (has_permission(self::CAN_MANAGE_MEMBERS) && $this->OrgModel->isRoleUniqueInDepartment($role_id, $dept_id, $member_id)) {
+    if ($this->OrgModel->isRoleUniqueInDepartment($role_id, $dept_id, $member_id)) {
         $roles = $this->OrgModel->getRoles();
         $role_name = array_filter($roles, fn($r) => (int)($r['id'] ?? 0) === $role_id);
         $role_name = reset($role_name)['name'] ?? 'The specified role';
@@ -679,12 +627,6 @@ public function documents_delete() {
 }
 
 public function members_delete() {
-    if (!has_permission(self::ADMIN_ROLES)) {
-        set_flash_alert('danger', 'Unauthorized: You do not have permission to delete members.');
-        redirect(BASE_URL . '/org/members/list');
-        return;
-    }
-
     $member_id = (int)$this->io->post('member_id');
     
     $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
@@ -747,12 +689,6 @@ public function members_delete() {
     }
 
     public function departments_store() {
-        if (!has_permission(self::CAN_MANAGE_DEPTS)) {
-            set_flash_alert('danger', 'Unauthorized: You do not have permission to create departments.');
-            redirect(BASE_URL . '/org/departments');
-            return;
-        }
-
         $this->call->library('Form_validation');
         
         $this->form_validation->name('name|Department Name')->required()->max_length(100)->is_unique('departments', 'name', $this->io->post('name')); 
@@ -789,12 +725,6 @@ public function members_delete() {
     }
     
     public function departments_update() {
-        if (!has_permission(self::CAN_MANAGE_DEPTS)) {
-            set_flash_alert('danger', 'Unauthorized: You do not have permission to update departments.');
-            redirect(BASE_URL . '/org/departments');
-            return;
-        }
-
         $this->call->library('Form_validation');
         
         $dept_id = (int)$this->io->post('dept_id');
@@ -834,12 +764,6 @@ public function members_delete() {
     }
 
     public function departments_delete() {
-        if (!has_permission(self::CAN_MANAGE_DEPTS)) {
-            set_flash_alert('danger', 'Unauthorized: You do not have permission to delete departments.');
-            redirect(BASE_URL . '/org/departments');
-            return;
-        }
-
         $dept_id = (int)$this->io->post('dept_id');
         $submitted_code = $this->io->post('verification_code'); 
         $session_code = $_SESSION['dept_delete_code'] ?? null;
@@ -854,7 +778,6 @@ public function members_delete() {
 
         if (empty($submitted_code) || $submitted_code !== $session_code) {
             
-            $this->call->helper('string');
             $new_code = (string)random_int(1000, 9999); 
             $_SESSION['dept_delete_code'] = $new_code;
             
@@ -893,17 +816,7 @@ public function members_delete() {
         $this->call->view('org/roles', compact('roles')); 
     }
 
-    // ----------------------------------------------------------------------
-    // REPORTS & SYSTEM (Minimal View Loading)
-    // ----------------------------------------------------------------------
-
-    public function reports_overview() { $this->call->view('org/reports/overview'); }
-    public function reports_documents() { $this->call->view('org/reports/documents'); }
-    public function reports_reviewers() { $this->call->view('org/reports/reviewers'); }
-    public function reports_storage() { $this->call->view('org/reports/storage'); }
-
     public function settings() { $this->call->view('org/settings'); }
-
     public function profile() {
         $user_id = get_user_id();
         
@@ -923,6 +836,37 @@ public function members_delete() {
 
         $this->call->view('org/profile', [
             'user' => $user_details 
+        ]); 
+    }
+    
+     public function documents_department_review() {
+        // 1. Get user details to find their department ID
+        $user_id = get_user_id();
+        $user = $this->OrgModel->getMemberById($user_id);
+        $dept_id = $user['dept_id'] ?? 0;
+        
+        // Initialize variables for the view
+        $is_member_assigned = ($dept_id !== 0 && $dept_id !== NULL); // <-- Flag: True if assigned
+        $dept_docs = [];
+        $dept_name = 'Unassigned';
+        $q = $this->io->get('q'); 
+        
+        // 2. Check if user is assigned to a department
+        if ($is_member_assigned) {
+            // 3. Fetch documents for that department
+            $dept_docs = $this->OrgModel->getDocumentsByDepartment((int)$dept_id, $q);
+            
+            // 4. Fetch department name for the view title
+            $department = $this->OrgModel->getDepartmentById((int)$dept_id);
+            $dept_name = $department['name'] ?? 'Your Department';
+        }
+        
+        // 5. Load the new view (no redirect here)
+        $this->call->view('org/documents/department_review', [
+            'docs' => $dept_docs,
+            'dept_name' => $dept_name,
+            'q' => $q,
+            'is_member_assigned' => $is_member_assigned // <-- PASS THE FLAG
         ]); 
     }
 
@@ -996,120 +940,5 @@ public function members_delete() {
         }
         
         redirect(BASE_URL . '/org/profile');
-    }
-
-
-    public function documents_department_review() {
-        // 1. Get user details to find their department ID
-        $user_id = get_user_id();
-        $user = $this->OrgModel->getMemberById($user_id);
-        $dept_id = $user['dept_id'] ?? 0;
-        
-        // Initialize variables for the view
-        $is_member_assigned = ($dept_id !== 0 && $dept_id !== NULL); // <-- Flag: True if assigned
-        $dept_docs = [];
-        $dept_name = 'Unassigned';
-        $q = $this->io->get('q'); 
-        
-        // 2. Check if user is assigned to a department
-        if ($is_member_assigned) {
-            // 3. Fetch documents for that department
-            $dept_docs = $this->OrgModel->getDocumentsByDepartment((int)$dept_id, $q);
-            
-            // 4. Fetch department name for the view title
-            $department = $this->OrgModel->getDepartmentById((int)$dept_id);
-            $dept_name = $department['name'] ?? 'Your Department';
-        }
-        
-        // 5. Load the new view (no redirect here)
-        $this->call->view('org/documents/department_review', [
-            'docs' => $dept_docs,
-            'dept_name' => $dept_name,
-            'q' => $q,
-            'is_member_assigned' => $is_member_assigned // <-- PASS THE FLAG
-        ]); 
-    }
-    
-    // ----------------------------------------------------------------------
-    // NEW: ANNOUNCEMENT MANAGEMENT CONTROLLER METHODS
-    // ----------------------------------------------------------------------
-    
-    public function announcements()
-    {
-        if (!has_permission(self::CAN_MANAGE_ANNOUNCEMENTS)) {
-            set_flash_alert('danger', 'Unauthorized: You do not have permission to manage announcements.');
-            redirect(BASE_URL . '/org/dashboard');
-            return;
-        }
-        
-        $announcements = $this->OrgModel->getAllAnnouncements();
-        
-        $this->call->view('org/announcements', compact('announcements'));
-    }
-
-    public function announcements_store()
-    {
-        if (!has_permission(self::CAN_MANAGE_ANNOUNCEMENTS)) {
-            set_flash_alert('danger', 'Unauthorized: You do not have permission to create announcements.');
-            redirect(BASE_URL . '/org/announcements');
-            return;
-        }
-
-        if ($this->io->method() !== 'post') {
-            redirect(BASE_URL . '/org/announcements');
-            return;
-        }
-
-        $this->call->library('Form_validation');
-        $this->form_validation->name('title|Title')->required()->max_length(255);
-        $this->form_validation->name('content|Content')->required();
-
-        if (!$this->form_validation->run()) {
-            set_flash_alert('danger', $this->form_validation->errors());
-            redirect(BASE_URL . '/org/announcements');
-            return;
-        }
-
-        $expires_at = $this->io->post('expires_at');
-
-        $data = [
-            'title'     => $this->io->post('title'),
-            'content'   => $this->io->post('content'),
-            'user_id'   => (int)get_user_id(),
-            'is_active' => (int)($this->io->post('is_active') === 'on' || $this->io->post('is_active') === '1'),
-            'expires_at' => empty($expires_at) ? NULL : $expires_at,
-        ];
-        
-        $new_id = $this->OrgModel->insertAnnouncement($data);
-
-        if ($new_id) {
-            set_flash_alert('success', 'Announcement posted successfully!');
-        } else {
-            set_flash_alert('danger', 'Failed to post announcement.');
-        }
-
-        redirect(BASE_URL . '/org/announcements');
-    }
-
-    public function announcements_delete()
-    {
-        if (!has_permission(self::CAN_MANAGE_ANNOUNCEMENTS)) {
-            set_flash_alert('danger', 'Unauthorized: You do not have permission to delete announcements.');
-            redirect(BASE_URL . '/org/announcements');
-            return;
-        }
-        
-        $id = (int)$this->io->post('id');
-        $title = $this->io->post('title');
-        
-        $success = $this->OrgModel->deleteAnnouncement($id);
-        
-        if ($success) {
-            set_flash_alert('success', "Announcement '{$title}' deleted.");
-        } else {
-            set_flash_alert('danger', "Failed to delete announcement.");
-        }
-
-        redirect(BASE_URL . '/org/announcements');
     }
 }

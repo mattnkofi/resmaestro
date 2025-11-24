@@ -63,36 +63,33 @@
                 </a>
             </div>
 
-            <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
+            <div class="space-y-1">
+                <div class="w-full flex items-center justify-between p-3 rounded-lg bg-green-900/10 text-green-300">
                     <span class="flex items-center gap-3">
                         <i class="fa-solid fa-file-lines w-5 text-center"></i>
-                        <span>Documents</span>
+                        <span><b>Documents</b></span>
                     </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
+                </div>
+                <div class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
                     <a href="<?=BASE_URL?>/org/documents/all" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/all') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">All Documents</a>
                     <a href="<?=BASE_URL?>/org/documents/department_review" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/department_review') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Dept. Documents</a>
                     <a href="<?=BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/upload') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Upload New</a>
                     <a href="<?=BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/approved') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Approved / Noted</a>
                     <a href="<?=BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/rejected') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Rejected</a>
                 </div>
-            </div>
 
-            <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
+                <div class="h-4"></div>
+
+                <div class="w-full flex items-center justify-between p-3 rounded-lg bg-green-900/10 text-green-300">
                     <span class="flex items-center gap-3">
                         <i class="fa-solid fa-users w-5 text-center"></i>
-                        <span>Organization</span>
+                        <span><b>Organization</b></span>
                     </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
+                </div>
+                <div class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
                     <a href="<?=BASE_URL?>/org/members/list" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/list') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Members</a>
                     <a href="<?=BASE_URL?>/org/members/add" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/add') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Add Member</a>
                     <a href="<?=BASE_URL?>/org/departments" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/departments') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Departments</a>
-                    <a href="<?=BASE_URL?>/org/roles" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/roles') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Roles & Permissions</a>
                 </div>
             </div>
             
@@ -165,15 +162,20 @@
         </form>
         <div class="space-y-4">
     <?php
-
-$docs = $approved_docs ?? [];
+    // Use the real data passed from the controller
+    $docs = $approved_docs ?? [];
     
     foreach($docs as $doc): 
+        // FIX: Safely access approver names using the null coalescing operator (??) 
+        // and default to 'System' if the reviewer data is missing.
         $approver_fname = $doc['approver_fname'] ?? 'System'; //
         $approver_lname = $doc['approver_lname'] ?? ''; //
+        
+        // Use the approver's name from the JOIN
         $approver_name = html_escape(trim($approver_fname . ' ' . $approver_lname)); //
-        $date_value = $doc['approved_at'] ?? $doc['created_at'] ?? 'now';
-        $approved_date = date('M d, Y', strtotime($date_value));
+        
+        // FIX: Use 'created_at' field which is guaranteed to exist.
+        $approved_date = date('M d, Y', strtotime($doc['created_at']));
     ?>
     <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-green-900/40 transition">
         <div class="flex flex-col mb-2 md:mb-0">

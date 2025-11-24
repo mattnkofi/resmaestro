@@ -46,7 +46,6 @@ $router->post('/org/members/delete', 'OrgController::members_delete');
 // Departments & Roles
 $router->get('/org/departments', 'OrgController::departments');
 $router->post('/org/departments/store', 'OrgController::departments_store'); 
-$router->get('/org/roles', 'OrgController::roles');
 
 // --- Department CRUD Endpoints ---
 $router->get('/org/departments/members/(:num)', 'OrgController::fetch_dept_members/$1');
@@ -58,7 +57,3 @@ $router->post('/org/departments/delete', 'OrgController::departments_delete');
 $router->get('/org/settings', 'OrgController::settings');
 $router->get('/org/profile', 'OrgController::profile');
 $router->post('/org/profile/update', 'OrgController::profile_update');
-
-$router->get('/org/announcements', 'OrgController::announcements');
-$router->post('/org/announcements/store', 'OrgController::announcements_store');
-$router->post('/org/announcements/delete', 'OrgController::announcements_delete');

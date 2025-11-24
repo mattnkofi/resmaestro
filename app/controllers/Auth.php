@@ -126,7 +126,7 @@ class Auth extends Controller
 
     public function login()
     {
-        // FIX: The is_logged_in() function relies on the session data created by lauth.
+        // Redirect if already logged in
         if ($this->lauth->is_logged_in()) {
             redirect(BASE_URL . '/org/dashboard'); 
             return;
@@ -157,32 +157,31 @@ class Auth extends Controller
                 return;
             }
 
-            // --- CRITICAL FIX START: Use lauth library for session creation ---
-            
-            // 1. Initialize the framework session state (sets required tokens in session/DB)
-            $this->lauth->set_logged_in($user->id);
-
-            // 2. Fetch required details after Lauth has initialized the session
             $full_user_details = $this->OrgModel->getMemberById($user->id);
 
-            // 3. Set custom application-level session variables (like role name for display)
-            // FIX: Access the session object directly via $this->session (Line 178 adjusted)
-            
+            if (!isset($_SESSION)) {
+                session_start(); 
+            }
+            $_SESSION['user_id'] = $user->id;
+            $_SESSION['username'] = $user->username;
+
+            $role_name = 'General Member'; // Default/Fallback
             $role_id = $full_user_details['role_id'] ?? NULL;
-            $role_name = 'General Member'; 
             
             if ($role_id) {
-                $role_name = $this->OrgModel->getRoleNameByRoleId($role_id);
+                $roles = $this->OrgModel->getRoles();
+                $found_role = array_filter($roles, fn($r) => (int)($r['id'] ?? 0) === (int)$role_id);
+                $role_name = reset($found_role)['name'] ?? 'General Member';
             }
             
-            $this->session->set_userdata([ // FIX APPLIED: Access session directly
-                'user_name' => ($full_user_details['fname'] ?? '') . ' ' . ($full_user_details['lname'] ?? ''),
-                'user_role' => $role_name,
-                'username'  => $user->username
-            ]);
+            $_SESSION['user_name'] = ($full_user_details['fname'] ?? '') . ' ' . ($full_user_details['lname'] ?? '');
+            $_SESSION['user_role'] = $role_name; // Set the actual role name
+            $_SESSION['is_logged_in'] = true;
             
-            // --- CRITICAL FIX END ---
-
+            if (function_exists('session_write_close')) {
+                session_write_close();
+            }
+            
             // ENHANCED SUCCESS MESSAGE 2
             set_flash_alert('success', 'Welcome back, ' . htmlspecialchars($user->username) . '! Redirecting you to the dashboard.');
 
@@ -233,11 +232,8 @@ class Auth extends Controller
     }
 
     public function logout() {
-        // FIX: Use lauth->set_logged_out() to clear the persistent DB/session data correctly
-        if ($this->lauth->is_logged_in()) {
-             $this->lauth->set_logged_out(); // This calls the method that handles destruction
-        } else {
-             // Fallback session destroy
+        // FIX: Since login manually sets $_SESSION keys, logout must manually destroy the session.
+        if (isset($_SESSION)) {
              session_destroy();
         }
         

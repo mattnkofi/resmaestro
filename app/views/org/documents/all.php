@@ -144,36 +144,33 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                 </a>
             </div>
 
-            <div x-data='{ open: <?= $is_documents_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
+            <div class="space-y-1">
+                <div class="w-full flex items-center justify-between p-3 rounded-lg bg-green-900/10 text-green-300">
                     <span class="flex items-center gap-3">
                         <i class="fa-solid fa-file-lines w-5 text-center"></i>
-                        <span>Documents</span>
+                        <span><b>Documents</b></span>
                     </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
+                </div>
+                <div class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
                     <a href="<?=BASE_URL?>/org/documents/all" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/all') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">All Documents</a>
                     <a href="<?=BASE_URL?>/org/documents/department_review" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/department_review') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Dept. Documents</a>
                     <a href="<?=BASE_URL?>/org/documents/upload" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/upload') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Upload New</a>
                     <a href="<?=BASE_URL?>/org/documents/approved" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/approved') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Approved / Noted</a>
                     <a href="<?=BASE_URL?>/org/documents/rejected" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/documents/rejected') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Rejected</a>
                 </div>
-            </div>
 
-            <div x-data='{ open: <?= $is_organization_open ? 'true' : 'false' ?> }' class="space-y-1">
-                <button @click="open = !open" :class="open ? 'bg-green-900/30 text-green-300' : ''" class="w-full flex items-center justify-between p-3 rounded-lg hover:bg-green-700/30 transition">
+                <div class="h-4"></div>
+
+                <div class="w-full flex items-center justify-between p-3 rounded-lg bg-green-900/10 text-green-300">
                     <span class="flex items-center gap-3">
                         <i class="fa-solid fa-users w-5 text-center"></i>
-                        <span>Organization</span>
+                        <span><b>Organization</b></span>
                     </span>
-                    <i :class="open ? 'fa-chevron-up' : 'fa-chevron-down'" class="fa-solid text-xs transition-transform"></i>
-                </button>
-                <div x-show="open" x-transition.duration.300ms class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
+                </div>
+                <div class="ml-6 mt-1 space-y-1 text-gray-300 text-sm border-l border-green-700/50 pl-2">
                     <a href="<?=BASE_URL?>/org/members/list" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/list') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Members</a>
                     <a href="<?=BASE_URL?>/org/members/add" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/members/add') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Add Member</a>
                     <a href="<?=BASE_URL?>/org/departments" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/departments') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Departments</a>
-                    <a href="<?=BASE_URL?>/org/roles" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/roles') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Roles & Permissions</a>
                 </div>
             </div>
             
@@ -412,13 +409,6 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                             rows="3" placeholder="Enter your review comment/reason here..."
                             class="w-full p-2 bg-green-900/70 border border-green-800 rounded-lg text-white placeholder-gray-500"></textarea>
 
-                        <?php 
-                        // Define the roles that CAN review documents (matches the constant in the controller)
-                        $CAN_REVIEW_DOCS = ['President', 'Adviser', 'Executive Member'];
-                        
-                        // Check if the current user has permission before displaying the forms
-                        if (function_exists('has_permission') && has_permission($CAN_REVIEW_DOCS)):
-                        ?>
                         <form method="POST" :action="'<?= BASE_URL ?>/org/documents/update_status'">
                             <?php csrf_field(); ?>
                             <input type="hidden" name="document_id" :value="currentDoc.id">
@@ -446,12 +436,13 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
                                 <i class="fa-solid fa-thumbs-down mr-2"></i> Reject
                             </button>
                         </form>
-                        <?php else: ?>
-                        <div class="p-4 bg-gray-700/50 text-yellow-400 rounded-lg">
-                             <i class="fa-solid fa-lock mr-2"></i> You do not have permission to change the status.
-                        </div>
-                        <?php endif; ?>
+                    </div>
+                    
+                    <button @click="modalOpen = false" class="w-full text-gray-500 hover:text-gray-300 transition mt-4">Close Review</button>
+
                 </div>
+            </div>
+
         </div>
     </div>
     

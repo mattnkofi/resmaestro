@@ -119,28 +119,3 @@ if ( ! function_exists('email_exist'))
         return ($LAVA->db->row_count() > 0) ? true : false;
     }
 }
-
-if (! function_exists('get_user_role'))
-{
-
-    function get_user_role() {
-        if (!isset($_SESSION)) {
-            @session_start(); 
-        }
-        return $_SESSION['user_role'] ?? 'General Member'; 
-    }
-}
-
-if (! function_exists('has_permission'))
-{
-    function has_permission($required_roles) {
-        if (!is_logged_in()) {
-            return false;
-        }
-        $current_role = get_user_role();
-        
-        $required_roles = is_array($required_roles) ? $required_roles : [$required_roles];
-        
-        return in_array($current_role, $required_roles);
-    }
-}
