@@ -1169,4 +1169,78 @@ public function members_delete() {
         
         redirect(BASE_URL . '/org/profile');
     }
+
+    protected function _is_admin_for_analytics() {
+        return is_admin_or_manager();
+    }
+
+    public function analytics()
+    {
+        if (!$this->_is_admin_for_analytics()) {
+            set_flash_alert('danger', 'Unauthorized: You do not have permission to access analytics.');
+            redirect(BASE_URL . '/org/dashboard');
+            return;
+        }
+        
+        $this->call->view('org/analytics');
+    }
+
+    public function download_records_csv()
+    {
+        if (!$this->_is_admin_for_analytics()) {
+            die('Unauthorized access');
+        }
+
+        $this->call->library('Csv_generator');
+        
+        $records = $this->OrgModel->getMembers(null, null);
+
+        $csv_data = array_map(function($record) {
+            return [
+                'ID' => $record['id'],
+                'First Name' => $record['fname'],
+                'Last Name' => $record['lname'],
+                'Email' => $record['email'],
+                'Department' => $record['dept_name'] ?? 'Unassigned',
+                'Role' => $record['role_name'] ?? 'Unassigned',
+            ];
+        }, $records);
+
+        $this->Csv_generator->download($csv_data, 'Maestro_Members_' . date('Y-m-d_His') . '.csv');
+    }
+
+    public function download_document_csv()
+    {
+        if (!$this->_is_admin_for_analytics()) {
+            die('Unauthorized access');
+        }
+
+        $this->call->library('Csv_generator');
+        
+        // Fetch all document records with submitter/reviewer names
+        $records = $this->OrgModel->getAllDocumentsForAnalytics();
+
+        // Sanitize and format data for CSV with user-friendly headers
+        $csv_data = array_map(function($record) {
+            // Combine names
+            $submitter = trim(($record['submitter_fname'] ?? '') . ' ' . ($record['submitter_lname'] ?? ''));
+            $reviewer = trim(($record['reviewer_fname'] ?? '') . ' ' . ($record['reviewer_lname'] ?? ''));
+
+            return [
+                'Document ID' => $record['document_id'],
+                'Title' => $record['title'],
+                'Type' => $record['type'],
+                'Status' => $record['status'],
+                'Submitter Name' => $submitter,
+                'Submitter Email' => $record['submitter_email'],
+                'Reviewer Name' => $reviewer ?: 'N/A',
+                'Submission Date' => $record['submission_date'],
+                'Approval Date' => $record['approved_at'] ?: 'N/A',
+                'Rejection Date' => $record['rejected_at'] ?: 'N/A',
+                'Review Comment' => $record['review_comment'],
+            ];
+        }, $records);
+
+        $this->Csv_generator->download($csv_data, 'Maestro_Records_' . date('Y-m-d_His') . '.csv');
+    }
 }

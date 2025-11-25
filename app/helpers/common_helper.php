@@ -190,3 +190,13 @@ if ( ! function_exists('email_exist'))
         return ($LAVA->db->row_count() > 0) ? true : false;
     }
 }
+
+if ( ! function_exists('is_admin_or_manager'))
+{
+    function is_admin_or_manager() {
+        // Roles defined in the controller that grant full organizational access
+        $admin_roles = ['Administrator', 'President', 'Adviser'];
+        $current_role = $_SESSION['user_role'] ?? '';
+        return in_array($current_role, $admin_roles);
+    }
+}

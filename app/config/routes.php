@@ -58,3 +58,7 @@ $router->get('/org/settings', 'OrgController::settings');
 $router->get('/org/profile', 'OrgController::profile');
 $router->post('/org/profile/update', 'OrgController::profile_update');
 $router->post('/org/profile/leave-department', 'OrgController::leave_department');
+
+$router->get('/org/analytics', 'OrgController::analytics');
+$router->get('/org/analytics/download/members', 'OrgController::download_records_csv');
+$router->get('/org/analytics/download/documents', 'OrgController::download_document_csv');

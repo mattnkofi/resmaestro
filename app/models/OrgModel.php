@@ -483,4 +483,35 @@ class OrgModel extends Model
         
         return $this->db->order_by('d.created_at', 'DESC')->get_all();
     }
+
+    public function getAllDocumentsForAnalytics() {
+        $query = "
+            SELECT 
+                d.id AS document_id, 
+                d.title, 
+                d.type, 
+                d.status, 
+                d.review_comment,
+                d.created_at AS submission_date,
+                d.approved_at,
+                d.rejected_at,
+                u_sub.fname AS submitter_fname, 
+                u_sub.lname AS submitter_lname,
+                u_sub.email AS submitter_email,
+                u_rev.fname AS reviewer_fname, 
+                u_rev.lname AS reviewer_lname
+            FROM documents d
+            LEFT JOIN users u_sub ON d.user_id = u_sub.id
+            LEFT JOIN users u_rev ON d.reviewer_id = u_rev.id
+            -- Filter out soft-archived documents if status is explicitly stored/used
+            WHERE d.status != 'Archived' OR d.status IS NULL 
+            ORDER BY d.created_at DESC
+        ";
+        try {
+            return $this->db->raw($query)->fetchAll(2);
+        } catch (\Exception $e) {
+            error_log("Database error in getAllDocumentsForAnalytics: " . $e->getMessage());
+            return [];
+        }
+    }
 }

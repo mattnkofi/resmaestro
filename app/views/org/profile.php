@@ -3,6 +3,16 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
 $user = $user ?? []; 
 $admin_roles = ['President', 'Adviser'];
 $can_manage_org = function_exists('has_permission') && has_permission($admin_roles);
+
+if (!function_exists('is_admin_or_manager')) {
+    function is_admin_or_manager() {
+        $admin_roles = ['Administrator', 'President', 'Adviser'];
+        $current_role = $_SESSION['user_role'] ?? '';
+        return in_array($current_role, $admin_roles);
+    }
+}
+$is_admin_analytics = is_admin_or_manager();
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -42,11 +52,8 @@ $can_manage_org = function_exists('has_permission') && has_permission($admin_rol
 <body class="bg-maestro-bg text-white font-poppins" x-data="{ leaveDeptModalOpen: false, currentDept: '<?= html_escape($user['dept_name'] ?? 'N/A') ?>', currentDeptId: '<?= html_escape($user['dept_id'] ?? 0) ?>' }" @keydown.escape="leaveDeptModalOpen = false">
 
     <?php 
-    // MOCKING CURRENT URI FOR DEMONSTRATION: 
-    // For "Settings" page:
     $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/profile'; 
 
-    // PHP LOGIC TO DETERMINE IF A DROPDOWN SHOULD BE OPEN
     $is_documents_open = str_contains($current_uri, '/org/documents/');
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
@@ -60,7 +67,6 @@ $can_manage_org = function_exists('has_permission') && has_permission($admin_rol
         </div>
 
         <nav class="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-
             <div>
                 <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider">Main</h2>
                 <a href="<?=BASE_URL?>/org/dashboard" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition
@@ -87,7 +93,7 @@ $can_manage_org = function_exists('has_permission') && has_permission($admin_rol
 
                 <div class="h-4"></div>
 
-                <div class="w-full flex items-center justify-between p-3 rounded-lg bg-green-900/10 text-green-300">
+               <div class="w-full flex items-center justify-between p-3 rounded-lg bg-green-900/10 text-green-300">
                     <span class="flex items-center gap-3">
                         <i class="fa-solid fa-users w-5 text-center"></i>
                         <span><b>Organization</b></span>
@@ -100,10 +106,19 @@ $can_manage_org = function_exists('has_permission') && has_permission($admin_rol
                 </div>
             </div>
             
-            <div class="pt-4">
+           <div class="pt-4">
                 <h2 class="text-xs text-gray-500 uppercase mb-2 ml-2 tracking-wider font-semibold">System</h2>
+                
+                <?php if ($is_admin_analytics): ?>
+                <a href="<?=BASE_URL?>/org/analytics" class="flex items-center gap-3 p-3 rounded-lg hover:bg-green-700/50 transition 
+                    <?= str_contains($current_uri, '/org/analytics') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">
+                    <i class="fa-solid fa-chart-line w-5 text-center"></i>
+                    <span>Analytics</span>
+                </a>
+                <?php endif; ?>
             </div>
         </nav>
+        
         <div class="border-t border-green-800 px-4 py-4">
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
