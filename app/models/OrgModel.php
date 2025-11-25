@@ -514,4 +514,44 @@ class OrgModel extends Model
             return [];
         }
     }
+
+    public function insertAnnouncement(array $data) {
+        $this->db->table('announcements')->insert($data);
+        return $this->db->last_id();
+    }
+
+    public function getAnnouncementById(int $id) {
+        return $this->db->table('announcements')->where('id', $id)->get();
+    }
+
+    public function getAnnouncements() {
+        $query = "
+            SELECT
+                a.id,
+                a.title,
+                a.content,
+                a.created_at,
+                a.user_id,
+                u.fname,
+                u.lname,
+                d.name AS dept_name
+            FROM announcements a
+            LEFT JOIN users u ON a.user_id = u.id
+            LEFT JOIN departments d ON u.dept_id = d.id
+            ORDER BY a.created_at DESC
+        ";
+        return $this->db->raw($query)->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function updateAnnouncement(int $id, array $data) {
+        return $this->db->table('announcements')
+                        ->where('id', $id)
+                        ->update($data);
+    }
+
+    public function deleteAnnouncement(int $id) {
+        return $this->db->table('announcements')
+                        ->where('id', $id)
+                        ->delete();
+    }
 }

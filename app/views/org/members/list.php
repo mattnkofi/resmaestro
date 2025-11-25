@@ -332,12 +332,6 @@ $custom_roles = ['Adviser', 'President', 'Secretary', 'Treasurer', 'Executive Me
                     </div>
                 </div>
 
-                <div>
-                    <label for="edit_email" class="block text-sm font-medium mb-2 text-gray-300">Email Address <span class="text-red-500">*</span></label>
-                    <input type="email" id="edit_email" name="email" x-model="currentMember.email" required
-                        class="w-full p-3 bg-green-900 border border-green-800 rounded-lg focus:ring-green-500 focus:border-green-500 text-green-100">
-                </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <?php if ($can_manage_org): // Only show select fields for Admin ?>
                     <div>

@@ -62,3 +62,7 @@ $router->post('/org/profile/leave-department', 'OrgController::leave_department'
 $router->get('/org/analytics', 'OrgController::analytics');
 $router->get('/org/analytics/download/members', 'OrgController::download_records_csv');
 $router->get('/org/analytics/download/documents', 'OrgController::download_document_csv');
+
+$router->post('/org/announcements/store', 'OrgController::announcement_store');
+$router->post('/org/announcements/update', 'OrgController::announcement_update');
+$router->post('/org/announcements/delete', 'OrgController::announcement_delete');

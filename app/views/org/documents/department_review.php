@@ -157,7 +157,7 @@ $first_initial = strtoupper(substr($user_name, 0, 1));
             <form method="GET" action="<?= BASE_URL ?>/org/documents/department_review">
                 <div class="flex flex-col md:flex-row gap-4 mb-8 items-center">
                     <input type="text" name="q" value="<?= html_escape($q) ?>"
-                            placeholder="Search by title or submitter name..." 
+                            placeholder="Search by title of document..." 
                             class="w-full md:w-1/3 bg-green-900/50 border border-green-800 p-3 rounded-xl focus:ring-green-500 focus:border-green-500 transition placeholder-gray-500 text-white">
                     
                     <button type="submit" class="bg-green-700 hover:bg-green-600 px-5 py-3 rounded-xl font-medium transition shadow-lg shadow-green-900/40">

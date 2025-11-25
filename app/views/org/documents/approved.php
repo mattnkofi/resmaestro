@@ -185,9 +185,6 @@
                class="bg-green-700 hover:bg-green-600 px-4 py-2 rounded-lg text-sm transition">
                 <i class="fa-solid fa-download mr-1"></i> Download
             </a>
-            <button class="text-gray-500 hover:text-green-300 transition text-sm">
-                <i class="fa-solid fa-share-nodes"></i>
-            </button>
         </div>
     </div>
     <?php endforeach; ?>

@@ -13,17 +13,18 @@ class OrgController extends Controller
 	}
 
 	public function dashboard()
-	{
-		$stats = $this->OrgModel->get_dashboard_stats();
-		$recent_activity = [];
-		
-		// Removed notification logic
-		
-		$this->call->view('org/dashboard', [
-			'stats' => $stats,
-			'recent_activity' => $recent_activity
-		]);
-	}
+{
+	$stats = $this->OrgModel->get_dashboard_stats();
+	$recent_activity = [];
+	
+    $announcements = $this->OrgModel->getAnnouncements();
+
+	$this->call->view('org/dashboard', [
+        'stats' => $stats,
+        'recent_activity' => $recent_activity,
+        'announcements' => $announcements
+    ]);
+}
 
 	public function sidebar() { 
 		$this->call->view('org/sidebar'); 
@@ -1242,5 +1243,88 @@ public function members_delete() {
         }, $records);
 
         $this->Csv_generator->download($csv_data, 'Maestro_Records_' . date('Y-m-d_His') . '.csv');
+    }
+
+    public function announcement_store() {
+        $this->call->library('Form_validation');
+        
+        $this->form_validation->name('title|Title')->required()->max_length(150);
+        $this->form_validation->name('content|Content')->required();
+
+        if (!$this->form_validation->run()) {
+            set_flash_alert('danger', $this->form_validation->errors());
+            redirect(BASE_URL . '/org/dashboard');
+            return;
+        }
+
+        $data = [
+            'title' => $this->io->post('title'),
+            'content' => $this->io->post('content'),
+            'user_id' => get_user_id(),
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+
+        if ($this->OrgModel->insertAnnouncement($data)) {
+            set_flash_alert('success', 'Announcement posted successfully.');
+        } else {
+            set_flash_alert('danger', 'Failed to post announcement.');
+        }
+        redirect(BASE_URL . '/org/dashboard');
+    }
+
+    public function announcement_update() {
+        if (!$this->_is_admin_or_manager()) {
+            set_flash_alert('danger', 'Unauthorized: You do not have permission to edit announcements.');
+            redirect(BASE_URL . '/org/dashboard');
+            return;
+        }
+        
+        $this->call->library('Form_validation');
+        $id = (int)$this->io->post('id');
+        
+        $this->form_validation->name('title|Title')->required()->max_length(150);
+        $this->form_validation->name('content|Content')->required();
+
+        if ($id <= 0 || !$this->form_validation->run()) {
+            $errors = $this->form_validation->errors() ?? 'Invalid announcement ID or form data.';
+            set_flash_alert('danger', $errors);
+            redirect(BASE_URL . '/org/dashboard');
+            return;
+        }
+
+        $data = [
+            'title' => $this->io->post('title'),
+            'content' => $this->io->post('content'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+
+        if ($this->OrgModel->updateAnnouncement($id, $data)) {
+            set_flash_alert('success', 'Announcement updated successfully.');
+        } else {
+            set_flash_alert('danger', 'Failed to update announcement.');
+        }
+        redirect(BASE_URL . '/org/dashboard');
+    }
+
+    public function announcement_delete() {
+        if (!$this->_is_admin_or_manager()) {
+            set_flash_alert('danger', 'Unauthorized: You do not have permission to delete announcements.');
+            redirect(BASE_URL . '/org/dashboard');
+            return;
+        }
+
+        $id = (int)$this->io->post('id');
+        if ($id <= 0) {
+            set_flash_alert('danger', 'Invalid announcement ID.');
+            redirect(BASE_URL . '/org/dashboard');
+            return;
+        }
+
+        if ($this->OrgModel->deleteAnnouncement($id)) {
+            set_flash_alert('success', 'Announcement deleted successfully.');
+        } else {
+            set_flash_alert('danger', 'Failed to delete announcement.');
+        }
+        redirect(BASE_URL . '/org/dashboard');
     }
 }
