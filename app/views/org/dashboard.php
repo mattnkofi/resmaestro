@@ -1,4 +1,4 @@
-<<?php 
+<?php 
 // Variables are now expected to be defined by the controller before inclusion.
 // We define safe defaults here for development safety if variables are not passed.
 $stats = $stats ?? [
@@ -23,8 +23,7 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 include 'sidebar.php'; // Include the existing sidebar structure 
 ?>
 
-
-<div class="ml-64 p-8 maestro-bg min-h-screen">
+<div class="ml-64 p-8 maestro-bg min-h-screen relative"> 
     <h1 class="text-3xl font-bold text-green-400 mb-6 tracking-wide">
         Organization Dashboard
     </h1>
@@ -70,77 +69,69 @@ include 'sidebar.php'; // Include the existing sidebar structure
             </p>
         </div>
     </div>
-
-    <div class="dashboard-card p-6 mb-6">
-        <h2 class="text-xl font-semibold text-green-300 mb-4 flex items-center gap-2">
-            <i class="fa-solid fa-map-location-dot text-green-500"></i> Office Locations
-        </h2>
-        <div id="office-map" class="h-64 bg-gray-900 rounded-lg">
-            </div>
-        <p class="text-sm text-gray-500 mt-3">Showing offices relative to your current location (requires Google Maps API and geolocation).</p>
-    </div>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-    </div>
-
-</div>
-
-<script async defer
-    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyACBACrU8lDJanwGFnev_3vFPmIshZEsUs&callback=initMap">
-</script>
-
-<script>
-    function initMap() {
-        // Default coordinates for the map center (e.g., New York City)
-        const defaultCenter = { lat: 40.7128, lng: -74.0060 };
+    
+    <div id="draggable-map" class="dashboard-card p-4 absolute top-8 right-8 z-10 w-96 shadow-2xl cursor-grab">
+        <div id="map-header" class="p-2 -mx-4 -mt-4 mb-2 rounded-t-lg bg-gray-700 hover:bg-gray-600 transition duration-150 ease-in-out cursor-grab active:cursor-grabbing">
+            <h2 class="text-lg font-semibold text-gray-200 flex items-center gap-2">
+                <i class="fa-solid fa-arrows-alt-v text-red-400"></i> Calapan Mindoro State University
+            </h2>
+        </div>
         
-        // Example office locations (add your actual office Lat/Lng here)
-        const officeLocations = [
-            { lat: 40.7580, lng: -73.9855, title: 'HQ - Times Square' },
-            { lat: 34.0522, lng: -118.2437, title: 'West Coast Office' }
-        ];
+        <div class="overflow-hidden rounded-lg">
+            <iframe 
+                src="https://maps.google.com/maps?q=Calapan%20Mindoro%20State%20University&z=15&output=embed" 
+                width="100%" 
+                height="200" 
+                style="border:0;" 
+                allowfullscreen="" 
+                loading="lazy" 
+                referrerpolicy="no-referrer-when-downgrade">
+            </iframe>
+        </div>
+    </div>
+    <script>
+        function makeElementDraggable(element, handle) {
+            let isDragging = false;
+            let offset = { x: 0, y: 0 };
+            
+            // Ensure the element can be positioned absolutely/fixed
+            element.style.position = 'absolute';
 
-        // Create the map instance
-        const map = new google.maps.Map(document.getElementById('office-map'), {
-            zoom: 10,
-            center: defaultCenter,
-            // You can customize the map style here if needed
-            mapId: "DEMO_MAP_ID" // Use a Map ID for custom styling from the Cloud Console
-        });
-        
-        // Add markers for each office location
-        officeLocations.forEach(location => {
-            new google.maps.Marker({
-                position: { lat: location.lat, lng: location.lng },
-                map,
-                title: location.title
+            handle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                // Calculate offset between mouse position and element's top-left corner
+                offset.x = e.clientX - element.getBoundingClientRect().left;
+                offset.y = e.clientY - element.getBoundingClientRect().top;
+                
+                element.style.cursor = 'grabbing';
+                e.preventDefault(); // Prevent text selection while dragging
             });
-        });
-        
-        // OPTIONAL: Add current user location (requires enabling the Geolocation API)
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const pos = {
-                        lat: position.coords.latitude,
-                        lng: position.coords.longitude,
-                    };
-                    
-                    // Add a marker for the user's current location
-                    new google.maps.Marker({
-                        position: pos,
-                        map,
-                        title: 'Your Location',
-                        icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png' // Different color marker
-                    });
-                    
-                    // Center the map on the user's location
-                    map.setCenter(pos);
-                },
-                () => {
-                    console.log("Geolocation failed or permission denied.");
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                // Calculate new position
+                let newX = e.clientX - offset.x;
+                let newY = e.clientY - offset.y;
+                
+                // Apply new position
+                element.style.left = newX + 'px';
+                element.style.top = newY + 'px';
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    element.style.cursor = 'grab';
                 }
-            );
+            });
         }
-    }
-</script>
+
+        const mapElement = document.getElementById('draggable-map');
+        const mapHandle = document.getElementById('map-header'); // Use the custom header as the drag handle
+
+        if (mapElement && mapHandle) {
+            makeElementDraggable(mapElement, mapHandle);
+        }
+    </script>
+</div>
