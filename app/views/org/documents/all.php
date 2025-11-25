@@ -20,7 +20,11 @@ $current_uri = $_SERVER['REQUEST_URI'] ?? '/org/documents/all';
 $is_documents_open = str_contains($current_uri, '/org/documents/');
 $is_review_open = str_contains($current_uri, '/org/review/');
 $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
+
 $is_reports_open = str_contains($current_uri, '/org/reports/');
+
+$user_name = $_SESSION['user_name'] ?? 'User Name';
+$first_initial = strtoupper(substr($user_name, 0, 1));
 
 // $unread_count variable is now unused
 ?>
@@ -204,7 +208,7 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
+                        <img src="https://placehold.co/32x32/0b0f0c/10b981?text=<?= $first_initial ?>" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
                             <p class="text-xs text-gray-400"><?= $_SESSION['user_role'] ?? 'Organization Admin' ?></p>

@@ -58,6 +58,9 @@ $is_admin_analytics = is_admin_or_manager();
     $is_review_open = str_contains($current_uri, '/org/review/');
     $is_organization_open = str_contains($current_uri, '/org/members/') || str_contains($current_uri, '/org/departments') || str_contains($current_uri, '/org/roles');
     $is_reports_open = str_contains($current_uri, '/org/reports/');
+    
+    $user_name = $_SESSION['user_name'] ?? 'User Name';
+    $first_initial = strtoupper(substr($user_name, 0, 1));
     ?>
 
     <aside class="fixed top-0 left-0 h-full w-64 bg-[#0b0f0c] border-r border-green-900 text-white shadow-2xl flex flex-col transition-all duration-300 z-10">
@@ -123,7 +126,7 @@ $is_admin_analytics = is_admin_or_manager();
             <div x-data="{ open: false }" @click.outside="open = false" class="relative">
                 <button @click="open = !open" class="flex items-center justify-between w-full p-2 bg-green-900/30 rounded-lg hover:bg-green-700/40 transition">
                     <div class="flex items-center gap-3">
-                        <img src="https://placehold.co/32x32/0b0f0c/10b981?text=U" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
+                        <img src="https://placehold.co/32x32/0b0f0c/10b981?text=<?= $first_initial ?>" alt="User" class="h-8 w-8 rounded-full border-2 border-green-600 ring-1 ring-green-400 object-cover">
                         <div class="text-left">
                             <p class="text-sm font-semibold text-green-300 truncate max-w-[100px]"><?= $_SESSION['user_name'] ?? 'User Name' ?></p>
                             <p class="text-xs text-gray-400"><?= $_SESSION['user_role'] ?? 'Organization Admin' ?></p>
@@ -154,7 +157,7 @@ $is_admin_analytics = is_admin_or_manager();
         <div class="bg-green-950/50 p-8 rounded-xl border border-green-800 shadow-2xl shadow-green-900/10 max-w-4xl mx-auto">
             
             <div class="flex items-center gap-6 mb-8 border-b border-green-800/50 pb-6">
-                <img src="https://placehold.co/96x96/0b0f0c/10b981?text=U" 
+                <img src="https://placehold.co/32x32/0b0f0c/10b981?text=<?= $first_initial ?>" 
                      class="w-24 h-24 rounded-full border-2 border-green-700 object-cover" 
                      alt="Profile Picture">
                 <div>
