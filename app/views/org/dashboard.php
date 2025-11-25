@@ -5,7 +5,8 @@ $stats = $stats ?? [
     'total_documents' => 0, 
     'pending_reviews' => 0, 
     'approved_documents' => 0, 
-    'new_members' => 0
+    'new_members' => 0,
+    'rejected_documents' => 0 // Default for chart safety
 ];
 
 $recent_activity = $recent_activity ?? [];
@@ -20,16 +21,69 @@ $is_organization_open = str_contains($current_uri, '/org/members/') || str_conta
 $is_reports_open = str_contains($current_uri, '/org/reports/');
 // --- END FIX ---
 
-// --- NEW PHP LOGIC (Announcements) ---
-$announcements = $announcements ?? []; // Data passed from controller
+$announcements = $announcements ?? []; 
 $current_user_id = (int)($_SESSION['user_id'] ?? 0);
 $current_user_role = $_SESSION['user_role'] ?? '';
 $admin_roles = ['Administrator', 'President', 'Adviser'];
 $can_manage_announcements = in_array($current_user_role, $admin_roles);
-// --- END NEW PHP LOGIC ---
 
-include 'sidebar.php'; // Include the existing sidebar structure 
+include 'sidebar.php'; 
 ?>
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(drawChart);
+
+    function drawChart() {
+        // 1. Convert PHP Data to JavaScript DataTable
+        var data = google.visualization.arrayToDataTable([
+            ['Status', 'Count'],
+            // Fetching LIVE data from $stats array:
+            ['Approved', <?= $stats['approved_documents'] ?>], 
+            ['Rejected', <?= $stats['rejected_documents'] ?>], 
+            ['Pending', <?= $stats['pending_reviews'] ?>] 
+        ]);
+
+        // 2. Define Chart Options (Bar Chart for Dark UI, Poppins Font)
+        var options = {
+            title: 'Document Review Overview',
+            chartArea: {
+                left: 80, // Space for vertical axis labels
+                top: 40, 
+                width: '85%', 
+                height: '70%'
+            },
+            backgroundColor: 'transparent',
+            // --- POPPINS FONT AND DARK UI SETTINGS ---
+            titleTextStyle: { 
+                color: '#34d399', 
+                fontSize: 16,
+                bold: true,
+                fontName: 'Poppins' // <-- Poppins
+            },
+            legend: { 
+                position: 'none', // Bar charts look cleaner without legend
+            },
+            hAxis: { // Horizontal Axis (Counts)
+                textStyle: { color: '#e5e7eb', fontName: 'Poppins' },
+                gridlines: { color: '#1f2937' }, 
+                baselineColor: '#1f2937',
+                minValue: 0,
+            },
+            vAxis: { // Vertical Axis (Statuses)
+                textStyle: { color: '#e5e7eb', fontName: 'Poppins' }, // <-- Poppins
+            },
+            colors: ['#10b981', '#ef4444', '#f59e0b'], // Approved, Rejected, Pending
+            tooltip: {
+                textStyle: { color: '#0b0f0c', fontName: 'Poppins' }
+            }
+        };
+
+        // 3. Instantiate and Draw the Chart (BarChart)
+        var chart = new google.visualization.BarChart(document.getElementById('document-chart-box'));
+        chart.draw(data, options);
+    }
+</script>
 <body class="maestro-bg text-white" x-data="{ 
     BASE_URL: '<?= $BASE_URL ?>',
     isModalOpen: false, 
@@ -37,7 +91,7 @@ include 'sidebar.php'; // Include the existing sidebar structure
     modalTitle: 'Post New Announcement',
     modalAction: 'store', // 'store' or 'update'
     currentAnnouncement: { id: 0, title: '', content: '' },
-    isMapVisible: true, // <--- NEW: Map Visibility State
+    isMapVisible: true, // Map Visibility State
     
     openCreateModal() {
         this.modalTitle = 'Post New Announcement';
@@ -69,7 +123,7 @@ include 'sidebar.php'; // Include the existing sidebar structure
     <?php if (function_exists('flash_alert')) flash_alert(); // Display flash alerts ?>
 
     <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
-        <div class="dashboard-card p-5">
+        <div class="dashboard-card p-5 transition duration-300 hover:shadow-lg hover:border-green-600">
             <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-400 uppercase tracking-wider">Total Documents</span>
                 <i class="fa-solid fa-file-lines text-green-400 text-2xl"></i>
@@ -80,7 +134,7 @@ include 'sidebar.php'; // Include the existing sidebar structure
             </p>
         </div>
 
-        <div class="dashboard-card p-5">
+        <div class="dashboard-card p-5 transition duration-300 hover:shadow-lg hover:border-green-600">
             <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-400 uppercase tracking-wider">Pending Reviews</span>
                 <i class="fa-solid fa-hourglass-half text-yellow-400 text-2xl"></i>
@@ -89,16 +143,16 @@ include 'sidebar.php'; // Include the existing sidebar structure
             <p class="text-sm text-yellow-400 mt-1">2 are overdue</p>
         </div>
 
-        <div class="dashboard-card p-5">
+        <div class="dashboard-card p-5 transition duration-300 hover:shadow-lg hover:border-green-600">
             <div class="flex items-center justify-between">
-                <span class="text-sm text-gray-400 uppercase tracking-wider">Approved / Noted</span>
+                <span class="text-sm text-gray-400 uppercase tracking-wider">Approved</span>
                 <i class="fa-solid fa-circle-check text-green-400 text-2xl"></i>
             </div>
             <p class="text-4xl font-bold mt-3"><?= $stats['approved_documents'] ?></p>
             <p class="text-sm text-gray-500 mt-1">Ready for circulation</p>
         </div>
 
-        <div class="dashboard-card p-5">
+        <div class="dashboard-card p-5 transition duration-300 hover:shadow-lg hover:border-green-600">
             <div class="flex items-center justify-between">
                 <span class="text-sm text-gray-400 uppercase tracking-wider">New Members</span>
                 <i class="fa-solid fa-user-plus text-blue-400 text-2xl"></i>
@@ -110,9 +164,9 @@ include 'sidebar.php'; // Include the existing sidebar structure
         </div>
     </div>
     
-    <div class="grid grid-cols-1 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <div>
+        <div class="lg:col-span-2">
             <div class="flex justify-between items-center mb-4 border-b border-green-800/50 pb-3">
                 <h2 class="text-2xl font-bold text-yellow-400">
                     <i class="fa-solid fa-bullhorn mr-2"></i> Announcements
@@ -141,36 +195,46 @@ include 'sidebar.php'; // Include the existing sidebar structure
                             'user_id' => $announcement['user_id']
                         ]);
                     ?>
-                    <div class="bg-green-950/50 rounded-xl shadow-xl border border-green-800 transition duration-300 hover:border-green-500">
-                        <div class="p-4 border-l-4 border-yellow-500 bg-green-900/50 rounded-t-xl flex justify-between items-center">
-                            <h3 class="text-lg font-bold text-green-200"><?= html_escape($announcement['title']) ?></h3>
-                            
-                            <div x-show="canEditDelete()" class="flex space-x-3 text-sm">
-                                <button @click="openEditModal(<?= html_escape($announcement_data) ?>)" 
-                                        class="text-yellow-400 hover:text-yellow-300 transition">
-                                    <i class="fa-solid fa-pen-to-square"></i> Edit
-                                </button>
-                                <button @click="openDeleteModal(<?= html_escape($announcement_data) ?>)" 
-                                        class="text-red-400 hover:text-red-300 transition">
-                                    <i class="fa-solid fa-trash"></i> Delete
-                                </button>
+                    <div class="bg-green-950/40 rounded-lg border border-green-800 transition duration-300 cursor-pointer 
+                                hover:bg-green-900/50 hover:shadow-lg hover:border-green-600">
+                        <div class="p-4 flex flex-col space-y-2">
+                            <div class="flex justify-between items-start border-l-4 border-yellow-500 pl-3">
+                                <h3 class="text-xl font-bold text-green-200 leading-tight transition duration-300 hover:text-green-100">
+                                    <?= html_escape($announcement['title']) ?>
+                                </h3>
+                                
+                                <div x-show="canEditDelete()" class="flex space-x-2 text-sm ml-4 flex-shrink-0">
+                                    <button @click="openEditModal(<?= html_escape($announcement_data) ?>)" 
+                                            class="text-yellow-400 hover:text-yellow-300 transition" title="Edit">
+                                        <i class="fa-solid fa-pen"></i>
+                                    </button>
+                                    <button @click="openDeleteModal(<?= html_escape($announcement_data) ?>)" 
+                                            class="text-red-400 hover:text-red-300 transition" title="Delete">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
                             </div>
-                        </div>
 
-                        <div class="p-4">
-                            <p class="text-gray-300 mb-4 whitespace-pre-wrap"><?= html_escape($announcement['content']) ?></p>
+                            <p class="text-gray-300 whitespace-pre-wrap pt-2"><?= html_escape($announcement['content']) ?></p>
                         </div>
                         
-                        <div class="bg-green-900/30 p-3 rounded-b-xl flex justify-between items-center text-xs text-gray-400 border-t border-green-800">
-                            <div class="flex space-x-4">
-                                <span title="Posted by"><i class="fa-solid fa-user-tag mr-1 text-green-400"></i> <?= $announcer_name ?></span>
-                                <span title="Department"><i class="fa-solid fa-building mr-1 text-blue-400"></i> <?= $announcer_dept ?></span>
+                        <div class="bg-green-800/50 px-4 py-2 rounded-b-lg flex justify-between items-center text-xs text-gray-500 border-t border-green-700">
+                            <div class="flex space-x-3">
+                                <span><i class="fa-solid fa-user-tag mr-1 text-green-400"></i> <?= $announcer_name ?></span>
+                                <span><i class="fa-solid fa-building mr-1 text-blue-400"></i> <?= $announcer_dept ?></span>
                             </div>
-                            <span title="Date Posted"><i class="fa-solid fa-clock mr-1 text-yellow-400"></i> <?= $posted_date ?></span>
+                            <span><i class="fa-solid fa-clock mr-1"></i> <?= $posted_date ?></span>
                         </div>
                     </div>
                     <?php endforeach;
                 endif; ?>
+            </div>
+        </div>
+        
+        <div class="lg:col-span-1">
+            <div class="bg-green-950/40 p-5 rounded-xl border border-green-800 shadow-xl min-h-[300px]">
+                <div id="document-chart-box" style="width: 100%; height: 350px;">
+                    </div>
             </div>
         </div>
         
@@ -179,29 +243,32 @@ include 'sidebar.php'; // Include the existing sidebar structure
     <div id="draggable-map" 
          x-show="isMapVisible" 
          x-transition
-         class="p-2 fixed bottom-8 right-8 z-50 w-80 h-80 shadow-2xl cursor-grab 
-                bg-green-950/90 border border-green-700 rounded-xl transition duration-300 
-                hover:shadow-green-700/50 hover:border-green-600 hover:scale-[1.01] transform-gpu">
+         class="p-0 fixed bottom-8 right-8 z-50 w-80 h-80 cursor-grab 
+                bg-green-950/30 border border-green-700 rounded-lg transition duration-300 
+                shadow-xl ring-1 ring-green-900 
+                hover:shadow-2xl hover:border-green-500 transform-gpu"
+                style="backdrop-filter: blur(8px);">
         
         <div id="map-header" 
-             class="p-2 -mx-2 -mt-2 mb-2 rounded-t-lg bg-green-800/80 hover:bg-green-800 
-                    transition duration-150 ease-in-out cursor-grab active:cursor-grabbing flex justify-between items-center">
-            <h2 class="text-sm font-bold text-white flex items-center">
-                <span><i class="fa-solid fa-location-dot text-red-400 mr-1"></i> MinSU Campus</span>
-                <i class="fa-solid fa-arrows-up-down-left-right text-xs text-gray-300 ml-2"></i>
+             class="p-3 bg-green-900/50 transition duration-150 ease-in-out cursor-grab active:cursor-grabbing 
+                    flex justify-between items-center border-b border-green-700/50">
+            <h2 class="text-sm font-semibold text-white flex items-center">
+                <span class="mr-2"><i class="fa-solid fa-map-marker-alt text-red-400"></i></span>
+                <p>Mindoro State University (MCC)</p>
             </h2>
              <button @click.stop="isMapVisible = false" 
-                    class="text-gray-300 hover:text-white transition duration-150 p-1 -mr-1" title="Hide Map">
+                    class="text-gray-500 hover:text-white transition duration-150" title="Hide Map">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
         </div>
         
-        <div class="overflow-hidden rounded-lg" style="height: calc(100% - 40px);"> 
+        <div class="overflow-hidden rounded-b-lg transition duration-300 hover:shadow-[inset_0_0_10px_rgba(16,185,129,0.3)]" 
+             style="height: calc(100% - 45px);"> 
             <iframe 
                 src="https://maps.google.com/maps?q=Calapan%20Mindoro%20State%20University&z=15&output=embed" 
                 width="100%" 
                 height="100%" 
-                style="border:0; filter: grayscale(50%) brightness(0.8);" 
+                style="border:0; filter: brightness(0.7);" 
                 allowfullscreen="" 
                 loading="lazy" 
                 referrerpolicy="no-referrer-when-downgrade">
@@ -216,14 +283,11 @@ include 'sidebar.php'; // Include the existing sidebar structure
             handle.addEventListener('mousedown', (e) => {
                 isDragging = true;
 
-                // Get viewport coordinates relative to the element's top-left corner
                 const rect = element.getBoundingClientRect();
                 
-                // Calculate offset relative to the element's current top-left corner
                 offsetX = e.clientX - rect.left;
                 offsetY = e.clientY - rect.top;
 
-                // Anchor position using left/top, clearing initial right/bottom anchoring
                 element.style.left = rect.left + 'px';
                 element.style.top = rect.top + 'px';
                 element.style.right = 'auto'; 
@@ -236,7 +300,6 @@ include 'sidebar.php'; // Include the existing sidebar structure
             document.addEventListener('mousemove', (e) => {
                 if (!isDragging) return;
 
-                // Calculate new position by subtracting the stored offset
                 let newX = e.clientX - offsetX;
                 let newY = e.clientY - offsetY;
                 
@@ -253,7 +316,7 @@ include 'sidebar.php'; // Include the existing sidebar structure
         }
 
         const mapElement = document.getElementById('draggable-map');
-        const mapHandle = document.getElementById('map-header'); // Use the custom header as the drag handle
+        const mapHandle = document.getElementById('map-header');
 
         if (mapElement && mapHandle) {
             mapElement.style.position = 'fixed';

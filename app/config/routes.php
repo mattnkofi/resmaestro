@@ -66,3 +66,6 @@ $router->get('/org/analytics/download/documents', 'OrgController::download_docum
 $router->post('/org/announcements/store', 'OrgController::announcement_store');
 $router->post('/org/announcements/update', 'OrgController::announcement_update');
 $router->post('/org/announcements/delete', 'OrgController::announcement_delete');
+
+$router->get('/org/events', 'OrgController::events_list');
+$router->post('/org/events/store', 'OrgController::event_store');

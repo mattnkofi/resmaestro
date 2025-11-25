@@ -30,7 +30,7 @@ if (! function_exists('flash_alert')) {
             $text_color = 'text-white'; 
             $icon_color = 'text-white';
             $progress_color = $panel_bg; 
-            $title_text = $is_success ? 'OPERATION SUCCESS' : 'CRITICAL ERROR'; 
+            $title_text = $is_success ? 'SUCCESS' : 'FAILED'; 
             
             // Re-using the user's specific sound URL
             $sound_url = BASE_URL."/fears-to-fathom-notification-sound.mp3";

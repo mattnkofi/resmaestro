@@ -461,18 +461,18 @@ class OrgController extends Controller
 		$new_data = [
 			'title' 		=> $new_doc_title,
 			'type' 			=> ucfirst($this->io->post('type')),
-			'status' 		=> 'Pending Review', // CRITICAL: Set status to PENDING REVIEW
+			'status' 		=> 'Pending Review', 
 			'description' 	=> $this->io->post('description'),
 			'tags' 			=> array_key_exists('tags', $_POST) ? $this->io->post('tags') : '',
 			'reviewer_id' 	=> $this->io->post('reviewer') ?: NULL, 
-			'file_name' 	=> $uploaded_file_name, // Update to the new file name
+			'file_name' 	=> $uploaded_file_name,
 			'updated_at' 	=> date('Y-m-d H:i:s'),
-			'rejected_at' 	=> NULL, // Clear rejection stamp
-			'approved_at' 	=> NULL,  // Clear approval stamp
-            'deleted_at' 	=> NULL,   // Clear any soft delete stamp
+			'rejected_at' 	=> NULL, 
+			'approved_at' 	=> NULL,  
+            'deleted_at' 	=> NULL,  
 		];
 
-		$success = $this->OrgModel->updateDocument($original_doc_id, $new_data); // CRITICAL: Update existing ID
+		$success = $this->OrgModel->updateDocument($original_doc_id, $new_data); 
 
 		if (!$success) {
 			set_flash_alert('danger', 'Failed to update document record in database. Please contact IT.');
@@ -1326,5 +1326,50 @@ public function members_delete() {
             set_flash_alert('danger', 'Failed to delete announcement.');
         }
         redirect(BASE_URL . '/org/dashboard');
+    }
+
+    public function events_list() {
+
+        $events = $this->OrgModel->getEvents();
+        
+        $this->call->view('org/events', [
+            'events' => $events
+        ]); 
+    }
+    
+    public function event_store() {
+
+        $this->call->library('Form_validation');
+        
+        $this->form_validation->name('title|Event Title')->required()->max_length(255);
+        $this->form_validation->name('start_time|Start Date/Time')->required();
+        $this->form_validation->name('end_time|End Date/Time')->required();
+        
+        if (!$this->form_validation->run()) {
+            set_flash_alert('danger', $this->form_validation->errors());
+            redirect(BASE_URL . '/org/events');
+            return;
+        }
+
+        $data = [
+            'title'       => $this->io->post('title'),
+            'description' => $this->io->post('description') ?: 'No description provided.',
+            'start_time'  => $this->io->post('start_time'),
+            'end_time'    => $this->io->post('end_time'),
+            'location'    => $this->io->post('location') ?: 'TBA',
+            'user_id'     => get_user_id(),
+            'is_synced'   => 0,
+            'created_at'  => date('Y-m-d H:i:s'),
+        ];
+
+        $new_event_id = $this->OrgModel->insertEvent($data);
+
+        if ($new_event_id) {
+            set_flash_alert('success', 'Event "' . htmlspecialchars($data['title']) . '" scheduled successfully.');
+        } else {
+            set_flash_alert('danger', 'Failed to schedule event due to a database error.');
+        }
+        
+        redirect(BASE_URL . '/org/events');
     }
 }

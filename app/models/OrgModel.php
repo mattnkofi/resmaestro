@@ -24,6 +24,9 @@ class OrgModel extends Model
         $approved_query = "SELECT COUNT(*) AS count FROM documents WHERE status = ?";
         $stats['approved_documents'] = $this->db->raw($approved_query, ['Approved'])->fetch()['count'];
         
+        $rejected_query = "SELECT COUNT(*) AS count FROM documents WHERE status = ?";
+        $stats['rejected_documents'] = $this->db->raw($rejected_query, ['Rejected'])->fetch()['count'];
+
         $new_members_query = "SELECT COUNT(*) AS count FROM users WHERE created_at >= ?";
         $stats['new_members']          = $this->db->raw($new_members_query, [$seven_days_ago])->fetch()['count'];
         
@@ -553,5 +556,37 @@ class OrgModel extends Model
         return $this->db->table('announcements')
                         ->where('id', $id)
                         ->delete();
+    }
+
+    public function getEvents() {
+        $query = "
+            SELECT 
+                e.id, 
+                e.title, 
+                e.description, 
+                e.start_time, 
+                e.end_time, 
+                e.location,
+                e.is_synced,
+                u.fname,
+                u.lname
+            FROM events e
+            LEFT JOIN users u ON e.user_id = u.id
+            ORDER BY e.start_time ASC
+        ";
+        try {
+            return $this->db->raw($query)->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            error_log("Database error in getEvents: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    public function insertEvent(array $data) {
+        if (!isset($data['user_id'])) {
+            $data['user_id'] = get_user_id();
+        }
+        $this->db->table('events')->insert($data);
+        return $this->db->last_id();
     }
 }
