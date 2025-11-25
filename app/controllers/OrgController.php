@@ -45,34 +45,45 @@ class OrgController extends Controller
 		]); 
 	}
 
-	// REMOVED: public function fetch_archived_documents_json()
-
-	/**
-	 * Deletes a document permanently (called from rejected documents view).
-	 */
 	public function documents_delete() {
-		$doc_id = (int)$this->io->post('document_id');
-		$doc_title = $this->io->post('document_title') ?? 'Document';
+    $doc_id = (int)$this->io->post('document_id');
+    $doc_title = $this->io->post('document_title') ?? 'Document';
+    $user_id = (int)get_user_id(); // The ID of the currently logged-in user
 
-		$is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+    $is_authenticated = isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+    $is_admin_or_manager = $this->_is_admin_or_manager(); 
 
-		if (!$is_authenticated || $doc_id <= 0) {
-			set_flash_alert('danger', 'Invalid request or session expired.');
-			redirect(BASE_URL . '/org/documents/rejected'); 
-			return;
-		}
+    if (!$is_authenticated || $doc_id <= 0) {
+        set_flash_alert('danger', 'Invalid request or session expired.');
+        redirect(BASE_URL . '/org/documents/rejected'); 
+        return;
+    }
+    
+    $doc = $this->OrgModel->getDocumentById($doc_id);
 
-		$success = $this->OrgModel->deleteDocumentPermanently($doc_id);
+    if (!$doc) {
+        set_flash_alert('danger', "Document not found.");
+        redirect(BASE_URL . '/org/documents/rejected');
+        return;
+    }
+    
+    $document_owner_id = (int)($doc['user_id'] ?? 0); 
+    if ($document_owner_id !== $user_id && !$is_admin_or_manager) {
+        set_flash_alert('danger', "Unauthorized: You do not have permission to delete this document.");
+        redirect(BASE_URL . '/org/documents/rejected');
+        return;
+    }
+    
+    $success = $this->OrgModel->deleteDocumentPermanently($doc_id);
 
-		if ($success) {
-			set_flash_alert('success', "Document '{$doc_title}' permanently deleted.");
-		} else {
-			set_flash_alert('danger', "Failed to delete document '{$doc_title}'.");
-		}
-		
-		// Redirect back to the Rejected Documents page
-		redirect(BASE_URL . '/org/documents/rejected'); 
-	}
+    if ($success) {
+        set_flash_alert('success', "Document '{$doc_title}' permanently deleted.");
+    } else {
+        set_flash_alert('danger', "Failed to delete document '{$doc_title}'.");
+    }
+    
+    redirect(BASE_URL . '/org/documents/rejected'); 
+}
 
 	public function documents_upload() {
 		

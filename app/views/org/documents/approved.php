@@ -166,26 +166,16 @@
     $docs = $approved_docs ?? [];
     
     foreach($docs as $doc): 
-        // FIX: Safely access approver names using the null coalescing operator (??) 
-        // and default to 'System' if the reviewer data is missing.
-        $approver_fname = $doc['approver_fname'] ?? 'System'; //
-        $approver_lname = $doc['approver_lname'] ?? ''; //
-        
-        // Use the approver's name from the JOIN
-        $approver_name = html_escape(trim($approver_fname . ' ' . $approver_lname)); //
-        
-        // FIX: Use 'created_at' field which is guaranteed to exist.
         $approved_date = date('M d, Y', strtotime($doc['created_at']));
     ?>
-    <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-green-900/40 transition">
+   <div class="bg-green-950/50 p-5 rounded-xl border-l-4 border-green-500 flex flex-col md:flex-row justify-between items-start md:items-center shadow-lg hover:bg-green-900/40 transition">
         <div class="flex flex-col mb-2 md:mb-0">
             <span class="text-lg font-semibold text-green-200"><?= html_escape($doc['title']) ?></span>
             <span class="text-sm text-gray-400">Type: <?= html_escape(ucwords($doc['type'])) ?></span>
         </div>
         <div class="flex items-center space-x-6">
             <div class="text-right hidden sm:block">
-                <span class="block text-xs text-gray-500">Approved By: <?= $approver_name ?></span>
-                <span class="block text-sm text-green-400 font-medium">Date: <?= $approved_date ?></span>
+                <span class="block text-sm text-green-400 font-medium">Approval Date: <?= $approved_date ?></span>
             </div>
             <a href="<?=BASE_URL?>/public/uploads/documents/<?= urlencode($doc['file_name']) ?>" 
                target="_blank" 

@@ -85,12 +85,12 @@ class OrgModel extends Model
     }
 
     public function getApprovedDocuments($query = '', $type = '') {
-    $search_term = "%{$query}%"; // Prepare the search term
+    $search_term = "%{$query}%";
     
     $this->db
-        ->select('d.id, d.title, d.file_name, d.status, d.created_at, d.type, u.fname AS approver_fname, u.lname AS approver_lname')
+        ->select('d.id, d.title, d.file_name, d.status, d.created_at, d.type, d.reviewer_id AS approver_id, u.fname AS approver_fname, u.lname AS approver_lname')
         ->table('documents d')
-        ->left_join('users u', 'd.reviewer_id = u.id') 
+        ->left_join('users u', 'd.reviewer_id = u.id')
         ->where('d.status', 'Approved');
 
     // 1. Search Query Filter (Title or Approver Name)
