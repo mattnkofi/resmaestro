@@ -71,15 +71,13 @@ class OrgModel extends Model
             $users_lookup[$user['id']] = $user;
         }
 
-        // 5. Merge user data into document records
         foreach ($docs as &$doc) {
             $user_id = $doc['user_id'];
             $user = $users_lookup[$user_id] ?? ['fname' => 'Unknown', 'lname' => 'User'];
             $doc['fname'] = $user['fname'];
             $doc['lname'] = $user['lname'];
-            unset($doc['user_id']); 
         }
-        unset($doc); 
+        unset($doc);
 
         return $docs;
     }
