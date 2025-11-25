@@ -10,6 +10,7 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
     <script>
         tailwind.config = {
@@ -142,6 +143,10 @@ defined('PREVENT_DIRECT_ACCESS') OR exit('No direct script access allowed');
                         class="absolute inset-y-0 right-0 pr-4 flex items-center text-white hover:text-white/80 transition">
                         <i class="fa-solid" :class="passwordShown2 ? 'fa-eye-slash' : 'fa-eye'"></i>
                     </button>
+                </div>
+
+                <div class="animate-in" style="animation-delay: 0.9s;">
+                <div class="g-recaptcha" data-sitekey="6Lea6BQsAAAAAMTRESFdJPnJOXJp-xundMb3Bxef"></div>
                 </div>
 
                 <button type="submit"

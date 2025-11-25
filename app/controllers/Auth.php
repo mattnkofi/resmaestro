@@ -62,7 +62,39 @@ class Auth extends Controller
             
             // Check for existing user (uniqueness checks)
             if (empty($errors)) {
-                // ENHANCED ERROR MESSAGE 4: Email exists
+                
+                // --- NEW RECAPTCHA CHECK START ---
+                $recaptcha_response = $this->io->post('g-recaptcha-response');
+                $recaptcha_secret = config_item('recaptcha_secret_key');
+                
+                if (empty($recaptcha_response)) {
+                    $errors[] = 'Please complete the reCAPTCHA verification.';
+                } elseif (!empty($recaptcha_secret)) {
+                    $verification_url = 'https://www.google.com/recaptcha/api/siteverify';
+                    
+                    $url_data = http_build_query([
+                        'secret'   => $recaptcha_secret,
+                        'response' => $recaptcha_response,
+                        'remoteip' => $this->io->ip_address()
+                    ]);
+                    
+                    $client = curl_init($verification_url);
+                    curl_setopt($client, CURLOPT_POST, true);
+                    curl_setopt($client, CURLOPT_POSTFIELDS, $url_data);
+                    curl_setopt($client, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($client, CURLOPT_SSL_VERIFYPEER, false); 
+                    $response = curl_exec($client);
+                    curl_close($client);
+
+                    $result = json_decode($response, true);
+
+                    if (!$result || !($result['success'] ?? false)) {
+                        $errors[] = 'reCAPTCHA verification failed. Please try again.';
+                    }
+                } else {
+                    $errors[] = 'System Configuration Error: reCAPTCHA secret key is missing.';
+                }
+
                 if ($this->AuthModel->exists(['email' => $email])) {
                     $errors[] = 'This email address is already registered. Try logging in or recovering your password.';
                 }
@@ -71,13 +103,14 @@ class Auth extends Controller
                     $errors[] = 'The username is already taken. Please choose a different one.';
                 }
             }
-
+            
+            // Re-check errors after validation and reCAPTCHA
             if (!empty($errors)) {
                 set_flash_alert('danger', implode(' ', $errors));
                 redirect('register');
                 return;
             }
-
+            
             // Register the user (lauth assumed)
             $user_id = $this->lauth->register($username, $email, $password, $email_token);
             
@@ -95,16 +128,34 @@ class Auth extends Controller
                 $verify_link = BASE_URL . '/verify-email?token=' . $email_token;
                 $subject = 'Please verify your email address for Maestro';
                 $message = '
-                    <p>Hi ' . htmlspecialchars($fName) . ',</p>
-                    <p>Thank you for registering. Please click the button below to verify your email address:</p>
-                    <p style="text-align:center;">
-                        <a href="' . $verify_link . '" style="background-color: #00a72c; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Verify Email Address</a>
-                    </p>
-                    <p>If the button does not work, copy and paste this URL into your browser:</p>
-                    <p><small>' . $verify_link . '</small></p>
-                    <p>If you did not sign up, please ignore this email.</p>
+                    <div style="font-family: \'Poppins\', sans-serif; background-color: #0b0f0c; color: #ffffff; padding: 20px;">
+                        <div style="max-width: 600px; margin: 0 auto; background-color: #151a17; border-radius: 12px; border: 1px solid #10b981; box-shadow: 0 4px 10px rgba(0,0,0,0.5); padding: 30px; text-align: center;">
+                            
+                            <div style="margin-bottom: 20px;">
+                                <span style="font-size: 48px; line-height: 1; color: #10b981;">&#9993;</span>
+                            </div>
+                            
+                            <h1 style="color: #10b981; font-size: 24px; margin: 0 0 10px 0;">Verify Your Maestro Account</h1>
+                            
+                            <p style="color: #e5e7eb; font-size: 16px; margin: 0 0 25px 0;">
+                                Dear '.htmlspecialchars($fName).', thank you for registering! Please confirm your email address to activate your account.
+                            </p>
+                            
+                            <a href="' . $verify_link . '" 
+                                style="background-color: #10b981; color: #151a17; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);">
+                                ACTIVATE ACCOUNT
+                            </a>
+                            
+                            <p style="font-size: 12px; color: #9ca3af; margin-top: 25px;">
+                                If you did not sign up, please ignore this email.
+                            </p>
+                            <p style="font-size: 10px; color: #4b5563; word-break: break-all;">
+                                Link: <a href="' . $verify_link . '" style="color: #9ca3af;">' . $verify_link . '</a>
+                            </p>
+                        </div>
+                    </div>
                 ';
-
+                
                 sendEmail($email, $subject, $message);
                 
                 set_flash_alert('success', 'Registration successful! An email verification link has been sent to ' . htmlspecialchars($email) . '.');
@@ -116,10 +167,10 @@ class Auth extends Controller
                 return;
             }
         }
-
+        
         $this->call->view('register');
     }
-
+    
     // ----------------------------------------------------------------------
     //  Login Logic
     // ----------------------------------------------------------------------
@@ -182,10 +233,8 @@ class Auth extends Controller
                 session_write_close();
             }
             
-            // ENHANCED SUCCESS MESSAGE 2
             set_flash_alert('success', 'Welcome back, ' . htmlspecialchars($user->username) . '! Redirecting you to the dashboard.');
 
-            // Redirect to dashboard
             redirect(BASE_URL . '/org/dashboard'); 
             exit; 
         }
@@ -201,7 +250,6 @@ class Auth extends Controller
     {
         $token = $this->io->get('token');
         
-        // ENHANCED ERROR MESSAGE 10: Missing token
         if (empty($token)) {
             set_flash_alert('danger', 'Verification link is incomplete. Invalid token provided.');
             redirect('login');
@@ -210,7 +258,6 @@ class Auth extends Controller
 
         $found = $this->AuthModel->find_by_token($token);
         
-        // ENHANCED ERROR MESSAGE 11: Invalid/expired token
         if (!is_object($found)) { 
             set_flash_alert('danger', 'The verification link is invalid or has expired. Please contact support.');
             redirect('login');
@@ -220,10 +267,8 @@ class Auth extends Controller
         $ok = $this->AuthModel->verify_email($found->id); 
         
         if ($ok) {
-            // ENHANCED SUCCESS MESSAGE 3
             set_flash_alert('success', 'Email successfully verified! You can now log in to your account.');
         } else {
-            // ENHANCED ERROR MESSAGE 12: DB verification failed
             set_flash_alert('danger', 'Email verification failed due to a system error. Please contact support.');
         }
         
@@ -232,19 +277,16 @@ class Auth extends Controller
     }
 
     public function logout() {
-        // FIX: Since login manually sets $_SESSION keys, logout must manually destroy the session.
         if (isset($_SESSION)) {
              session_destroy();
         }
         
-        // ENHANCED SUCCESS MESSAGE 4
         set_flash_alert('success', 'You have been successfully logged out.');
         redirect('login');
-        return; // CRITICAL: Stop script execution after redirect
+        return; 
     }
 
     
-    // Utility function to test email configuration
     public function test_email()
     {
         // Define test parameters
@@ -256,10 +298,8 @@ class Auth extends Controller
             <p><b>Sent at:</b> ' . date('Y-m-d H:i:s') . '</p>
         ';
 
-        // Use the dedicated PHPMailer helper function
         $result = sendEmail($to, $subject, $body);
 
-        // Output simple result in browser
         if ($result === true) {
             echo '<h3 style="color:green;">✅ PHPMailer Test Email sent successfully to ' . htmlspecialchars($to) . '!</h3>';
         } else {

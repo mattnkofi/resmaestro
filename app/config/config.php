@@ -56,6 +56,8 @@ $config['sendgrid_from']        = "deleon.kimberlynicole.9@gmail.com";
 $config['sendgrid_from_name']   = "Maestro";
 $config['sendgrid_api_key']     = "";
 
+$config['recaptcha_site_key']   = '6Lea6BQsAAAAAMTRESFdJPnJOXJp-xundMb3Bxef';
+$config['recaptcha_secret_key'] = '6Lea6BQsAAAAAPc1UtBknkQOQdQuaLW2DK9Vw6Xz';
 /*
 | -------------------------------------------------------------------
 | LavaLust Version

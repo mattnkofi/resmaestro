@@ -460,6 +460,9 @@ class OrgModel extends Model
     }
 
     public function deleteMember($id) {
+    $this->db->table('documents')
+                 ->where('user_id', (int)$id)
+                 ->delete();
     return $this->db->table('users')
         ->where('id', (int)$id)
         ->delete();

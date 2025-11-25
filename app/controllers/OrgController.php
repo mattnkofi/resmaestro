@@ -271,41 +271,41 @@ class OrgController extends Controller
 		
 		if ($submitter_id) {
 			
-			// SEND EMAIL NOTIFICATION (New Interactive UI)
 			if ($submitter_email) {
-				
-				$is_approved = ($new_status === 'Approved');
-				$icon_html = $is_approved 
-					? '<div style="color: #10b981; font-size: 48px; line-height: 1; margin-bottom: 15px;">&#10003;</div>' // Green Check
-					: '<div style="color: #ef4444; font-size: 48px; line-height: 1; margin-bottom: 15px;">&#10006;</div>'; // Red X
-				$status_color = $is_approved ? '#10b981' : '#ef4444';
-				
-				$email_subject = "Maestro Update: Your Document '{$doc_title}' is {$new_status}";
-				$email_body = "
-					<div style='font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;'>
-						<div style='max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; border: 1px solid #e0e0e0; box-shadow: 0 4px 8px rgba(0,0,0,0.05); padding: 30px; text-align: center;'>
-							
-							{$icon_html}
-							
-							<h1 style='color: {$status_color}; font-size: 24px; margin: 0 0 10px 0;'>Document Review Complete</h1>
-							
-							<p style='color: #333; font-size: 16px; margin: 0 0 20px 0;'>
-								Dear ".htmlspecialchars($submitter_fname).", the document <strong>".htmlspecialchars($doc_title)."</strong> has been processed.
-							</p>
-							
-							<div style='background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;'>
-								<p style='font-size: 14px; color: #555; margin: 0 0 5px 0;'><strong>Final Status:</strong> <span style='color: {$status_color};'>".htmlspecialchars($new_status)."</span></p>
-								<p style='font-size: 14px; color: #555; margin: 0;'><strong>Reviewer Comment:</strong> <em>".htmlspecialchars($review_comment)."</em></p>
-							</div>
-							
-							<p style='font-size: 12px; color: #999; margin-top: 30px;'>
-								This is an automated notification.
-							</p>
-						</div>
-					</div>
-				";
-				sendEmail($submitter_email, $email_subject, $email_body); 
-			}
+                
+                $is_approved = ($new_status === 'Approved');
+                $icon_color = $is_approved ? '#10b981' : '#ef4444'; // Green or Red
+                $icon_symbol = $is_approved ? '&#10003;' : '&#10006;'; // Check or X
+                $status_color = $icon_color;
+                
+                $email_subject = "Maestro Update: Your Document '{$doc_title}' is {$new_status}";
+                $email_body = "
+                    <div style='font-family: \"Poppins\", sans-serif; background-color: #0b0f0c; color: #ffffff; padding: 20px;'>
+                        <div style='max-width: 600px; margin: 0 auto; background-color: #151a17; border-radius: 12px; border: 1px solid #1f2937; box-shadow: 0 4px 8px rgba(0,0,0,0.5); padding: 30px; text-align: center;'>
+                            
+                            <div style='display: inline-block; background-color: {$icon_color}; color: #151a17; border-radius: 50%; width: 50px; height: 50px; line-height: 50px; font-size: 30px; font-weight: bold; text-align: center; margin-bottom: 20px;'>
+                                {$icon_symbol}
+                            </div>
+                            
+                            <h1 style='color: {$status_color}; font-size: 24px; margin: 0 0 10px 0;'>Document Review Complete: {$new_status}</h1>
+                            
+                            <p style='color: #e5e7eb; font-size: 16px; margin: 0 0 20px 0;'>
+                                Dear <b>".htmlspecialchars($submitter_fname)."</b>, the document <strong>".htmlspecialchars($doc_title)."</strong> has been processed.
+                            </p>
+                            
+                            <div style='background-color: #0b0f0c; padding: 15px; border-radius: 8px; border: 1px solid #1f2937; margin-bottom: 20px; text-align: left;'>
+                                <p style='font-size: 14px; color: #9ca3af; margin: 0 0 5px 0;'><strong>Final Status:</strong> <span style='color: <b>{$status_color};'>".htmlspecialchars($new_status)."</b></span></p>
+                                <p style='font-size: 14px; color: #9ca3af; margin: 0;'><strong>Reviewer Comment:</strong> <em style='color: #e5e7eb;'>".htmlspecialchars($review_comment)."</em></p>
+                            </div>
+                            
+                            <p style='font-size: 12px; color: #4b5563; margin-top: 30px;'>
+                                This is an automated notification from Maestro Organization.
+                            </p>
+                        </div>
+                    </div>
+                ";
+                sendEmail($submitter_email, $email_subject, $email_body); 
+            }
 		}
 		
 		$message = "Status for '{$doc_title}' successfully changed to {$new_status}.";
@@ -650,13 +650,11 @@ public function members_list() {
         return;
     }
 
-    // --- NEW LOGIC START: Determine permissions ---
     $current_user_role = $_SESSION['user_role'] ?? '';
     $admin_roles = ['Administrator', 'President', 'Adviser'];
     $can_manage_org = in_array($current_user_role, $admin_roles);
     $is_self_edit = ($member_id === $current_user_id);
     
-    // Non-admin trying to edit someone else's credentials via POST is blocked here (already covered by frontend hide/unauthorized modal, but good for security)
     if (!$is_self_edit && !$can_manage_org) {
         set_flash_alert('danger', 'You do not have permission to edit this member\'s details.');
         redirect(BASE_URL . '/org/members/list');
@@ -672,7 +670,6 @@ public function members_list() {
     $this->form_validation->name('lname|Last Name')->required()->max_length(50);
     $this->form_validation->name('email|Email Address')->required()->valid_email();
     
-    // Only validate Group/Dept fields if the current user is an Admin (can_manage_org)
     if ($can_manage_org) {
         $this->form_validation->name('dept_id|Department')->required()->greater_than('0');
         $this->form_validation->name('role_id|Role')->required()->greater_than('0');
@@ -821,7 +818,7 @@ public function members_delete() {
     
     if ($success) {
         $full_name = ($member['fname'] ?? '') . ' ' . ($member['lname'] ?? '');
-        set_flash_alert('success', 'Member "' . htmlspecialchars(trim($full_name)) . '" has been deleted.');
+        set_flash_alert('success', 'Member "' . htmlspecialchars(trim($full_name)) . '" has been deleted, inlcuding their uploaded document/s.');
     } else {
         set_flash_alert('danger', 'Failed to delete member. Please try again.');
     }

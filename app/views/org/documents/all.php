@@ -197,10 +197,6 @@ $first_initial = strtoupper(substr($user_name, 0, 1));
                     <a href="<?=BASE_URL?>/org/departments" class="block p-2 rounded hover:bg-green-700/40 transition <?= str_contains($current_uri, '/org/departments') ? 'text-green-400 font-semibold bg-green-900/40' : '' ?>">Departments</a>
                 </div>
             </div>
-            
-            <div class="pt-4">
-                <h2 class="text-xs font-semibold text-gray-500 uppercase mb-2 ml-2 tracking-wider font-semibold">System</h2>
-            </div>
         </nav>
 
         <div class="border-t border-green-800 px-4 py-4">
