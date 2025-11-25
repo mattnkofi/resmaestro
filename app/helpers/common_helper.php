@@ -16,45 +16,118 @@ if (! function_exists('set_flash_alert')) {
 if (! function_exists('flash_alert')) {
     function flash_alert()
     {
-        // FIX: Changed output to a Toast Notification system using Alpine.js and Tailwind CSS.
-        
+        // 1. Core Logic (Unchanged)
         $LAVA = lava_instance();
         $alert_type = $LAVA->session->flashdata('alert');
         $message = $LAVA->session->flashdata('message');
         
         if ($alert_type !== null) {
             $is_success = ($alert_type === 'success');
-            // --- NEW STYLING LOGIC ---
-            $icon = $is_success ? 'fa-check-circle' : 'fa-triangle-exclamation';
-            $icon_bg = $is_success ? 'bg-green-600' : 'bg-red-600';
-            $text_color = $is_success ? 'text-green-300' : 'text-red-300';
-            $ring_color = $is_success ? 'ring-green-500' : 'ring-red-500';
-            $border_color = $is_success ? 'border-green-600' : 'border-red-600';
-            // --- END NEW STYLING LOGIC ---
+            
+            // 2. STYLING (UNCHANGED)
+            $icon = $is_success ? 'fa-circle-check' : 'fa-triangle-exclamation';
+            $panel_bg = $is_success ? 'bg-green-700' : 'bg-red-700'; 
+            $text_color = 'text-white'; 
+            $icon_color = 'text-white';
+            $progress_color = $panel_bg; 
+            $title_text = $is_success ? 'OPERATION SUCCESS' : 'CRITICAL ERROR'; 
+            
+            // Re-using the user's specific sound URL
+            $sound_url = BASE_URL."/fears-to-fathom-notification-sound.mp3";
 
-            // Toast HTML/Alpine.js Structure
+            // 3. AUTO-DISMISS & NO COUNTDOWN STRUCTURE
             echo "
-            <div x-data=\"{ show: true }\" 
-                 x-show=\"show\" 
-                 x-init=\"setTimeout(() => show = false, 5000)\"
-                 x-transition:enter=\"transition ease-out duration-300\"
-                 x-transition:enter-start=\"opacity-0 scale-95\"
-                 x-transition:enter-end=\"opacity-100 scale-100\"
-                 x-transition:leave=\"transition ease-in duration-200\"
-                 x-transition:leave-start=\"opacity-100 scale-100\"
-                 x-transition:leave-end=\"opacity-0 scale-95\"
-                 class='fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/3 z-50 w-full max-w-lg'>
+            <div x-data=\"{ 
+                    show: true, 
+                    played: false,
+                    duration: 3000, 
+                    progress: 100,
+                    timer: null,
+                    interval: null,
+                    
+                    playSound() { 
+                        if (this.played) return;
+                        const audio = document.getElementById('toast-sound-final'); 
+                        if(audio) { 
+                            audio.play().catch(e => console.log('Autoplay blocked: ' + e)); 
+                            this.played = true;
+                        } 
+                    },
+                    
+                    // Progress bar and timer logic remains to control the visual bar and auto-close
+                    startTimer() {
+                        this.progress = 100;
+                        this.timer = setTimeout(() => this.show = false, this.duration);
+                        const updateFrequency = this.duration / 100; 
+
+                        this.interval = setInterval(() => {
+                            if (this.progress > 0) {
+                                this.progress -= 1; 
+                            } else {
+                                clearInterval(this.interval);
+                            }
+                        }, updateFrequency);
+                    },
+                    
+                    pauseTimer() {
+                        clearTimeout(this.timer);
+                        clearInterval(this.interval);
+                    },
+
+                    resumeTimer() {
+                        const remainingMs = (this.progress / 100) * this.duration;
+                        this.timer = setTimeout(() => this.show = false, remainingMs);
+                        
+                        const updateFrequency = this.duration / 100; 
+
+                        this.interval = setInterval(() => {
+                            if (this.progress > 0) {
+                                this.progress -= 1;
+                            } else {
+                                clearInterval(this.interval);
+                            }
+                        }, updateFrequency);
+                    }
+                }\" 
+                x-show=\"show\" 
+                x-init=\"playSound(); startTimer()\"
+                @mouseover=\"pauseTimer()\" 
+                @mouseleave=\"resumeTimer()\"
+                x-transition:enter=\"transition ease-out duration-500\"
+                x-transition:enter-start=\"opacity-0 scale-95\"
+                x-transition:enter-end=\"opacity-100 scale-100\"
+                x-transition:leave=\"transition ease-in duration-300\"
+                x-transition:leave-start=\"opacity-100 scale-100\"
+                x-transition:leave-end=\"opacity-0 scale-95\"
+                class='fixed inset-0 flex items-center justify-center z-50 pointer-events-none'>
                 
-                <div class='p-6 rounded-md shadow-2xl flex items-center space-x-5 border-2 {$border_color} ring-opacity-50 {$ring_color} ring-offset-4 ring-offset-gray-900' style='background: rgba(11, 15, 12, 0.7); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);'>
-                    <div class='flex-shrink-0 w-12 h-12 rounded-md flex items-center justify-center {$icon_bg}'>
-                        <i class='fa-solid {$icon} text-xl text-white'></i>
+                <audio id='toast-sound-final' src='{$sound_url}' preload='auto' style='display: none;'></audio>
+
+                <div @click.self=\"show = false\" class='fixed inset-0 bg-black/95 pointer-events-auto' aria-hidden='true'></div> 
+                
+                <div class='w-full max-w-md {$panel_bg} rounded-xl overflow-hidden transform transition-all pointer-events-auto'>
+                    
+                    <div class='w-full h-1'>
+                        <div class='h-full {$progress_color} transition-all duration-[30ms] ease-linear' :style=\"'width: ' + progress + '%'\"></div>
                     </div>
-                    <p class='text-lg font-extrabold flex-1 {$text_color}'>
-                        " . htmlspecialchars($message) . "
-                    </p>
-                    <button @click='show = false' class='flex-shrink-0 text-white/70 hover:text-white transition'>
-                        <i class='fa-solid fa-xmark text-xl'></i>
-                    </button>
+
+                    <div class='p-6 flex items-start space-x-4'>
+                        <div class='flex-shrink-0 pt-0.5'>
+                            <i class='fa-solid {$icon} text-3xl {$icon_color}'></i>
+                        </div>
+                        
+                        <div class='flex-1 min-w-0'>
+                            <p class='text-lg font-bold {$text_color}'>{$title_text}</p>
+                            <p class='mt-1 text-base {$text_color} opacity-80 overflow-hidden whitespace-normal break-words'>
+                                " . htmlspecialchars($message) . "
+                            </p>
+                        </div>
+                        
+                        <button @click='show = false' class='flex-shrink-0 text-white opacity-70 hover:opacity-100 transition duration-150 p-1 -mt-2 -mr-2'>
+                            <i class='fa-solid fa-xmark text-xl'></i>
+                        </button>
+                    </div>
+
                 </div>
             </div>";
         }
@@ -66,7 +139,6 @@ if ( ! function_exists('xss_clean'))
 {
     function xss_clean($string)
     {
-        // FIX: Removed reference operator for PHP 8+ compatibility
         $LAVA = lava_instance();
         $LAVA->call->library('antixss');
         return $LAVA->antixss->xss_clean($string);
@@ -76,9 +148,7 @@ if ( ! function_exists('xss_clean'))
 
 if ( ! function_exists('logged_in'))
 {
-    //check if user is logged in
     function logged_in() {
-        // FIX: Removed reference operator for PHP 8+ compatibility
         $LAVA = lava_instance();
         $LAVA->call->library('lauth');
         if($LAVA->lauth->is_logged_in())
@@ -86,10 +156,8 @@ if ( ! function_exists('logged_in'))
     }
 }
 
-// CRITICAL FIX: Re-adding the missing is_logged_in alias
 if ( ! function_exists('is_logged_in'))
 {
-    // Alias/Wrapper for the primary logged-in check
     function is_logged_in() {
         return logged_in();
     }
@@ -97,9 +165,7 @@ if ( ! function_exists('is_logged_in'))
 
 if ( ! function_exists('get_user_id'))
 {
-    //get user id
     function get_user_id() {
-        // FIX: Removed reference operator for PHP 8+ compatibility
         $LAVA = lava_instance();
         $LAVA->call->library('lauth');
         return $LAVA->lauth->get_user_id();
@@ -108,9 +174,7 @@ if ( ! function_exists('get_user_id'))
 
 if ( ! function_exists('get_username'))
 {
-    //get username
     function get_username($user_id) {
-        // FIX: Removed reference operator for PHP 8+ compatibility
         $LAVA = lava_instance();
         $LAVA->call->library('lauth');
         return $LAVA->lauth->get_username($user_id);

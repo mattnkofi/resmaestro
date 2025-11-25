@@ -194,6 +194,34 @@ class OrgController extends Controller
 		return;
 	}
 	
+	// --- PERMISSION CHECK START: Only Assigned Reviewer or Admin can update status ---
+	$doc = $this->OrgModel->getDocumentById($doc_id); // Fetch document to get assigned reviewer
+	
+	if (!$doc) {
+	    set_flash_alert('danger', 'Document not found or is no longer available.');
+	    redirect(BASE_URL . '/org/documents/all'); 
+	    return;
+	}
+	
+	$assigned_reviewer_id = $doc['reviewer_id'] ?? null;
+	$current_user_id = (int)get_user_id();
+	$is_admin = $this->_is_admin_or_manager(); // Reuse existing admin check method
+
+	// If the document has an assigned reviewer AND the current user is neither the assigned reviewer nor an admin
+	if ((!$is_admin) && ((int)$assigned_reviewer_id !== $current_user_id)) {
+	    set_flash_alert('danger', 'Unauthorized: You are not the assigned reviewer for this document.');
+	    redirect(BASE_URL . '/org/documents/all'); 
+	    return;
+	}
+	
+	if (!$is_admin && $assigned_reviewer_id === null) {
+	    set_flash_alert('danger', 'Unauthorized: This document has no assigned reviewer. Only an Administrator can process it.');
+	    redirect(BASE_URL . '/org/documents/all');
+	    return;
+	}
+
+	// --- PERMISSION CHECK END ---
+	
 	// --- IMPORTANT: Only allow Approved and Rejected status updates ---
 	if (!in_array($new_status, ['Approved', 'Rejected'])) {
 		set_flash_alert('danger', "Invalid status: {$new_status}. Only 'Approved' or 'Rejected' are allowed.");

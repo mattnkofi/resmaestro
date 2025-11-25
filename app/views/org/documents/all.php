@@ -221,6 +221,8 @@ $is_reports_open = str_contains($current_uri, '/org/reports/');
 			</div>
 		</div>
 
+        <?php if (function_exists('flash_alert')) flash_alert(); ?>
+
 		<form method="GET" action="<?= BASE_URL ?>/org/documents/all">
 			<div class="flex flex-col md:flex-row gap-4 mb-8 items-center">
 				
